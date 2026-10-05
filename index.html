@@ -221,21 +221,21 @@
 
         <!-- ================= VIEW: BUDGET ================= -->
         <section id="view-budget" class="view" aria-label="Budget and split bill">
-          <div class=\"bg-white/60 backdrop-blur-md border border-white/60 px-5 py-4 lg:px-10">
+          <div class="bg-white/60 backdrop-blur-md border-b border-white/60 px-5 py-4 lg:px-10">
             <h2 class="text-[22px] font-medium text-brand-600">Budget &amp; Split Bill</h2>
             <p class="text-[11px] text-stone-500">Umrah 9 Hari · 3 travellers</p>
           </div>
 
-          <div class="mx-auto max-w-4xl px-5 pt-5 lg:px-10">
+          <div class="mx-auto max-w-4xl px-5 pt-6 pb-28 lg:px-10">
             <div class="grid gap-4 md:grid-cols-[1.2fr_1fr]">
-              <div class="rounded-2xl bg-brand-100 p-5">
+              <div class="rounded-2xl bg-white/60 backdrop-blur-md border border-brand-200 p-5 shadow-glass">
                 <p class="text-xs text-stone-600">Budget left</p>
                 <p class="mt-1 text-4xl font-semibold text-brand-700">¥<span id="b-left" class="tnum"></span></p>
                 <p class="text-xs text-stone-500"><span id="b-left-idr"></span> · of ¥<span id="b-total"></span></p>
                 <div id="b-bar-wrap" role="progressbar" aria-label="Budget spent" aria-valuemin="0" aria-valuemax="100" class="mt-4 h-2 overflow-hidden rounded-full bg-white"><div id="b-bar" class="h-full rounded-full bg-brand-600 transition-all duration-700"></div></div>
                 <div class="mt-2 flex justify-between text-[11px] text-stone-500"><span>Spent ¥<span id="b-spent" class="tnum"></span></span><span id="b-pct"></span></div>
               </div>
-              <div class="rounded-2xl bg-peach-120 p-5">
+              <div class="rounded-2xl bg-white/60 backdrop-blur-md border border-peach-200 p-5 shadow-glass">
                 <p class="flex items-center gap-1.5 text-xs font-medium text-peach-600"><i class="ph-light ph-handshake text-base"></i>Settle up</p>
                 <ul id="settle" class="mt-3 space-y-2"></ul>
               </div>
@@ -268,12 +268,12 @@
 
         <!-- ================= VIEW: VAULT ================= -->
         <section id="view-vault" class="view" aria-label="Packing list and document vault">
-          <div class=\"bg-white/60 backdrop-blur-md border border-white/60 px-5 py-4 lg:px-10">
+          <div class="bg-white/60 backdrop-blur-md border-b border-white/60 px-5 py-4 lg:px-10">
             <h2 class="text-[22px] font-medium text-brand-600">Packing &amp; Documents</h2>
             <p class="text-[11px] text-stone-500">Umrah 9 Hari · Oct 26 – Oct 28</p>
           </div>
 
-          <div class="mx-auto grid max-w-4xl gap-6 px-5 pt-6 md:grid-cols-2 lg:px-10">
+          <div class="mx-auto grid max-w-4xl gap-6 px-5 pt-6 pb-28 md:grid-cols-2 lg:px-10">
             <div>
               <h3 class="text-[15px] font-medium">Packing list</h3>
               <p class="text-xs text-stone-500"><span id="pack-count">0</span> of <span id="pack-total">0</span> packed</p>
@@ -281,8 +281,8 @@
               <div id="pack-cats" class="mt-3 space-y-3"></div>
               <button id="cat-toggle" aria-expanded="false" class="mt-3 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 text-xs font-medium text-brand-600 hover:bg-brand-50"><i class="ph-light ph-plus text-lg"></i>Add a category</button>
               <form id="cat-form" class="mt-2 hidden gap-2">
-                <input id="cat-name" type="text" maxlength="30" required aria-label="New category name" placeholder="e.g. Snacks for the train" class="h-12 min-w-0 flex-1 rounded-lg border border-stone-200 bg-white/60 backdrop-blur-md border border-white/60 px-3 text-[13px] placeholder:text-stone-400 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100" />
-                <button type="submit" class="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-brand-600 text-white hover:bg-brand-700" aria-label="Add category"><i class="ph-light ph-plus text-lg"></i></button>
+                <input id="cat-name" type="text" maxlength="30" required aria-label="New category name" placeholder="e.g. Snacks for the train" class="h-12 min-w-0 flex-1 rounded-xl border border-white/60 bg-white/60 backdrop-blur-md px-3 shadow-sm text-[13px] placeholder:text-stone-400 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100" />
+                <button type="submit" class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-600 text-white hover:bg-brand-700 shadow-glass" aria-label="Add category"><i class="ph-light ph-plus text-lg"></i></button>
               </form>
             </div>
 
@@ -865,7 +865,7 @@ document.addEventListener('click', e => {
           ? `<span class="inline-flex items-center gap-2 rounded-full bg-brand-100 py-1 pl-1.5 pr-3 text-[11px] font-medium text-brand-700"><span class="flex -space-x-1.5">${e.splits.map(s => avatar(s.member_id, 'h-5 w-5 text-[9px]')).join('')}</span><i class="ph-light ph-users-three text-sm"></i>Divided by ${n} · ¥${yen(each)} each</span>`
           : `<span class="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1 text-[11px] font-medium text-stone-500"><i class="ph-light ph-user text-sm"></i>Just ${byId[e.splits[0].member_id].name}</span>`;
         return `
-        <li class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 rounded-xl p-4 md:grid-cols-[4.5rem_minmax(0,1fr)_9rem_13rem_7rem] md:gap-4">
+        <li class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 rounded-2xl bg-white/60 backdrop-blur-md border border-white/60 p-4 shadow-glass transition hover:bg-white/80 md:grid-cols-[4.5rem_minmax(0,1fr)_9rem_13rem_7rem] md:gap-4">
           <div class="hidden md:block"><p class="text-[13px] font-medium">${e.date}</p><p class="text-[11px] text-stone-400">${e.weekday}</p></div>
           <div class="order-1 min-w-0 md:order-none">
             <p class="truncate text-[14px] font-medium">${e.description}</p>
