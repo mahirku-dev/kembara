@@ -317,7 +317,7 @@
 
   <!-- ================= MOBILE BOTTOM NAV ================= -->
   <nav class="fixed inset-x-0 bottom-0 z-40 rounded-t-3xl bg-white/60 backdrop-blur-xl border-t border-white/60 shadow-glass safe-bottom lg:hidden" aria-label="Sections">
-    <ul class="mx-auto grid max-w-lg grid-cols-4 px-2 pt-2">
+    <ul class="mx-auto grid max-w-lg grid-cols-5 px-2 pt-2">
       <li><button data-nav="home"      class="nav-m flex min-h-[56px] w-full flex-col items-center justify-center gap-0.5 text-[10px] font-medium"><i class="ph-light ph-house text-[26px]"></i>Home</button></li>
       <li><button data-nav="itinerary" class="nav-m flex min-h-[56px] w-full flex-col items-center justify-center gap-0.5 text-[10px] font-medium"><i class="ph-light ph-list-bullets text-[26px]"></i>Plan</button></li>
       <li><button data-nav="map"       class="nav-m flex min-h-[56px] w-full flex-col items-center justify-center gap-0.5 text-[10px] font-medium"><i class="ph-light ph-map-trifold text-[26px]"></i>Map</button></li>
@@ -701,8 +701,8 @@
       $('#itin-day-filter').innerHTML = days.map((d, i) => {
         const isSel = i === selectedDayIdx;
         const cls = isSel 
-          ? 'bg-[#2a5b32] text-white border-transparent' 
-          : 'bg-white/60 backdrop-blur-md border border-[#c4dbca] text-[#2a5b32] shadow-sm hover:bg-white/80';
+          ? 'bg-brand-600 text-white border-transparent' 
+          : 'bg-white/60 backdrop-blur-md border border-brand-200 text-brand-700 shadow-sm hover:bg-white/80';
         return `<button data-filter-day="${i}" class="snap-start flex flex-col items-center justify-center min-w-[80px] h-12 rounded-2xl border transition-all ${cls}">
           <span class="text-[12px] font-bold">Hari ${d.day_number}</span>
           <span class="text-[10px] font-medium opacity-90">${d.weekday}, ${d.date.replace('Oct', 'Okt').replace('Nov', 'Nov')}</span>
@@ -719,7 +719,7 @@
       
       const c = CATS[nextPlace.category] || { icon: 'ph-map-pin' };
       $('#next-agenda').innerHTML = `
-        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#e3efe6] text-[#2a5b32]">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
            <i class="ph-light ${c.icon} text-xl"></i>
         </div>
         <div class="min-w-0 flex-1">
