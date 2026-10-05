@@ -385,7 +385,7 @@
 
     const days = [
       { day_number: 1, date: 'Oct 26', weekday: 'Sen', notes: 'Bandara Soekarno-Hatta – Bandara Jeddah – Madinah', places: [
-        { name: 'Kumpul di Terminal 2 CGK (Lounge)', loc: 'Bandara Soekarno-Hatta', tag: 'Persiapan', start: '05:00', end: '07:00', category: 'transit', cost: 0 },
+        { name: 'Kumpul di Terminal 2 CGK (Lounge)', loc: 'Bandara Soekarno-Hatta', tag: 'Persiapan', start: '05:00', end: '07:00', category: 'train', cost: 0 },
         { name: 'Penerbangan Saudia ke Jeddah', loc: 'CGK to JED', tag: 'Take off 10:00', start: '10:00', end: '15:55', category: 'flight', cost: 0 },
         { name: 'Perjalanan Bus ke Madinah', loc: 'Bandara Jeddah', tag: 'Transfer', start: '17:30', end: '23:00', category: 'bus', cost: 0 },
         { name: 'Check-in Hotel Madinah', loc: 'Madinah', tag: 'Istirahat', start: '23:00', end: '23:30', category: 'stay', cost: 0 },
@@ -445,10 +445,10 @@
     const evenSplit = (amount, ids) => ids.map(id => ({ member_id: id, amount_owed: amount / ids.length }));
 
     const expenses = [
-      { id: 1, date: 'Oct 26', weekday: 'Sen', weekday: 'Mon', description: 'Tiket Kereta Cepat Haramain',      category: 'transit', amount: 10800, paid_by: 'm1', splits: evenSplit(10800, ALL) },
+      { id: 1, date: 'Oct 26', weekday: 'Sen', weekday: 'Mon', description: 'Tiket Kereta Cepat Haramain',      category: 'train', amount: 10800, paid_by: 'm1', splits: evenSplit(10800, ALL) },
       { id: 2, date: 'Oct 26', weekday: 'Sen', weekday: 'Mon', description: 'Machiya stay · deposit',      category: 'stay',    amount: 36000, paid_by: 'm2', splits: evenSplit(36000, ALL) },
       { id: 3, date: 'Oct 26', weekday: 'Sen', weekday: 'Mon', description: 'Makan malam Al Baik',   category: 'food',    amount: 3900,  paid_by: 'm3', splits: evenSplit(3900, ALL) },
-      { id: 4, date: 'Oct 27', weekday: 'Sel', weekday: 'Tue', description: 'Sewa Kursi Roda',       category: 'transit', amount: 2700,  paid_by: 'm1', splits: evenSplit(2700, ALL) },
+      { id: 4, date: 'Oct 27', weekday: 'Sel', weekday: 'Tue', description: 'Sewa Kursi Roda',       category: 'train', amount: 2700,  paid_by: 'm1', splits: evenSplit(2700, ALL) },
       { id: 5, date: 'Oct 27', weekday: 'Sel', weekday: 'Tue', description: 'Kurma Ajwa (2 kotak)', category: 'food',    amount: 1800,  paid_by: 'm1', splits: evenSplit(1800, ['m1', 'm3']) },
       { id: 6, date: 'Oct 27', weekday: 'Sel', weekday: 'Tue', description: 'Oleh-oleh Sajadah',   category: 'sight',   amount: 4200,  paid_by: 'm2', splits: evenSplit(4200, ['m2']) },
       { id: 7, date: 'Oct 28', weekday: 'Rab', weekday: 'Wed', description: 'Eikan-dō night entry',        category: 'sight',   amount: 3000,  paid_by: 'm3', splits: evenSplit(3000, ALL) },
