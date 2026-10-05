@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
 
   <!-- Phosphor Icons (light + fill) -->
   <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/light/style.css" />
@@ -139,6 +140,7 @@
                 <option value="d">Oct 28 · 21:00 — after the last stop</option>
               </select>
             </label>
+              <div id="hadith-card" class="mt-5"></div>
           </div>
 
           <div id="dash-images" class="px-5 pt-6 lg:px-10">
@@ -595,6 +597,72 @@
       }
     }
 
+    
+    async function renderHadithCard() {
+      const container = $('#hadith-card');
+      if (!container) return;
+      
+      container.innerHTML = `
+        <div class="rounded-3xl bg-white/60 backdrop-blur-md border border-white/60 p-5 shadow-glass flex flex-col items-center justify-center min-h-[120px]">
+           <i class="ph-light ph-spinner ph-spin text-2xl text-brand-500 mb-2"></i>
+           <p class="text-xs text-stone-500">Memuat inspirasi hari ini...</p>
+        </div>
+      `;
+
+      const fallbackHadith = {
+        arab: "صَلَاةٌ فِي مَسْجِدِي هَذَا أَفْضَلُ مِنْ أَلْفِ صَلَاةٍ فِيمَا سِوَاهُ إِلَّا الْمَسْجِدَ الْحَرَامَ",
+        indo: "Shalat di masjidku ini (Masjid Nabawi) lebih baik dari seribu shalat di masjid lain, kecuali Masjidil Haram.",
+        kitab: "Bukhari",
+        nomor: "1190"
+      };
+
+      let hadithData = fallbackHadith;
+
+      try {
+        const res = await fetch('https://api.ahmadsanusi.com/v1/hadits/bukhari/1190', {
+          headers: {
+            'Accept': 'application/json',
+            // 'X-API-Key': 'YOUR_API_KEY_HERE' 
+          }
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.arab && data.indo) {
+             hadithData = data;
+          }
+        } else {
+          console.warn("API Hadits butuh X-API-Key. Menggunakan fallback offline.");
+        }
+      } catch(e) {
+        console.warn("API Hadits fetch error:", e);
+      }
+
+      container.innerHTML = `
+        <div class="relative rounded-3xl bg-gradient-to-br from-[#1b3b22] to-[#2a5b32] p-6 lg:p-8 shadow-xl overflow-hidden text-white border border-[#3b7b46]/30">
+          <div class="absolute -top-16 -right-16 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
+          <div class="absolute -bottom-8 -left-8 w-32 h-32 bg-emerald-400/20 rounded-full blur-2xl"></div>
+          <div class="absolute top-4 right-5 text-white/10"><i class="ph-fill ph-quotes text-6xl"></i></div>
+          
+          <div class="relative z-10 flex flex-col gap-4">
+            <div class="flex items-center gap-2 text-emerald-200">
+              <i class="ph-light ph-book-open text-xl"></i>
+              <span class="text-[11px] font-bold tracking-widest uppercase opacity-90">Inspirasi Umrah</span>
+            </div>
+            
+            <p class="text-right text-[20px] md:text-[24px] leading-loose text-white/95 mt-2" dir="rtl" style="font-family: 'Amiri', serif;">
+              ${hadithData.arab}
+            </p>
+            
+            <div class="flex flex-col gap-2 text-[14px] md:text-[15px] text-emerald-50 font-light leading-relaxed mt-2">
+              <p>"${hadithData.indo}"</p>
+              <p class="mt-1 text-[12px] font-medium text-emerald-300">&mdash; HR. ${hadithData.kitab} No. ${hadithData.nomor}</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     function renderDash() {
       const places = days.reduce((s, d) => s + d.places.length, 0);
       const openTasks = days.flatMap(d => d.places).flatMap(p => p.tasks || []).filter(t => !t.done).length;
@@ -752,7 +820,7 @@
     }
 document.addEventListener('click', e => {
       const del = e.target.closest('[data-del]');
-      if (del) { days.forEach(d => d.places = d.places.filter(p => String(p.id) !== del.dataset.del)); renderDays(); renderMap(); renderDash(); }
+      if (del) { days.forEach(d => d.places = d.places.filter(p => String(p.id) !== del.dataset.del)); renderDays(); renderMap(); renderDash(); renderHadithCard(); }
     });
 
     /* ---------------- Tasks & sub-tasks per agenda ---------------- */
@@ -1075,7 +1143,7 @@ document.addEventListener('click', e => {
     });
 
     /* ---------------- Init ---------------- */
-    renderDash(); renderDays(); renderMap(); renderBudget(); setFilter('all'); renderPack();
+    renderHadithCard(); renderDash(); renderDays(); renderMap(); renderBudget(); setFilter('all'); renderPack();
     
     document.addEventListener('click', e => {
       const b = e.target.closest('[data-filter-day]');
