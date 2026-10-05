@@ -192,14 +192,6 @@
 
           <!-- List mode -->
                     <div id="itin-list" class="mx-auto max-w-3xl pt-2">
-            <!-- Next Agenda Section -->
-            <div class="px-5 lg:px-10 mb-4">
-              <h3 class="text-[13px] font-semibold text-stone-900 mb-2">Agenda Berikutnya</h3>
-              <div id="next-agenda" class="rounded-2xl bg-white/60 backdrop-blur-md border border-white/60 p-3 shadow-glass flex items-center gap-3">
-                 <!-- Populated by JS -->
-              </div>
-            </div>
-            
             <!-- Day Filter Chips -->
             <div id="itin-day-filter" class="flex gap-2 overflow-x-auto hide-scroll px-5 lg:px-10 pb-4 snap-x relative z-20">
                  <!-- Populated by JS -->
@@ -736,7 +728,6 @@
 
     function renderDays() {
       renderDayChips();
-      renderNextAgenda();
       const d = days[selectedDayIdx];
       const html = `<article aria-label="Day ${d.day_number}" class="relative">
           <div class="sticky top-[104px] z-10 -mx-5 mb-4 flex items-center justify-between bg-stone-50/90 px-5 py-2 backdrop-blur-md lg:-mx-10 lg:px-10 border-b border-stone-200 shadow-sm">
