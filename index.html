@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#fafafa" />
+  <title>Kembara — Kyoto, Japan</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Phosphor Icons (light + fill) -->
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/light/style.css" />
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css" />
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Poppins', 'system-ui', 'sans-serif'] },
+          colors: {
+            brand: { 50:'#f5f7fd', 100:'#e6ecfb', 200:'#d3ddf7', 300:'#a9bcee', 400:'#738fdc', 500:'#4a69c9', 600:'#3b5bb9', 700:'#2e4799', 800:'#243978' },
+            peach: { 50:'#fff6f2', 100:'#fde9e0', 200:'#f9d3c3', 600:'#c2512a' },
+          },
+          boxShadow: {
+            card: '0 2px 14px rgba(40,50,100,.07)',
+            panel: '0 30px 60px -20px rgba(60,70,140,.25)',
+            cta: '0 16px 24px -10px rgba(59,91,185,.65)',
+          },
+        },
+      },
+    };
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+
+  <style>
+    html { -webkit-tap-highlight-color: transparent; }
+    .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), .25rem); }
+    .safe-top { padding-top: env(safe-area-inset-top); }
+    .tnum { font-variant-numeric: tabular-nums; }
+    .view { display: none; }
+    .view.is-active { display: block; animation: rise .4s cubic-bezier(.2,.8,.2,1); }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .edit-only { display: none; }
+    .editing .edit-only { display: flex; }
+    .drag-handle { touch-action: none; cursor: grab; }
+    .sortable-ghost { opacity: .4; }
+    .hide-scroll { scrollbar-width: none; }
+    .hide-scroll::-webkit-scrollbar { display: none; }
+    dialog::backdrop { background: rgba(30,36,70,.4); backdrop-filter: blur(3px); }
+    dialog[open] { animation: sheet .3s cubic-bezier(.2,.8,.2,1); }
+    @keyframes sheet { from { transform: translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+  </style>
+</head>
+
+<body class="min-h-screen bg-gradient-to-br from-fuchsia-50 via-indigo-50 to-cyan-50 bg-fixed font-sans text-[14px] text-neutral-800 antialiased">
+
+  <div class="mx-auto flex max-w-6xl lg:gap-6 lg:p-6">
+
+    <!-- ================= DESKTOP SIDEBAR ================= -->
+    <aside class="sticky top-6 hidden h-[calc(100vh-3rem)] w-64 shrink-0 flex-col rounded-[2rem] bg-white/80 p-6 shadow-card backdrop-blur lg:flex">
+      <div class="flex items-center gap-2.5">
+        <span class="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 text-white"><i class="ph-fill ph-compass text-xl"></i></span>
+        <span class="text-lg font-semibold tracking-tight">Kembara</span>
+      </div>
+      <nav class="mt-8 space-y-1" aria-label="Sections">
+        <button data-nav="home"      class="nav-d flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium transition"><i class="ph-light ph-house text-xl"></i>Dashboard</button>
+        <button data-nav="itinerary" class="nav-d flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium transition"><i class="ph-light ph-list-bullets text-xl"></i>Itinerary</button>
+        <button data-nav="map"       class="nav-d flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium transition"><i class="ph-light ph-map-trifold text-xl"></i>Map</button>
+        <button data-nav="budget"    class="nav-d flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium transition"><i class="ph-light ph-wallet text-xl"></i>Budget</button>
+        <button data-nav="vault"     class="nav-d flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium transition"><i class="ph-light ph-suitcase-rolling text-xl"></i>Vault</button>
+      </nav>
+      <div class="mt-auto">
+        <p class="mb-2 text-xs text-neutral-500">My trips</p>
+        <div data-trips class="space-y-2"></div>
+      </div>
+    </aside>
+
+    <!-- ================= APP PANEL ================= -->
+    <div class="relative min-h-screen min-w-0 flex-1 bg-[#fafafa] lg:min-h-[calc(100vh-3rem)] lg:rounded-[2rem] lg:shadow-panel">
+
+      <!-- App bar -->
+      <header class="sticky top-0 z-30 bg-[#fafafa]/90 backdrop-blur safe-top lg:rounded-t-[2rem]">
+        <div class="grid h-16 grid-cols-[5rem_1fr_5rem] items-center px-4 lg:px-8">
+          <div class="flex">
+            <button id="bar-menu" class="grid h-11 w-11 place-items-center rounded-full hover:bg-neutral-100 lg:hidden" aria-label="Open menu"><i class="ph-light ph-list text-2xl"></i></button>
+            <button id="bar-back" class="hidden h-11 w-11 place-items-center rounded-full hover:bg-neutral-100" aria-label="Back to dashboard"><i class="ph-light ph-caret-left text-2xl"></i></button>
+          </div>
+          <h1 id="bar-title" class="text-center text-[15px] font-medium uppercase tracking-wide">Dashboard</h1>
+          <div class="flex justify-end">
+            <button id="bar-avatar" class="grid h-10 w-10 place-items-center rounded-full bg-brand-200 text-sm font-medium text-brand-800 ring-2 ring-white" aria-label="Your profile">N</button>
+            <button id="bar-customize" class="hidden h-11 items-center gap-1.5 rounded-full px-2 text-xs font-medium text-brand-600"><span>Customize</span><i class="ph-light ph-pencil-simple text-base"></i></button>
+          </div>
+        </div>
+      </header>
+
+      <main class="pb-44 lg:pb-10">
+
+        <!-- ================= VIEW: HOME ================= -->
+        <section id="view-home" class="view" aria-label="Dashboard">
+          <div class="px-5 pt-2 lg:px-10">
+            <div class="flex items-start justify-between">
+              <div>
+                <h2 class="text-[22px] font-medium text-brand-600">Kyoto, Japan</h2>
+                <p class="text-[11px] text-neutral-500">Oct 12 – Oct 14, 2026 · Autumn</p>
+              </div>
+              <button id="dash-toggle" class="flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-600 transition hover:bg-brand-100" aria-expanded="true" aria-label="Toggle destination images">
+                <i class="ph-light ph-image text-sm"></i><span id="dash-toggle-text">Hide photos</span>
+              </button>
+            </div>
+            <div id="dash-stats" class="mt-3 flex flex-wrap gap-2"></div>
+          </div>
+
+          <div class="px-5 pt-5 lg:px-10">
+            <div class="grid gap-5 lg:grid-cols-2">
+              <div id="next-agenda"></div>
+              <div id="today-agenda"></div>
+            </div>
+            <label class="mt-3 inline-flex items-center gap-2 text-[11px] text-neutral-400">
+              <i class="ph-light ph-clock-countdown text-sm"></i>Demo clock (prototype only)
+              <select id="demo-clock" class="h-9 rounded-lg border border-neutral-200 bg-white px-2 text-[11px] text-neutral-600 focus:border-brand-500 focus:outline-none">
+                <option value="live">Live — real time</option>
+                <option value="a">Oct 11 · 20:00 — night before</option>
+                <option value="b">Oct 12 · 15:20 — Day 01 afternoon</option>
+                <option value="c">Oct 13 · 11:45 — Day 02 midday</option>
+                <option value="d">Oct 14 · 21:00 — after the last stop</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="dash-images" class="px-5 pt-6 lg:px-10">
+            <h3 class="text-[15px] font-medium">Destination Images</h3>
+            <p class="text-xs text-neutral-500">Take a glance of your trip</p>
+            <div class="mt-3 grid h-64 grid-cols-[1.1fr_1fr_1fr] grid-rows-2 gap-2 sm:h-80 lg:h-96">
+              <div class="row-span-2 overflow-hidden rounded-xl bg-brand-100"><img alt="Fushimi Inari torii gates" loading="lazy" class="h-full w-full object-cover" src="https://images.unsplash.com/photo-1478436127897-769e1b3f0f36?auto=format&fit=crop&w=600&q=70" onerror="this.remove()" /></div>
+              <div class="overflow-hidden rounded-xl bg-brand-100"><img alt="Pagoda above autumn forest" loading="lazy" class="h-full w-full object-cover" src="https://images.unsplash.com/photo-1545569341-9eb8b30979d9?auto=format&fit=crop&w=400&q=70" onerror="this.remove()" /></div>
+              <div class="overflow-hidden rounded-xl bg-brand-100"><img alt="Gion street at dusk" loading="lazy" class="h-full w-full object-cover" src="https://images.unsplash.com/photo-1492571350019-22de08371fd3?auto=format&fit=crop&w=400&q=70" onerror="this.remove()" /></div>
+              <button class="relative col-span-2 overflow-hidden rounded-xl bg-brand-200 text-left" aria-label="See 8 more photos">
+                <img alt="Paper lantern in a Kyoto alley" loading="lazy" class="h-full w-full object-cover" src="https://images.unsplash.com/photo-1528164344705-47542687000d?auto=format&fit=crop&w=600&q=70" onerror="this.remove()" />
+                <span class="absolute inset-0 grid place-items-center bg-black/35 text-xs font-medium text-white">+ 8 more</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="pt-7">
+            <div class="px-5 lg:px-10">
+              <h3 class="text-[15px] font-medium">Destination Highlights</h3>
+              <p class="text-xs text-neutral-500">Travel seamlessly</p>
+            </div>
+            <div id="highlights" class="hide-scroll mt-3 flex snap-x gap-3 overflow-x-auto px-5 pb-3 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-10"></div>
+          </div>
+
+          <div class="px-5 pt-4 lg:px-10">
+            <button data-nav="budget" class="block w-full rounded-2xl bg-brand-100 p-4 text-left transition hover:bg-brand-200/70">
+              <span class="flex items-center justify-between text-xs text-neutral-600"><span>Budget left</span><span class="flex items-center gap-1 text-brand-600">Details <i class="ph-light ph-caret-right"></i></span></span>
+              <span class="mt-1 block text-3xl font-semibold text-brand-700">¥<span id="d-left" class="tnum"></span></span>
+              <span class="mt-3 block h-1.5 overflow-hidden rounded-full bg-white"><span id="d-bar" class="block h-full rounded-full bg-brand-600"></span></span>
+              <span class="mt-2 block text-[11px] text-neutral-500"><span id="d-pct"></span> of ¥120,000 spent</span>
+            </button>
+          </div>
+
+          <div class="sticky bottom-24 z-20 mt-6 px-5 lg:bottom-6 lg:px-10">
+            <button data-nav="itinerary" class="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-[13px] font-medium text-white shadow-cta transition hover:bg-brand-700 active:scale-[.99]">View your itinerary <i class="ph-light ph-caret-right text-base"></i></button>
+          </div>
+        </section>
+
+        <!-- ================= VIEW: ITINERARY ================= -->
+        <section id="view-itinerary" class="view" aria-label="Itinerary">
+          <div class="flex items-center justify-between bg-white px-5 py-4 lg:px-10">
+            <div>
+              <h2 class="text-[22px] font-medium text-brand-600">Kyoto, Japan</h2>
+              <p class="text-[11px] text-neutral-500">Oct 12 – Oct 14, 2026</p>
+            </div>
+            <div class="flex gap-1" role="tablist" aria-label="Itinerary display">
+              <button data-mode="list" role="tab" class="mode-btn flex min-h-[44px] min-w-[56px] flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-medium transition"><i class="ph-fill ph-list-bullets text-xl"></i>List view</button>
+              <button data-mode="map"  role="tab" class="mode-btn flex min-h-[44px] min-w-[56px] flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-medium transition"><i class="ph-light ph-map-trifold text-xl"></i>Map view</button>
+            </div>
+          </div>
+
+          <!-- List mode -->
+          <div id="itin-list" class="mx-auto max-w-3xl px-5 pt-2 lg:px-10">
+            <div id="days"></div>
+            <div class="sticky bottom-24 z-20 mt-4 lg:bottom-6">
+              <button data-nav="budget" class="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-[13px] font-medium text-white shadow-cta transition hover:bg-brand-700 active:scale-[.99]">Calculate your expenditure <i class="ph-light ph-caret-right text-base"></i></button>
+            </div>
+          </div>
+
+          <!-- Map mode -->
+          <div id="itin-map" class="mx-auto hidden max-w-3xl px-5 pt-5 lg:px-10">
+            <div id="map-chips" class="hide-scroll flex gap-2 overflow-x-auto"></div>
+            <div class="mt-4 overflow-hidden rounded-2xl bg-white shadow-card">
+              <div id="map-svg" class="aspect-[4/3] w-full bg-brand-50 sm:aspect-[16/10]"></div>
+            </div>
+            <p class="mt-2 text-[11px] text-neutral-500">Preview only — the live Mapbox map with route lines arrives in Phase 3.</p>
+            <ul id="map-list" class="mt-4 space-y-2 pb-4"></ul>
+          </div>
+        </section>
+
+        <!-- ================= VIEW: BUDGET ================= -->
+        <section id="view-budget" class="view" aria-label="Budget and split bill">
+          <div class="bg-white px-5 py-4 lg:px-10">
+            <h2 class="text-[22px] font-medium text-brand-600">Budget &amp; Split Bill</h2>
+            <p class="text-[11px] text-neutral-500">Kyoto, Japan · 3 travellers</p>
+          </div>
+
+          <div class="mx-auto max-w-4xl px-5 pt-5 lg:px-10">
+            <div class="grid gap-4 md:grid-cols-[1.2fr_1fr]">
+              <div class="rounded-2xl bg-brand-100 p-5">
+                <p class="text-xs text-neutral-600">Budget left</p>
+                <p class="mt-1 text-4xl font-semibold text-brand-700">¥<span id="b-left" class="tnum"></span></p>
+                <p class="text-xs text-neutral-500"><span id="b-left-idr"></span> · of ¥<span id="b-total"></span></p>
+                <div id="b-bar-wrap" role="progressbar" aria-label="Budget spent" aria-valuemin="0" aria-valuemax="100" class="mt-4 h-2 overflow-hidden rounded-full bg-white"><div id="b-bar" class="h-full rounded-full bg-brand-600 transition-all duration-700"></div></div>
+                <div class="mt-2 flex justify-between text-[11px] text-neutral-500"><span>Spent ¥<span id="b-spent" class="tnum"></span></span><span id="b-pct"></span></div>
+              </div>
+              <div class="rounded-2xl bg-peach-100 p-5">
+                <p class="flex items-center gap-1.5 text-xs font-medium text-peach-600"><i class="ph-light ph-handshake text-base"></i>Settle up</p>
+                <ul id="settle" class="mt-3 space-y-2"></ul>
+              </div>
+            </div>
+
+            <div class="mt-7 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h3 class="text-[15px] font-medium">Expenses</h3>
+                <p class="text-xs text-neutral-500">Everything logged so far</p>
+              </div>
+              <div id="filters" class="hide-scroll flex gap-2 overflow-x-auto" role="tablist" aria-label="Filter expenses">
+                <button data-filter="all"   class="filter-btn min-h-[44px] rounded-full px-4 text-xs font-medium transition">All</button>
+                <button data-filter="split" class="filter-btn min-h-[44px] rounded-full px-4 text-xs font-medium transition">Split bills</button>
+                <button data-filter="solo"  class="filter-btn min-h-[44px] rounded-full px-4 text-xs font-medium transition">Just one</button>
+              </div>
+            </div>
+
+            <div class="mt-3 rounded-2xl bg-white p-1.5 shadow-card">
+              <div class="hidden grid-cols-[4.5rem_minmax(0,1fr)_9rem_13rem_7rem] gap-4 px-4 py-3 text-[11px] uppercase tracking-wider text-neutral-400 md:grid">
+                <span>Date</span><span>Description</span><span>Paid by</span><span>Split</span><span class="text-right">Amount</span>
+              </div>
+              <ul id="ledger" class="divide-y divide-neutral-100"></ul>
+            </div>
+
+            <div class="sticky bottom-24 z-20 mt-6 lg:bottom-6">
+              <button class="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-[13px] font-medium text-white shadow-cta transition hover:bg-brand-700 active:scale-[.99]"><i class="ph-light ph-plus text-base"></i>Log an expense</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= VIEW: VAULT ================= -->
+        <section id="view-vault" class="view" aria-label="Packing list and document vault">
+          <div class="bg-white px-5 py-4 lg:px-10">
+            <h2 class="text-[22px] font-medium text-brand-600">Packing &amp; Documents</h2>
+            <p class="text-[11px] text-neutral-500">Kyoto, Japan · Oct 12 – Oct 14</p>
+          </div>
+
+          <div class="mx-auto grid max-w-4xl gap-6 px-5 pt-6 md:grid-cols-2 lg:px-10">
+            <div>
+              <h3 class="text-[15px] font-medium">Packing list</h3>
+              <p class="text-xs text-neutral-500"><span id="pack-count">0</span> of <span id="pack-total">0</span> packed</p>
+              <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-200"><div id="pack-bar" class="h-full rounded-full bg-brand-600 transition-all duration-500"></div></div>
+              <div id="pack-cats" class="mt-3 space-y-3"></div>
+              <button id="cat-toggle" aria-expanded="false" class="mt-3 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 text-xs font-medium text-brand-600 hover:bg-brand-50"><i class="ph-light ph-plus text-lg"></i>Add a category</button>
+              <form id="cat-form" class="mt-2 hidden gap-2">
+                <input id="cat-name" type="text" maxlength="30" required aria-label="New category name" placeholder="e.g. Snacks for the train" class="h-11 min-w-0 flex-1 rounded-lg border border-neutral-200 bg-white px-3 text-[13px] placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100" />
+                <button type="submit" class="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-brand-600 text-white hover:bg-brand-700" aria-label="Add category"><i class="ph-light ph-plus text-lg"></i></button>
+              </form>
+            </div>
+
+            <div>
+              <h3 class="text-[15px] font-medium">Document vault</h3>
+              <p class="text-xs text-neutral-500">Tickets, bookings &amp; insurance</p>
+              <ul class="mt-3 space-y-2">
+                <li class="flex min-h-[60px] items-center gap-3 rounded-xl bg-brand-100 px-4"><i class="ph-light ph-airplane-tilt text-2xl text-brand-600"></i><span class="flex-1 text-[13px] font-medium">Flight e-ticket · KIX<span class="block text-[11px] font-normal text-neutral-500">PDF · 214 KB</span></span><i class="ph-light ph-download-simple text-xl text-neutral-500"></i></li>
+                <li class="flex min-h-[60px] items-center gap-3 rounded-xl bg-brand-100 px-4"><i class="ph-light ph-house-line text-2xl text-brand-600"></i><span class="flex-1 text-[13px] font-medium">Machiya booking<span class="block text-[11px] font-normal text-neutral-500">PDF · 98 KB</span></span><i class="ph-light ph-download-simple text-xl text-neutral-500"></i></li>
+                <li class="flex min-h-[60px] items-center gap-3 rounded-xl bg-brand-100 px-4"><i class="ph-light ph-shield-check text-2xl text-brand-600"></i><span class="flex-1 text-[13px] font-medium">Travel insurance<span class="block text-[11px] font-normal text-neutral-500">PDF · 1.2 MB</span></span><i class="ph-light ph-download-simple text-xl text-neutral-500"></i></li>
+                <li><button class="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl border border-dashed border-brand-300 text-xs font-medium text-brand-600 hover:bg-brand-50"><i class="ph-light ph-upload-simple text-lg"></i>Upload a file</button></li>
+              </ul>
+            </div>
+
+            <div id="ai" class="md:col-span-2">
+              <h3 class="flex items-center gap-1.5 text-[15px] font-medium"><i class="ph-fill ph-sparkle text-brand-600"></i>AI itinerary extractor</h3>
+              <p class="text-xs text-neutral-500">Paste a confirmation email — we'll turn it into a stop</p>
+              <textarea id="ai-text" rows="4" class="mt-3 w-full resize-none rounded-2xl border border-neutral-200 bg-white p-4 text-[13px] leading-relaxed text-neutral-700 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100">Your reservation at Kikunoi Honten is confirmed. Tuesday, October 13 at 19:00 for 3 guests. 459 Shimokawara-cho, Higashiyama-ku, Kyoto.</textarea>
+              <button id="ai-run" class="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-[13px] font-medium text-white shadow-cta transition hover:bg-brand-700 sm:w-auto sm:px-8"><i class="ph-light ph-sparkle text-base"></i>Extract itinerary</button>
+              <div id="ai-result" class="mt-4 hidden rounded-xl bg-brand-100 p-4">
+                <p class="text-[15px] font-medium">Kikunoi Honten</p>
+                <p class="mt-1 flex items-center gap-1 text-[11px] text-neutral-500"><i class="ph-light ph-map-pin"></i>Higashiyama • Dinner</p>
+                <p class="mt-1 flex items-center gap-1 text-[11px] text-neutral-500"><i class="ph-light ph-clock"></i>Oct 13 · 07:00 PM – 08:30 PM</p>
+                <button id="ai-add" class="mt-3 flex h-11 items-center gap-1.5 rounded-lg bg-white px-4 text-xs font-medium text-brand-600 shadow-card"><i class="ph-light ph-plus"></i>Add to Day 02</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- ================= MOBILE BOTTOM NAV ================= -->
+  <nav class="fixed inset-x-0 bottom-0 z-40 rounded-t-3xl bg-white shadow-[0_-10px_30px_rgba(40,50,100,.08)] safe-bottom lg:hidden" aria-label="Sections">
+    <ul class="mx-auto grid max-w-lg grid-cols-5 px-2 pt-2">
+      <li><button data-nav="home"      class="nav-m flex min-h-[56px] w-full flex-col items-center justify-center gap-0.5 text-[10px] font-medium"><i class="ph-light ph-house text-[26px]"></i>Home</button></li>
+      <li><button data-nav="itinerary" class="nav-m flex min-h-[56px] w-full flex-col items-center justify-center gap-0.5 text-[10px] font-medium"><i class="ph-light ph-list-bullets text-[26px]"></i>Plan</button></li>
+      <li><button data-nav="map"       class="nav-m flex min-h-[56px] w-full flex-col items-center justify-center gap-0.5 text-[10px] font-medium"><i class="ph-light ph-map-trifold text-[26px]"></i>Map</button></li>
+      <li><button data-nav="budget"    class="nav-m flex min-h-[56px] w-full flex-col items-center justify-center gap-0.5 text-[10px] font-medium"><i class="ph-light ph-wallet text-[26px]"></i>Budget</button></li>
+      <li><button data-nav="vault"     class="nav-m flex min-h-[56px] w-full flex-col items-center justify-center gap-0.5 text-[10px] font-medium"><i class="ph-light ph-suitcase-rolling text-[26px]"></i>Vault</button></li>
+    </ul>
+  </nav>
+
+  <!-- ================= OFF-CANVAS MENU (mobile) ================= -->
+  <div id="drawer" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+    <div id="drawer-bg" class="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm"></div>
+    <aside class="absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col rounded-r-[2rem] bg-white p-6 shadow-panel safe-top">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2.5"><span class="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 text-white"><i class="ph-fill ph-compass text-xl"></i></span><span class="text-lg font-semibold">Kembara</span></div>
+        <button id="drawer-close" class="grid h-11 w-11 place-items-center rounded-full hover:bg-neutral-100" aria-label="Close menu"><i class="ph-light ph-x text-xl"></i></button>
+      </div>
+      <p class="mb-2 mt-8 text-xs text-neutral-500">My trips</p>
+      <div data-trips class="space-y-2"></div>
+      <div class="mt-auto space-y-1 text-[13px]">
+        <button class="flex h-11 w-full items-center gap-3 rounded-xl px-3 hover:bg-neutral-50"><i class="ph-light ph-bell text-xl"></i>Notifications</button>
+        <button class="flex h-11 w-full items-center gap-3 rounded-xl px-3 hover:bg-neutral-50"><i class="ph-light ph-gear text-xl"></i>Settings</button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ================= DROP A PIN ================= -->
+  <dialog id="pin-dialog" class="m-0 mt-auto w-full max-w-none bg-transparent p-0 md:m-auto md:max-w-md">
+    <form method="dialog" id="pin-form" class="rounded-t-[2rem] bg-white p-6 pb-8 shadow-panel md:rounded-[2rem]">
+      <div class="mx-auto mb-4 h-1.5 w-12 rounded-full bg-neutral-200 md:hidden"></div>
+      <div class="flex items-start justify-between">
+        <div><h3 class="text-lg font-medium">Drop a pin</h3><p class="text-xs text-neutral-500">Add a place to your day</p></div>
+        <button type="button" id="pin-close" class="grid h-11 w-11 place-items-center rounded-full hover:bg-neutral-100" aria-label="Close"><i class="ph-light ph-x text-xl"></i></button>
+      </div>
+      <label class="mt-5 block text-xs text-neutral-500">Place
+        <input id="pin-name" required placeholder="e.g. Tofuku-ji bridge" class="mt-1.5 h-12 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100" />
+      </label>
+      <div class="mt-4 grid grid-cols-2 gap-3">
+        <label class="block text-xs text-neutral-500">Day
+          <select id="pin-day" class="mt-1.5 h-12 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100">
+            <option value="0">Day 01 · Oct 12</option><option value="1">Day 02 · Oct 13</option><option value="2">Day 03 · Oct 14</option>
+          </select>
+        </label>
+        <label class="block text-xs text-neutral-500">Time
+          <input id="pin-time" type="time" value="10:00" class="mt-1.5 h-12 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100" />
+        </label>
+      </div>
+      <fieldset class="mt-4"><legend class="text-xs text-neutral-500">Kind of stop</legend><div id="pin-cats" class="mt-2 grid grid-cols-4 gap-2"></div></fieldset>
+      <button type="submit" class="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-[13px] font-medium text-white shadow-cta transition hover:bg-brand-700">Add to my day <i class="ph-light ph-caret-right text-base"></i></button>
+    </form>
+  </dialog>
+
+  <script>
+    /* ---------------- Data (mirrors PRD schema) ---------------- */
+    const CATS = {
+      sight:   { label: 'Sight',   icon: 'ph-camera' },
+      food:    { label: 'Eat',     icon: 'ph-fork-knife' },
+      transit: { label: 'Transit', icon: 'ph-train' },
+      stay:    { label: 'Stay',    icon: 'ph-suitcase-simple' },
+    };
+    const DAY_COLORS = ['#3b5bb9', '#14a3a8', '#f08a4b'];
+
+    const days = [
+      { day_number: 1, date: 'Oct 12', notes: 'Rest of the day free at leisure', places: [
+        { name: 'Kansai Airport → Kyoto', loc: 'Haruka Express', tag: 'Arrival',  start: '11:40', end: '13:30', category: 'transit', cost: 3600 },
+        { name: 'The Machiya Nishijin',   loc: 'Nishijin, Kamigyo-ku', tag: 'Check-in', start: '14:30', end: '15:30', category: 'stay', cost: 0 },
+        { name: 'Fushimi Inari Taisha',   loc: 'Fukakusa, Fushimi', tag: 'Sunset climb', start: '16:00', end: '18:00', category: 'sight', cost: 0 },
+        { name: 'Pontocho Kushikatsu',    loc: 'Pontocho Alley', tag: 'Dinner', start: '19:30', end: '21:00', category: 'food', cost: 4500 },
+      ]},
+      { day_number: 2, date: 'Oct 13', notes: 'Evening open — wander the Gion lanterns', places: [
+        { name: 'Arashiyama Bamboo Grove', loc: 'Sagaogurayama', tag: 'Early walk', start: '07:30', end: '09:30', category: 'sight', cost: 0 },
+        { name: 'Tenryū-ji Garden',        loc: 'Susukinobaba-cho', tag: 'Garden', start: '10:00', end: '11:30', category: 'sight', cost: 500 },
+        { name: 'Handmade Soba',           loc: 'Togetsukyo Bridge', tag: 'Lunch', start: '12:00', end: '13:00', category: 'food', cost: 1400 },
+        { name: 'Sagano Scenic Railway',   loc: 'Torokko Saga Station', tag: 'Scenic ride', start: '14:00', end: '15:00', category: 'transit', cost: 880 },
+        { name: 'Kinkaku-ji',              loc: 'Kita-ku', tag: 'Golden Pavilion', start: '16:00', end: '17:00', category: 'sight', cost: 500 },
+        { name: 'Tsujiri Matcha Parfait',  loc: 'Gion', tag: 'Dessert', start: '18:00', end: '19:00', category: 'food', cost: 900 },
+      ]},
+      { day_number: 3, date: 'Oct 14', notes: 'Fly home with a bag full of tenugui', places: [
+        { name: 'Kiyomizu-dera',            loc: 'Higashiyama', tag: 'Sunrise visit', start: '08:00', end: '10:00', category: 'sight', cost: 400 },
+        { name: "Philosopher's Path",       loc: 'Sakyo-ku', tag: 'Walk', start: '10:30', end: '12:00', category: 'sight', cost: 0 },
+        { name: 'Omen Udon',                loc: 'Ginkakuji-michi', tag: 'Lunch', start: '12:15', end: '13:15', category: 'food', cost: 1300 },
+        { name: 'Eikan-dō Illumination',    loc: 'Sakyo-ku', tag: 'Night lights', start: '16:30', end: '18:30', category: 'sight', cost: 1000 },
+        { name: 'Kyoto Station',            loc: 'Shimogyo-ku', tag: 'Departure', start: '19:30', end: '20:30', category: 'transit', cost: 0 },
+      ]},
+    ];
+    let uid = 1; days.forEach(d => d.places.forEach(p => p.id = uid++));
+
+    /* Tasks per agenda (place). Seed a few so the UI has something to show. */
+    let tid = 1;
+    const seedTasks = (placeName, list) => {
+      const p = days.flatMap(d => d.places).find(p => p.name === placeName);
+      p.tasks = list.map(([text, done, subs = []]) => ({ id: tid++, text, done, subs: subs.map(([t, d]) => ({ id: tid++, text: t, done: d })) }));
+      p.open = false;
+    };
+    seedTasks('Kansai Airport → Kyoto', [['Collect the Haruka QR tickets', true], ['Buy an ICOCA card', false]]);
+    seedTasks('Fushimi Inari Taisha',   [['Bring ¥100 coins for offerings', false], ['Pick up an omamori charm', false, [['Ask at the main shrine office', false], ['Pick one for mum too', false]]], ['Charge the camera battery', true]]);
+    seedTasks('Pontocho Kushikatsu',    [['Confirm the 19:30 table for three', false, [['Email the restaurant', true], ['Screenshot the confirmation', false]]]]);
+    seedTasks('Arashiyama Bamboo Grove',[['Be there before 08:00', false], ['Pack a light rain jacket', false]]);
+
+    const members = [
+      { id: 'm1', name: 'Nadia', cls: 'bg-brand-200 text-brand-800' },
+      { id: 'm2', name: 'Raka',  cls: 'bg-peach-200 text-peach-600' },
+      { id: 'm3', name: 'Dimas', cls: 'bg-emerald-100 text-emerald-800' },
+    ];
+    const byId = Object.fromEntries(members.map(m => [m.id, m]));
+    const ALL = ['m1', 'm2', 'm3'];
+    const evenSplit = (amount, ids) => ids.map(id => ({ member_id: id, amount_owed: amount / ids.length }));
+
+    const expenses = [
+      { id: 1, date: 'Oct 12', weekday: 'Mon', description: 'Haruka Express tickets',      category: 'transit', amount: 10800, paid_by: 'm1', splits: evenSplit(10800, ALL) },
+      { id: 2, date: 'Oct 12', weekday: 'Mon', description: 'Machiya stay · deposit',      category: 'stay',    amount: 36000, paid_by: 'm2', splits: evenSplit(36000, ALL) },
+      { id: 3, date: 'Oct 12', weekday: 'Mon', description: 'Late-night ramen, Ichiran',   category: 'food',    amount: 3900,  paid_by: 'm3', splits: evenSplit(3900, ALL) },
+      { id: 4, date: 'Oct 13', weekday: 'Tue', description: 'Sagano Scenic Railway',       category: 'transit', amount: 2700,  paid_by: 'm1', splits: evenSplit(2700, ALL) },
+      { id: 5, date: 'Oct 13', weekday: 'Tue', description: 'Matcha parfaits (two of us)', category: 'food',    amount: 1800,  paid_by: 'm1', splits: evenSplit(1800, ['m1', 'm3']) },
+      { id: 6, date: 'Oct 13', weekday: 'Tue', description: 'Tenugui cloths for family',   category: 'sight',   amount: 4200,  paid_by: 'm2', splits: evenSplit(4200, ['m2']) },
+      { id: 7, date: 'Oct 14', weekday: 'Wed', description: 'Eikan-dō night entry',        category: 'sight',   amount: 3000,  paid_by: 'm3', splits: evenSplit(3000, ALL) },
+    ];
+    const TOTAL_BUDGET = 120000, IDR_RATE = 105;
+
+    /* ---------------- Helpers ---------------- */
+    const $ = s => document.querySelector(s);
+    const $$ = s => document.querySelectorAll(s);
+    const yen = n => Math.round(n).toLocaleString('en-US');
+    const idr = n => 'Rp ' + (Math.round(n * IDR_RATE / 1000) * 1000).toLocaleString('id-ID');
+    const fmt = t => { let [h, m] = t.split(':').map(Number); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ap}`; };
+    const avatar = (id, size = 'h-8 w-8 text-xs') => `<span class="grid ${size} shrink-0 place-items-center rounded-full font-medium ring-2 ring-white ${byId[id].cls}" title="${byId[id].name}">${byId[id].name[0]}</span>`;
+    const setCls = (el, on, onCls, offCls) => { el.classList.remove(...(on ? offCls : onCls).split(' ')); el.classList.add(...(on ? onCls : offCls).split(' ')); };
+
+    /* ---------------- Trips list (sidebar + drawer) ---------------- */
+    $$('[data-trips]').forEach(el => el.innerHTML = `
+      <button class="flex w-full items-center gap-3 rounded-xl bg-brand-100 p-3 text-left"><span class="grid h-9 w-9 place-items-center rounded-lg bg-brand-600 text-white"><i class="ph-light ph-map-pin text-lg"></i></span><span class="min-w-0 text-[13px] font-medium">Kyoto, Japan<span class="block text-[11px] font-normal text-neutral-500">Oct 12 – 14, 2026</span></span></button>
+      <button class="flex w-full items-center gap-3 rounded-xl p-3 text-left hover:bg-neutral-50"><span class="grid h-9 w-9 place-items-center rounded-lg bg-neutral-100 text-neutral-500"><i class="ph-light ph-plus text-lg"></i></span><span class="text-[13px] text-neutral-600">Plan a new trip</span></button>`);
+
+    /* ---------------- Dashboard ---------------- */
+    const HIGHLIGHTS = [
+      { icon: 'ph-map-pin',       color: 'text-rose-500',    title: 'Roadmap',     desc: 'View all the places to visit', go: 'map' },
+      { icon: 'ph-receipt',       color: 'text-amber-500',   title: 'Split bill',  desc: 'Who paid, who owes',          go: 'budget' },
+      { icon: 'ph-note',          color: 'text-yellow-500',  title: 'Packing',     desc: 'Tick off your bag',           go: 'vault' },
+      { icon: 'ph-file-text',     color: 'text-brand-500',   title: 'Documents',   desc: 'Tickets, visa & insurance',   go: 'vault' },
+      { icon: 'ph-sparkle',       color: 'text-violet-500',  title: 'AI extractor',desc: 'Email to itinerary in a tap', go: 'vault', scroll: 'ai' },
+      { icon: 'ph-cloud-sun',     color: 'text-sky-500',     title: 'Weather',     desc: '19° and crisp all week',      go: 'itinerary' },
+    ];
+    
+    function getDemoTime() {
+      const v = $('#demo-clock').value;
+      if (v === 'a') return new Date(2026, 9, 11, 20, 0); // Month 9 = Oct
+      if (v === 'b') return new Date(2026, 9, 12, 15, 20);
+      if (v === 'c') return new Date(2026, 9, 13, 11, 45);
+      if (v === 'd') return new Date(2026, 9, 14, 21, 0);
+      return new Date();
+    }
+    
+    let dashTimer;
+    function renderWidgets() {
+      const now = getDemoTime();
+      clearInterval(dashTimer);
+
+      const parsedDays = days.map(d => {
+        const [mStr, dStr] = d.date.split(' ');
+        const m = { 'Oct': 9 }[mStr]; 
+        return { ...d, dateObj: new Date(2026, m, +dStr) };
+      });
+      
+      const todayDay = parsedDays.find(d => d.dateObj.getFullYear() === now.getFullYear() && d.dateObj.getMonth() === now.getMonth() && d.dateObj.getDate() === now.getDate());
+
+      if (todayDay && todayDay.places.length > 0) {
+        $('#today-agenda').innerHTML = `
+          <div class="h-full flex flex-col rounded-2xl bg-white p-5 shadow-card">
+            <h3 class="flex items-center gap-1.5 text-[15px] font-medium"><i class="ph-light ph-calendar-star text-brand-600 text-lg"></i>Today's Agenda</h3>
+            <ul class="mt-4 space-y-3 flex-1">
+              ${todayDay.places.map(p => `
+                <li class="flex items-start gap-3">
+                  <span class="mt-0.5 text-[12px] font-medium text-neutral-400 w-11 shrink-0">${p.start}</span>
+                  <span class="min-w-0 flex-1 text-[13.5px] font-medium text-neutral-700 leading-snug">${esc(p.name)}<span class="block text-[11px] font-normal text-neutral-500 mt-0.5">${esc(p.loc)}</span></span>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+        `;
+      } else {
+        $('#today-agenda').innerHTML = `
+          <div class="h-full rounded-2xl bg-white p-5 shadow-card flex flex-col justify-center items-center text-center min-h-[200px]">
+            <div class="grid h-12 w-12 place-items-center rounded-full bg-brand-50 text-brand-500 mb-3"><i class="ph-light ph-calendar-blank text-2xl"></i></div>
+            <p class="text-[14px] font-medium text-neutral-700">Belum ada agenda hari ini</p>
+            <p class="mt-1 text-[12px] text-neutral-500">Take a break or add a new place</p>
+          </div>
+        `;
+      }
+
+      let nextPlace = null;
+      let nextDate = null;
+      for (const d of parsedDays) {
+        for (const p of d.places) {
+          const [h, m] = p.start.split(':').map(Number);
+          const pDate = new Date(d.dateObj);
+          pDate.setHours(h, m, 0, 0);
+          if (pDate > now && !nextPlace) {
+            nextPlace = p;
+            nextDate = pDate;
+            break;
+          }
+        }
+        if (nextPlace) break;
+      }
+
+      if (nextPlace) {
+        const updateTimer = () => {
+          const current = $('#demo-clock').value === 'live' ? new Date() : getDemoTime();
+          const diff = nextDate - current;
+          if (diff <= 0 && $('#demo-clock').value === 'live') {
+            renderWidgets(); 
+            return;
+          }
+          const safeDiff = Math.max(0, diff);
+          const d = Math.floor(safeDiff / (1000 * 60 * 60 * 24));
+          const h = Math.floor((safeDiff / (1000 * 60 * 60)) % 24);
+          const m = Math.floor((safeDiff / 1000 / 60) % 60);
+          const s = Math.floor((safeDiff / 1000) % 60);
+          
+          $('#next-agenda').innerHTML = `
+            <div class="h-full flex flex-col justify-between rounded-2xl bg-brand-600 p-5 text-white shadow-cta relative overflow-hidden min-h-[200px]">
+              <div class="absolute -right-4 -top-4 text-white/10"><i class="ph-fill ph-clock text-[10rem]"></i></div>
+              <div class="relative z-10">
+                <h3 class="flex items-center gap-1.5 text-[13px] font-medium text-brand-200"><i class="ph-fill ph-clock-countdown text-base text-brand-300"></i>Next up</h3>
+                <p class="mt-2 text-[18px] font-semibold leading-tight line-clamp-2">${esc(nextPlace.name)}</p>
+                <p class="mt-0.5 text-[12px] text-brand-200 line-clamp-1">${esc(nextPlace.loc)}</p>
+              </div>
+              
+              <div class="relative z-10 mt-5 flex gap-2">
+                <div class="flex-1 rounded-xl bg-black/20 py-2.5 text-center backdrop-blur-sm">
+                  <div class="tnum text-xl font-semibold leading-none">${String(d).padStart(2,'0')}</div>
+                  <div class="mt-1 text-[9px] uppercase tracking-wider text-brand-200/80">Days</div>
+                </div>
+                <div class="flex-1 rounded-xl bg-black/20 py-2.5 text-center backdrop-blur-sm">
+                  <div class="tnum text-xl font-semibold leading-none">${String(h).padStart(2,'0')}</div>
+                  <div class="mt-1 text-[9px] uppercase tracking-wider text-brand-200/80">Hrs</div>
+                </div>
+                <div class="flex-1 rounded-xl bg-black/20 py-2.5 text-center backdrop-blur-sm">
+                  <div class="tnum text-xl font-semibold leading-none">${String(m).padStart(2,'0')}</div>
+                  <div class="mt-1 text-[9px] uppercase tracking-wider text-brand-200/80">Min</div>
+                </div>
+                <div class="flex-1 rounded-xl bg-black/20 py-2.5 text-center backdrop-blur-sm">
+                  <div class="tnum text-xl font-semibold leading-none">${String(s).padStart(2,'0')}</div>
+                  <div class="mt-1 text-[9px] uppercase tracking-wider text-brand-200/80">Sec</div>
+                </div>
+              </div>
+            </div>
+          `;
+        };
+        updateTimer();
+        if ($('#demo-clock').value === 'live') {
+          dashTimer = setInterval(updateTimer, 1000);
+        }
+      } else {
+        $('#next-agenda').innerHTML = `
+          <div class="h-full rounded-2xl bg-brand-100 p-5 shadow-card flex flex-col justify-center items-center text-center min-h-[200px]">
+            <div class="grid h-12 w-12 place-items-center rounded-full bg-white text-brand-500 mb-3"><i class="ph-light ph-flag-checkered text-2xl"></i></div>
+            <p class="text-[14px] font-medium text-brand-800">Trip complete!</p>
+            <p class="mt-1 text-[12px] text-brand-600/70">Hope you had a great time</p>
+          </div>
+        `;
+      }
+    }
+
+    function renderDash() {
+      const places = days.reduce((s, d) => s + d.places.length, 0);
+      const openTasks = days.flatMap(d => d.places).flatMap(p => p.tasks || []).filter(t => !t.done).length;
+      $('#dash-stats').innerHTML = [`${days.length} days`, `${places} places`, `${members.length} travellers`, `${openTasks} tasks to do`].map(t => `<span class="rounded-full bg-white px-3 py-1.5 text-[11px] text-neutral-600 shadow-card">${t}</span>`).join('');
+      $('#highlights').innerHTML = HIGHLIGHTS.map(h => `
+        <button data-nav="${h.go}" ${h.scroll ? `data-scroll="${h.scroll}"` : ''} class="w-36 shrink-0 snap-start rounded-xl bg-white p-3.5 text-left shadow-card transition hover:-translate-y-0.5 lg:w-auto">
+          <i class="ph-fill ${h.icon} text-[28px] ${h.color}"></i>
+          <p class="mt-2 text-[14px] font-medium">${h.title}</p>
+          <p class="mt-0.5 text-[11px] leading-snug text-neutral-500">${h.desc}</p>
+        </button>`).join('');
+      renderWidgets();
+    }
+    $('#demo-clock').addEventListener('change', renderDash);
+    $('#dash-toggle').addEventListener('click', e => {
+      const b = e.currentTarget, open = b.getAttribute('aria-expanded') === 'true';
+      b.setAttribute('aria-expanded', String(!open));
+      $('#dash-toggle-text').textContent = open ? 'Show photos' : 'Hide photos';
+      $('#dash-images').classList.toggle('hidden', open);
+    });
+
+    /* ---------------- Itinerary (list) ---------------- */
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    function taskBlock(p) {
+      const t = p.tasks ||= [], done = t.filter(x => x.done).length, all = t.length && done === t.length;
+      return `
+      <div class="task-block mt-2 border-t border-brand-200/70 pt-1" data-pid="${p.id}">
+        <button type="button" data-task-toggle aria-expanded="${!!p.open}" class="-ml-1 flex min-h-[40px] items-center gap-1.5 rounded-lg px-1 text-[11px] font-medium ${all ? 'text-emerald-700' : 'text-brand-600'}">
+          <i class="ph-light ${all ? 'ph-check-square' : t.length ? 'ph-list-checks' : 'ph-plus-circle'} text-base"></i>
+          ${t.length ? `${done}/${t.length} tasks` : 'Add a task'}
+          <i class="ph-light ph-caret-down text-xs transition-transform ${p.open ? 'rotate-180' : ''}"></i>
+        </button>
+        ${p.open ? `
+        <ul class="space-y-0.5">${t.map(x => { const subs = x.subs ||= [], sd = subs.filter(s => s.done).length; return `
+          <li>
+            <div class="flex items-center gap-1">
+              <label class="flex min-h-[44px] min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg px-1 hover:bg-white/60">
+                <input type="checkbox" data-task="${x.id}" ${x.done ? 'checked' : ''} class="h-[18px] w-[18px] shrink-0 rounded accent-brand-600" />
+                <span class="text-[13px] ${x.done ? 'text-neutral-400 line-through' : 'text-neutral-700'}">${esc(x.text)}</span>
+              </label>
+              ${subs.length ? `<span class="tnum shrink-0 rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-medium text-neutral-500" title="Sub-tasks done">${sd}/${subs.length}</span>` : ''}
+              <button type="button" data-sub-add="${x.id}" aria-expanded="${!!x.addingSub}" aria-label="Add a sub-task to ${esc(x.text)}" class="grid h-10 w-10 shrink-0 place-items-center rounded-lg ${x.addingSub ? 'bg-white text-brand-600' : 'text-neutral-400 hover:bg-white/70 hover:text-brand-600'}"><i class="ph-light ph-arrow-elbow-down-right text-base"></i></button>
+              <button type="button" data-task-del="${x.id}" class="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-neutral-400 hover:bg-white/70 hover:text-rose-600" aria-label="Remove task ${esc(x.text)}"><i class="ph-light ph-x text-sm"></i></button>
+            </div>
+            ${subs.length || x.addingSub ? `
+            <ul class="ml-[22px] border-l-2 border-brand-200 pl-2">${subs.map(s => `
+              <li class="flex items-center gap-1">
+                <label class="flex min-h-[40px] min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg px-1 hover:bg-white/60">
+                  <input type="checkbox" data-sub="${s.id}" data-parent="${x.id}" ${s.done ? 'checked' : ''} class="h-4 w-4 shrink-0 rounded accent-brand-600" />
+                  <span class="text-[12px] ${s.done ? 'text-neutral-400 line-through' : 'text-neutral-600'}">${esc(s.text)}</span>
+                </label>
+                <button type="button" data-sub-del="${s.id}" data-parent="${x.id}" class="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-neutral-400 hover:bg-white/70 hover:text-rose-600" aria-label="Remove sub-task ${esc(s.text)}"><i class="ph-light ph-x text-xs"></i></button>
+              </li>`).join('')}${x.addingSub ? `
+              <li><form data-sub-form="${x.id}" class="flex gap-2 py-1">
+                <input type="text" maxlength="80" aria-label="New sub-task for ${esc(x.text)}" placeholder="Add a sub-task…" class="h-10 min-w-0 flex-1 rounded-lg border border-neutral-200 bg-white px-3 text-[12px] placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100" />
+                <button type="submit" class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand-600 text-white hover:bg-brand-700" aria-label="Add sub-task"><i class="ph-light ph-plus text-base"></i></button>
+              </form></li>` : ''}
+            </ul>` : ''}
+          </li>`; }).join('')}
+        </ul>
+        <form data-task-form class="mt-1 flex gap-2">
+          <input type="text" maxlength="80" aria-label="New task for ${esc(p.name)}" placeholder="e.g. Buy omamori charm" class="h-11 min-w-0 flex-1 rounded-lg border border-neutral-200 bg-white px-3 text-[13px] placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100" />
+          <button type="submit" class="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-brand-600 text-white hover:bg-brand-700" aria-label="Add task"><i class="ph-light ph-plus text-lg"></i></button>
+        </form>` : ''}
+      </div>`;
+    }
+    function placeItem(p, di) {
+      const c = CATS[p.category];
+      return `
+      <li class="place flex items-stretch gap-3" data-id="${p.id}">
+        <div class="flex w-7 shrink-0 flex-col items-center pt-3"><i class="ph-light ${c.icon} text-[22px] text-neutral-500"></i><span class="mt-1.5 w-0.5 flex-1 rounded bg-neutral-300"></span></div>
+        <div class="mb-4 flex min-w-0 flex-1 items-start gap-2 rounded-xl bg-brand-100 px-4 py-3 transition hover:bg-brand-200/70">
+          <div class="min-w-0 flex-1">
+            <p class="text-[15px] font-medium leading-snug">${esc(p.name)}</p>
+            <p class="mt-1 flex items-center gap-1.5 text-[11px] text-neutral-500"><i class="ph-light ph-map-pin text-sm"></i><span class="truncate">${esc(p.loc)} • ${esc(p.tag)}</span></p>
+            <p class="mt-1 flex items-center gap-1.5 text-[11px] text-neutral-500"><i class="ph-light ph-clock text-sm"></i><span class="tnum">${fmt(p.start)} - ${fmt(p.end)}</span>${p.cost ? `<span class="tnum ml-auto font-medium text-brand-700">¥${yen(p.cost)}</span>` : ''}</p>
+            ${taskBlock(p)}
+          </div>
+          <div class="edit-only -my-1 -mr-2 gap-0.5">
+            <button class="drag-handle h-11 w-11 place-items-center rounded-lg text-neutral-500 hover:bg-white/70" aria-label="Drag to reorder ${esc(p.name)}" style="display:grid"><i class="ph-light ph-dots-six-vertical text-2xl"></i></button>
+            <button data-del="${p.id}" class="h-11 w-11 place-items-center rounded-lg text-neutral-500 hover:bg-white/70 hover:text-rose-600" aria-label="Remove ${esc(p.name)}" style="display:grid"><i class="ph-light ph-trash text-xl"></i></button>
+          </div>
+        </div>
+      </li>`;
+    }
+    function renderDays() {
+      $('#days').innerHTML = days.map((d, di) => `
+        <article aria-label="Day ${d.day_number}">
+          <div class="relative my-5 flex items-center" role="separator"><span class="h-px flex-1 bg-neutral-300"></span><span class="px-3 text-[11px] tracking-wider text-neutral-500">DAY ${String(d.day_number).padStart(2, '0')} · ${d.date.toUpperCase()}</span><span class="h-px flex-1 bg-neutral-300"></span></div>
+          <ol class="place-list" data-day="${di}">${d.places.map(p => placeItem(p, di)).join('')}</ol>
+          <div class="flex gap-3">
+            <div class="flex w-7 shrink-0 justify-center pt-3"><i class="ph-light ph-person-simple-walk text-[22px] text-neutral-500"></i></div>
+            <div class="flex-1 rounded-xl bg-peach-100 px-4 py-3 text-[13px] text-neutral-700">${d.notes}</div>
+          </div>
+          <button data-open-pin data-day="${di}" class="ml-10 mt-2 flex min-h-[44px] items-center gap-1.5 text-xs font-medium text-brand-600"><i class="ph-light ph-plus text-base"></i>Drop a pin</button>
+        </article>`).join('');
+      $$('.place-list').forEach(list => new Sortable(list, {
+        group: 'places', handle: '.drag-handle', animation: 200, ghostClass: 'sortable-ghost',
+        onEnd: () => {
+          const all = new Map(days.flatMap(d => d.places).map(p => [String(p.id), p]));
+          $$('.place-list').forEach(l => { days[+l.dataset.day].places = [...l.children].map(li => all.get(li.dataset.id)); });
+          renderMap();
+        },
+      }));
+    }
+    document.addEventListener('click', e => {
+      const del = e.target.closest('[data-del]');
+      if (del) { days.forEach(d => d.places = d.places.filter(p => String(p.id) !== del.dataset.del)); renderDays(); renderMap(); renderDash(); }
+    });
+
+    /* ---------------- Tasks & sub-tasks per agenda ---------------- */
+    const findPlace = id => days.flatMap(d => d.places).find(p => String(p.id) === String(id));
+    const findTask = (pid, id) => findPlace(pid).tasks.find(t => String(t.id) === String(id));
+    const MAIN_INPUT = '[data-task-form] input';
+    function refreshTasks(pid, focusSel) {
+      const old = document.querySelector(`.task-block[data-pid="${pid}"]`), p = findPlace(pid);
+      if (!old || !p) return;
+      old.outerHTML = taskBlock(p);
+      if (focusSel) document.querySelector(`.task-block[data-pid="${pid}"] ${focusSel}`)?.focus();
+      renderDash();
+    }
+    document.addEventListener('click', e => {
+      const block = e.target.closest('.task-block'); if (!block) return;
+      const pid = block.dataset.pid;
+      const tog = e.target.closest('[data-task-toggle]');
+      if (tog) { const p = findPlace(pid); p.open = !p.open; refreshTasks(pid, p.open ? MAIN_INPUT : null); return; }
+      const rm = e.target.closest('[data-task-del]');
+      if (rm) { const p = findPlace(pid); p.tasks = p.tasks.filter(t => String(t.id) !== rm.dataset.taskDel); refreshTasks(pid, MAIN_INPUT); return; }
+      const subAdd = e.target.closest('[data-sub-add]');
+      if (subAdd) { const t = findTask(pid, subAdd.dataset.subAdd); t.addingSub = !t.addingSub; refreshTasks(pid, t.addingSub ? `[data-sub-form="${t.id}"] input` : null); return; }
+      const subDel = e.target.closest('[data-sub-del]');
+      if (subDel) { const t = findTask(pid, subDel.dataset.parent); t.subs = t.subs.filter(s => String(s.id) !== subDel.dataset.subDel); refreshTasks(pid, null); }
+    });
+    document.addEventListener('change', e => {
+      const block = e.target.closest('.task-block'); if (!block) return;
+      const pid = block.dataset.pid;
+      const cb = e.target.closest('[data-task]');
+      if (cb) { findTask(pid, cb.dataset.task).done = cb.checked; refreshTasks(pid, null); return; }
+      const sb = e.target.closest('[data-sub]');
+      if (sb) { 
+        const t = findTask(pid, sb.dataset.parent);
+        t.subs.find(s => String(s.id) === sb.dataset.sub).done = sb.checked;
+        if (t.subs.length > 0 && t.subs.every(s => s.done)) t.done = true;
+        if (t.subs.some(s => !s.done)) t.done = false;
+        refreshTasks(pid, null); 
+      }
+    });
+    document.addEventListener('submit', e => {
+      const block = e.target.closest('.task-block'); if (!block) return;
+      const pid = block.dataset.pid;
+      const f = e.target.closest('[data-task-form]'), sf = e.target.closest('[data-sub-form]');
+      if (!f && !sf) return;
+      e.preventDefault();
+      const form = f || sf, text = form.querySelector('input').value.trim(); if (!text) return;
+      if (f) { findPlace(pid).tasks.push({ id: tid++, text, done: false, subs: [] }); refreshTasks(pid, MAIN_INPUT); }
+      else { const t = findTask(pid, sf.dataset.subForm); t.subs.push({ id: tid++, text, done: false }); refreshTasks(pid, `[data-sub-form="${t.id}"] input`); }
+    });
+
+    /* ---------------- Itinerary (map mockup) ---------------- */
+    let mapDay = 'all';
+    const pos = (di, i) => ({ x: 40 + ((i * 83 + di * 57) % 320), y: 40 + ((i * 61 + di * 97) % 190) });
+    function renderMap() {
+      $('#map-chips').innerHTML = [['all', 'All days', '#3b5bb9'], ...days.map((d, i) => [String(i), `Day ${String(d.day_number).padStart(2, '0')}`, DAY_COLORS[i]])].map(([k, label, col]) => `
+        <button data-mapday="${k}" class="flex min-h-[40px] shrink-0 items-center gap-2 rounded-full px-4 text-xs font-medium transition ${mapDay === k ? 'bg-brand-600 text-white' : 'bg-white text-neutral-600 shadow-card'}">
+          ${k !== 'all' ? `<span class="h-2 w-2 rounded-full" style="background:${mapDay === k ? '#fff' : col}"></span>` : ''}${label}</button>`).join('');
+      const shown = days.map((d, i) => ({ d, i })).filter(({ i }) => mapDay === 'all' || mapDay === String(i));
+      const lines = shown.map(({ d, i }) => `<polyline fill="none" stroke="${DAY_COLORS[i]}" stroke-width="2" stroke-dasharray="5 5" stroke-linecap="round" points="${d.places.map((_, k) => { const p = pos(i, k); return p.x + ',' + p.y; }).join(' ')}"/>`).join('');
+      const pins = shown.map(({ d, i }) => d.places.map((_, k) => { const p = pos(i, k); return `<g><circle cx="${p.x}" cy="${p.y}" r="11" fill="${DAY_COLORS[i]}" stroke="#fff" stroke-width="3"/><text x="${p.x}" y="${p.y + 4}" text-anchor="middle" font-size="11" font-weight="600" fill="#fff" font-family="Poppins">${k + 1}</text></g>`; }).join('')).join('');
+      $('#map-svg').innerHTML = `<svg viewBox="0 0 400 270" class="h-full w-full" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Map preview with numbered stops">
+        <rect width="400" height="270" fill="#eef2fb"/>
+        <path d="M-10 200 C70 160 130 230 220 190 S350 140 420 165" fill="none" stroke="#cfe0f5" stroke-width="22" stroke-linecap="round"/>
+        <rect x="250" y="30" width="110" height="60" rx="14" fill="#e3efe6"/><rect x="30" y="170" width="80" height="50" rx="14" fill="#e3efe6"/>
+        <path d="M0 90 H400 M0 150 H400 M90 0 V270 M200 0 V270 M310 0 V270" stroke="#fff" stroke-width="5"/>
+        ${lines}${pins}</svg>`;
+      $('#map-list').innerHTML = shown.map(({ d, i }) => d.places.map((p, k) => `
+        <li class="flex items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-card">
+          <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-semibold text-white" style="background:${DAY_COLORS[i]}">${k + 1}</span>
+          <span class="min-w-0 flex-1 text-[13px] font-medium"><span class="block truncate">${p.name}</span><span class="block text-[11px] font-normal text-neutral-500">Day ${String(d.day_number).padStart(2, '0')} · ${fmt(p.start)}</span></span>
+          <i class="ph-light ph-caret-right text-neutral-400"></i></li>`).join('')).join('');
+    }
+    document.addEventListener('click', e => { const b = e.target.closest('[data-mapday]'); if (b) { mapDay = b.dataset.mapday; renderMap(); } });
+
+    /* ---------------- Budget ---------------- */
+    function renderBudget() {
+      const spent = expenses.reduce((s, e) => s + e.amount, 0), left = TOTAL_BUDGET - spent, pct = Math.round(spent / TOTAL_BUDGET * 100);
+      $('#b-left').textContent = yen(left); $('#d-left').textContent = yen(left);
+      $('#b-left-idr').textContent = '≈ ' + idr(left); $('#b-total').textContent = yen(TOTAL_BUDGET);
+      $('#b-spent').textContent = yen(spent); $('#b-pct').textContent = pct + '% spent'; $('#d-pct').textContent = pct + '%';
+      $('#b-bar').style.width = pct + '%'; $('#d-bar').style.width = pct + '%'; $('#b-bar-wrap').setAttribute('aria-valuenow', pct);
+
+      const net = Object.fromEntries(members.map(m => [m.id, 0]));
+      expenses.forEach(e => { net[e.paid_by] += e.amount; e.splits.forEach(s => net[s.member_id] -= s.amount_owed); });
+      const debtors = members.filter(m => net[m.id] < -0.5).map(m => ({ id: m.id, amt: -net[m.id] })).sort((a, b) => b.amt - a.amt);
+      const creditors = members.filter(m => net[m.id] > 0.5).map(m => ({ id: m.id, amt: net[m.id] })).sort((a, b) => b.amt - a.amt);
+      const transfers = [];
+      debtors.forEach(d => creditors.forEach(c => { const t = Math.min(d.amt, c.amt); if (t > 0.5) { transfers.push({ from: d.id, to: c.id, amt: t }); d.amt -= t; c.amt -= t; } }));
+      $('#settle').innerHTML = transfers.map(t => `
+        <li class="flex items-center gap-3 rounded-xl bg-white/80 p-3">
+          ${avatar(t.from, 'h-9 w-9 text-xs')}
+          <span class="min-w-0 flex-1 text-[13px]"><b class="font-medium">${byId[t.from].name}</b> owes <b class="font-medium">${byId[t.to].name}</b><span class="block text-[11px] text-neutral-500">${idr(t.amt)}</span></span>
+          <span class="tnum text-[15px] font-semibold">¥${yen(t.amt)}</span>
+        </li>`).join('');
+    }
+    function renderLedger(filter = 'all') {
+      const rows = expenses.filter(e => filter === 'all' ? true : filter === 'split' ? e.splits.length > 1 : e.splits.length === 1);
+      $('#ledger').innerHTML = rows.map(e => {
+        const c = CATS[e.category], n = e.splits.length, each = e.splits[0].amount_owed;
+        const split = n > 1
+          ? `<span class="inline-flex items-center gap-2 rounded-full bg-brand-100 py-1 pl-1.5 pr-3 text-[11px] font-medium text-brand-700"><span class="flex -space-x-1.5">${e.splits.map(s => avatar(s.member_id, 'h-5 w-5 text-[9px]')).join('')}</span><i class="ph-light ph-users-three text-sm"></i>Divided by ${n} · ¥${yen(each)} each</span>`
+          : `<span class="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-[11px] font-medium text-neutral-500"><i class="ph-light ph-user text-sm"></i>Just ${byId[e.splits[0].member_id].name}</span>`;
+        return `
+        <li class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 rounded-xl p-4 md:grid-cols-[4.5rem_minmax(0,1fr)_9rem_13rem_7rem] md:gap-4">
+          <div class="hidden md:block"><p class="text-[13px] font-medium">${e.date}</p><p class="text-[11px] text-neutral-400">${e.weekday}</p></div>
+          <div class="order-1 min-w-0 md:order-none">
+            <p class="truncate text-[14px] font-medium">${e.description}</p>
+            <p class="mt-0.5 flex items-center gap-1.5 text-[11px] text-neutral-500"><i class="ph-light ${c.icon} text-sm"></i>${c.label}<span class="md:hidden">· ${e.weekday}, ${e.date}</span></p>
+          </div>
+          <div class="order-3 flex items-center gap-2 md:order-none">${avatar(e.paid_by)}<span class="text-[13px]"><span class="text-[11px] text-neutral-400 md:hidden">Paid by </span>${byId[e.paid_by].name}</span></div>
+          <div class="order-4 justify-self-end md:order-none md:justify-self-start">${split}</div>
+          <div class="order-2 text-right md:order-none"><p class="tnum text-[15px] font-semibold">¥${yen(e.amount)}</p><p class="text-[11px] text-neutral-400">${idr(e.amount)}</p></div>
+        </li>`;
+      }).join('');
+    }
+    function setFilter(f) {
+      $('.filter-btn').forEach(b => setCls(b, b.dataset.filter === f, 'bg-brand-600 text-white', 'bg-white text-neutral-600 shadow-card'));
+      renderLedger(f);
+    }
+    $('#filters').addEventListener('click', e => { const b = e.target.closest('[data-filter]'); if (b) setFilter(b.dataset.filter); });
+
+    /* ---------------- Vault ---------------- */
+    let packUid = 1;
+    const packs = [
+      { id: 'c1', name: 'Essentials', items: [
+        { id: packUid++, text: 'Passport', done: true },
+        { id: packUid++, text: 'Wallet & Cash', done: false },
+        { id: packUid++, text: 'Phone Charger', done: false }
+      ]},
+      { id: 'c2', name: 'Clothes', items: [
+        { id: packUid++, text: 'T-Shirts (x3)', done: true },
+        { id: packUid++, text: 'Jacket', done: false }
+      ]}
+    ];
+
+    function renderPack() {
+      const total = packs.reduce((s, c) => s + c.items.length, 0);
+      const done = packs.reduce((s, c) => s + c.items.filter(i => i.done).length, 0);
+      $('#pack-count').textContent = done;
+      $('#pack-total').textContent = total;
+      $('#pack-bar').style.width = total ? Math.round(done / total * 100) + '%' : '0%';
+
+      $('#pack-cats').innerHTML = packs.map(c => {
+        const cTotal = c.items.length;
+        const cDone = c.items.filter(i => i.done).length;
+        const allDone = cTotal > 0 && cTotal === cDone;
+        return `
+        <div class="rounded-2xl border border-neutral-100 bg-brand-50/50 p-4" data-cat-id="${c.id}">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-[13px] font-semibold ${allDone ? 'text-brand-600/60 line-through' : 'text-brand-700'}">${esc(c.name)}</h4>
+            <span class="text-[11px] font-medium text-brand-600/70">${cDone}/${cTotal}</span>
+          </div>
+          <ul class="space-y-1">
+            ${c.items.map(i => `
+            <li class="flex items-center gap-1 -ml-1">
+              <label class="flex min-h-[36px] min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg px-2 hover:bg-white/60">
+                <input type="checkbox" data-pack="${i.id}" ${i.done ? 'checked' : ''} class="h-[16px] w-[16px] shrink-0 rounded accent-brand-600" />
+                <span class="text-[12.5px] ${i.done ? 'text-neutral-400 line-through' : 'text-neutral-600'}">${esc(i.text)}</span>
+              </label>
+              <button type="button" data-pack-del="${i.id}" class="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-neutral-400 hover:bg-white/60 hover:text-rose-600"><i class="ph-light ph-x text-sm"></i></button>
+            </li>
+            `).join('')}
+            <li class="mt-1">
+              <form data-pack-form="${c.id}" class="flex gap-2">
+                <input type="text" maxlength="60" placeholder="Add an item…" class="h-9 min-w-0 flex-1 rounded-lg border border-neutral-200 bg-white px-3 text-[12px] placeholder:text-neutral-400 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100" />
+                <button type="submit" class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white shadow-card text-brand-600 hover:bg-brand-50"><i class="ph-light ph-plus text-base"></i></button>
+              </form>
+            </li>
+          </ul>
+        </div>
+      `}).join('');
+    }
+
+    document.addEventListener('change', e => {
+      const pk = e.target.closest('[data-pack]');
+      if (pk) {
+        packs.forEach(c => c.items.forEach(i => { if(String(i.id) === pk.dataset.pack) i.done = pk.checked; }));
+        renderPack();
+      }
+    });
+    
+    document.addEventListener('submit', e => {
+      const pf = e.target.closest('[data-pack-form]');
+      if (pf) {
+        e.preventDefault();
+        const text = pf.querySelector('input').value.trim();
+        if(text) {
+          const c = packs.find(c => c.id === pf.dataset.packForm);
+          c.items.push({ id: packUid++, text, done: false });
+          renderPack();
+          pf.querySelector('input').focus();
+        }
+      }
+    });
+
+    document.addEventListener('click', e => {
+      const pd = e.target.closest('[data-pack-del]');
+      if (pd) {
+        packs.forEach(c => c.items = c.items.filter(i => String(i.id) !== pd.dataset.packDel));
+        renderPack();
+      }
+    });
+
+    $('#cat-toggle').addEventListener('click', () => {
+      $('#cat-toggle').classList.add('hidden');
+      $('#cat-form').classList.remove('hidden');
+      $('#cat-form').classList.add('flex');
+      $('#cat-name').focus();
+    });
+    $('#cat-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = $('#cat-name').value.trim();
+      if(name) {
+        packs.push({ id: 'c' + (Date.now()), name, items: [] });
+        $('#cat-name').value = '';
+        $('#cat-form').classList.add('hidden');
+        $('#cat-form').classList.remove('flex');
+        $('#cat-toggle').classList.remove('hidden');
+        renderPack();
+      }
+    });
+    $('#ai-run').addEventListener('click', () => $('#ai-result').classList.remove('hidden'));
+    $('#ai-add').addEventListener('click', () => {
+      days[1].places.push({ id: uid++, name: 'Kikunoi Honten', loc: 'Higashiyama', tag: 'Dinner', start: '19:00', end: '20:30', category: 'food', cost: 0 });
+      days[1].places.sort((a, b) => a.start.localeCompare(b.start));
+      renderDays(); renderMap(); renderDash();
+      $('#ai-add').innerHTML = '<i class="ph-light ph-check"></i>Added to Day 02';
+    });
+
+    /* ---------------- Navigation ---------------- */
+    const state = { nav: 'home', editing: false };
+    const BAR = {
+      home:      { title: 'Dashboard', menu: true },
+      itinerary: { title: 'Itinerary', customize: true },
+      map:       { title: 'Itinerary', customize: true },
+      budget:    { title: 'Budget' },
+      vault:     { title: 'Vault' },
+    };
+    function setEditing(on) {
+      state.editing = on;
+      $('#days').classList.toggle('editing', on);
+      $('#bar-customize').innerHTML = on ? '<span>Done</span><i class="ph-light ph-check text-base"></i>' : '<span>Customize</span><i class="ph-light ph-pencil-simple text-base"></i>';
+    }
+    function show(nav, scrollId) {
+      if (!BAR[nav]) nav = 'home';
+      state.nav = nav;
+      const view = nav === 'map' ? 'itinerary' : nav, cfg = BAR[nav];
+      $$('.view').forEach(v => v.classList.toggle('is-active', v.id === 'view-' + view));
+      // list / map mode
+      const isMap = nav === 'map';
+      $('#itin-list').classList.toggle('hidden', isMap);
+      $('#itin-map').classList.toggle('hidden', !isMap);
+      $$('.mode-btn').forEach(b => {
+        const on = (b.dataset.mode === 'map') === isMap;
+        setCls(b, on, 'text-brand-600', 'text-neutral-500');
+        b.firstElementChild.classList.toggle('ph-fill', on); b.firstElementChild.classList.toggle('ph-light', !on);
+      });
+      // nav highlight
+      $$('.nav-m').forEach(b => {
+        const on = b.dataset.nav === nav, i = b.firstElementChild;
+        setCls(b, on, 'text-brand-600', 'text-neutral-400');
+        i.classList.toggle('ph-fill', on); i.classList.toggle('ph-light', !on);
+        b.setAttribute('aria-current', on ? 'page' : 'false');
+      });
+      $$('.nav-d').forEach(b => {
+        const on = b.dataset.nav === nav, i = b.firstElementChild;
+        setCls(b, on, 'bg-brand-100 text-brand-700', 'text-neutral-600 hover:bg-neutral-100');
+        i.classList.toggle('ph-fill', on); i.classList.toggle('ph-light', !on);
+        b.setAttribute('aria-current', on ? 'page' : 'false');
+      });
+      // app bar
+      $('#bar-title').textContent = cfg.title;
+      $('#bar-menu').classList.toggle('hidden', !cfg.menu); $('#bar-menu').classList.toggle('grid', !!cfg.menu);
+      $('#bar-back').classList.toggle('hidden', !!cfg.menu); $('#bar-back').classList.toggle('grid', !cfg.menu);
+      $('#bar-avatar').classList.toggle('hidden', !!cfg.customize); $('#bar-avatar').classList.toggle('grid', !cfg.customize);
+      $('#bar-customize').classList.toggle('hidden', !cfg.customize); $('#bar-customize').classList.toggle('flex', !!cfg.customize);
+      if (!cfg.customize && state.editing) setEditing(false);
+      history.replaceState(null, '', '#' + nav);
+      if (scrollId) $('#' + scrollId).scrollIntoView({ behavior: 'smooth', block: 'center' }); else window.scrollTo({ top: 0 });
+    }
+    document.addEventListener('click', e => {
+      const n = e.target.closest('[data-nav]');
+      if (n) { closeDrawer(); show(n.dataset.nav, n.dataset.scroll); return; }
+      const m = e.target.closest('[data-mode]');
+      if (m) show(m.dataset.mode === 'map' ? 'map' : 'itinerary');
+    });
+    $('#bar-back').addEventListener('click', () => show('home'));
+    $('#bar-customize').addEventListener('click', () => setEditing(!state.editing));
+
+    /* ---------------- Drawer ---------------- */
+    const drawer = $('#drawer');
+    const closeDrawer = () => { drawer.classList.add('hidden'); drawer.setAttribute('aria-hidden', 'true'); };
+    $('#bar-menu').addEventListener('click', () => { drawer.classList.remove('hidden'); drawer.setAttribute('aria-hidden', 'false'); });
+    $('#drawer-close').addEventListener('click', closeDrawer);
+    $('#drawer-bg').addEventListener('click', closeDrawer);
+
+    /* ---------------- Drop a pin dialog ---------------- */
+    const dlg = $('#pin-dialog'); let pinCat = 'sight';
+    function renderCats() {
+      $('#pin-cats').innerHTML = Object.entries(CATS).map(([k, c]) => `
+        <button type="button" data-cat="${k}" class="flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-xl border text-[11px] font-medium transition ${k === pinCat ? 'border-brand-500 bg-brand-100 text-brand-700' : 'border-neutral-200 bg-white text-neutral-600'}"><i class="ph-light ${c.icon} text-2xl"></i>${c.label}</button>`).join('');
+    }
+    $('#pin-cats').addEventListener('click', e => { const b = e.target.closest('[data-cat]'); if (b) { pinCat = b.dataset.cat; renderCats(); } });
+    document.addEventListener('click', e => {
+      const o = e.target.closest('[data-open-pin]'); if (!o) return;
+      if (o.dataset.day) $('#pin-day').value = o.dataset.day;
+      renderCats(); dlg.showModal(); $('#pin-name').focus();
+    });
+    $('#pin-close').addEventListener('click', () => dlg.close());
+    dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+    $('#pin-form').addEventListener('submit', () => {
+      const name = $('#pin-name').value.trim(); if (!name) return;
+      const time = $('#pin-time').value || '10:00', di = +$('#pin-day').value;
+      const [h, m] = time.split(':').map(Number);
+      const end = String((h + 1) % 24).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      days[di].places.push({ id: uid++, name, loc: 'Kyoto', tag: CATS[pinCat].label, start: time, end, category: pinCat, cost: 0 });
+      days[di].places.sort((a, b) => a.start.localeCompare(b.start));
+      $('#pin-name').value = '';
+      renderDays(); renderMap(); renderDash();
+    });
+
+    /* ---------------- Init ---------------- */
+    renderDash(); renderDays(); renderMap(); renderBudget(); setFilter('all'); renderPack();
+    show(location.hash.slice(1));
+  </script>
+</body>
+</html>
