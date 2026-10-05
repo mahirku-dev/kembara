@@ -685,27 +685,76 @@
         </div>
       </li>`;
     }
+    
+    let selectedDayIdx = 0;
+    
+    function initDayIdx() {
+      const today = new Date();
+      const todayStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const match = days.findIndex(d => d.date === todayStr);
+      if (match !== -1) {
+        selectedDayIdx = match;
+      }
+    }
+
+    function renderDayChips() {
+      $('#itin-day-filter').innerHTML = days.map((d, i) => {
+        const isSel = i === selectedDayIdx;
+        const cls = isSel 
+          ? 'bg-[#2a5b32] text-white border-transparent' 
+          : 'bg-white/60 backdrop-blur-md border border-[#c4dbca] text-[#2a5b32] shadow-sm hover:bg-white/80';
+        return `<button data-filter-day="${i}" class="snap-start flex flex-col items-center justify-center min-w-[80px] h-12 rounded-2xl border transition-all ${cls}">
+          <span class="text-[12px] font-bold">Hari ${d.day_number}</span>
+          <span class="text-[10px] font-medium opacity-90">${d.weekday}, ${d.date.replace('Oct', 'Okt').replace('Nov', 'Nov')}</span>
+        </button>`;
+      }).join('');
+    }
+
+    function renderNextAgenda() {
+      const nextPlace = days[selectedDayIdx].places[0];
+      if (!nextPlace) {
+         $('#next-agenda').innerHTML = '<p class="text-[13px] text-stone-500 w-full text-center py-2">Tidak ada agenda</p>';
+         return;
+      }
+      
+      const c = CATS[nextPlace.category] || { icon: 'ph-map-pin' };
+      $('#next-agenda').innerHTML = `
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#e3efe6] text-[#2a5b32]">
+           <i class="ph-light ${c.icon} text-xl"></i>
+        </div>
+        <div class="min-w-0 flex-1">
+           <p class="text-[13px] font-bold text-stone-900 leading-tight truncate">${esc(nextPlace.name)}</p>
+           <p class="text-[11px] text-stone-500 mt-0.5"><i class="ph-light ph-clock mr-1"></i>${nextPlace.start} - ${nextPlace.end} • ${esc(nextPlace.loc)}</p>
+        </div>
+      `;
+    }
+
     function renderDays() {
-      $('#days').innerHTML = days.map((d, di) => `
-        <article aria-label="Day ${d.day_number}">
-          <div class="relative my-5 flex items-center" role="separator"><span class="h-px flex-1 bg-stone-300"></span><span class="px-3 text-[11px] tracking-wider text-stone-500">DAY ${String(d.day_number).padStart(2, '0')} · ${d.date.toUpperCase()}</span><span class="h-px flex-1 bg-stone-300"></span></div>
-          <ol class="place-list" data-day="${di}">${d.places.map(p => placeItem(p, di)).join('')}</ol>
+      renderDayChips();
+      renderNextAgenda();
+      const d = days[selectedDayIdx];
+      const html = `<article aria-label="Day ${d.day_number}" class="relative">
+          <div class="sticky top-[104px] z-10 -mx-5 mb-4 flex items-center justify-between bg-stone-50/90 px-5 py-2 backdrop-blur-md lg:-mx-10 lg:px-10 border-b border-stone-200 shadow-sm">
+            <h3 class="text-sm font-bold text-stone-900">Hari ${d.day_number} <span class="ml-2 font-normal text-stone-500">${d.weekday}, ${d.date.replace('Oct', 'Okt')}</span></h3>
+          </div>
+          <ol class="place-list" data-day="${selectedDayIdx}">${d.places.map(p => placeItem(p, selectedDayIdx)).join('')}</ol>
           <div class="flex gap-3">
             <div class="flex w-7 shrink-0 justify-center pt-3"><i class="ph-light ph-person-simple-walk text-[22px] text-stone-500"></i></div>
             <div class="flex-1 rounded-xl bg-peach-120 px-4 py-3 text-[13px] text-stone-700">${d.notes}</div>
           </div>
-          <button data-open-pin data-day="${di}" class="ml-10 mt-2 flex min-h-[44px] items-center gap-1.5 text-xs font-medium text-brand-600"><i class="ph-light ph-plus text-base"></i>Drop a pin</button>
-        </article>`).join('');
-      $$('.place-list').forEach(list => new Sortable(list, {
+          <button data-open-pin data-day="${selectedDayIdx}" class="ml-10 mt-4 flex min-h-[44px] items-center gap-1.5 text-xs font-medium text-brand-600"><i class="ph-light ph-plus text-base"></i>Drop a pin</button>
+        </article>`;
+      $('#days').innerHTML = html;
+      $('.place-list').forEach(list => new Sortable(list, {
         group: 'places', handle: '.drag-handle', animation: 200, ghostClass: 'sortable-ghost',
         onEnd: () => {
           const all = new Map(days.flatMap(d => d.places).map(p => [String(p.id), p]));
-          $$('.place-list').forEach(l => { days[+l.dataset.day].places = [...l.children].map(li => all.get(li.dataset.id)); });
+          $('.place-list').forEach(l => { days[+l.dataset.day].places = [...l.children].map(li => all.get(li.dataset.id)); });
           renderMap();
         },
       }));
     }
-    document.addEventListener('click', e => {
+document.addEventListener('click', e => {
       const del = e.target.closest('[data-del]');
       if (del) { days.forEach(d => d.places = d.places.filter(p => String(p.id) !== del.dataset.del)); renderDays(); renderMap(); renderDash(); }
     });
@@ -1031,6 +1080,17 @@
 
     /* ---------------- Init ---------------- */
     renderDash(); renderDays(); renderMap(); renderBudget(); setFilter('all'); renderPack();
+    
+    document.addEventListener('click', e => {
+      const b = e.target.closest('[data-filter-day]');
+      if (b) {
+        selectedDayIdx = parseInt(b.dataset.filterDay, 10);
+        renderDays();
+      }
+    });
+
+    initDayIdx();
+
     show(location.hash.slice(1));
   </script>
 </body>
