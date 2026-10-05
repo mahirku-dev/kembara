@@ -641,13 +641,13 @@
       <li class="place flex items-stretch gap-3" data-id="${p.id}">
         <div class="flex w-7 shrink-0 flex-col items-center pt-3"><i class="ph-light ${c.icon} text-[22px] text-stone-500"></i><span class="mt-1.5 w-0.5 flex-1 rounded bg-stone-300"></span></div>
         <div class="mb-4 flex min-w-0 flex-1 items-start gap-3 rounded-2xl bg-white/60 backdrop-blur-md border border-white/60 px-4 py-3 shadow-glass transition hover:bg-white/80">
-          ${p.thumbnail ? `<img src="${esc(p.thumbnail)}" alt="${esc(p.name)}" class="mt-0.5 h-16 w-16 shrink-0 rounded-xl object-cover shadow-sm ring-1 ring-white/60" loading="lazy" />` : ''}
           <div class="min-w-0 flex-1">
             <p class="text-[15px] font-medium leading-snug">${esc(p.name)}</p>
             <p class="mt-1 flex items-center gap-1.5 text-[11px] text-stone-500"><i class="ph-light ph-map-pin text-sm"></i><span class="truncate">${esc(p.loc)} • ${esc(p.tag)}</span></p>
             <p class="mt-1 flex items-center gap-1.5 text-[11px] text-stone-500"><i class="ph-light ph-clock text-sm"></i><span class="tnum">${fmt(p.start)} - ${fmt(p.end)}</span>${p.cost ? `<span class="tnum ml-auto font-medium text-brand-700">¥${yen(p.cost)}</span>` : ''}</p>
             ${taskBlock(p)}
           </div>
+          ${p.thumbnail ? `<img src="${esc(p.thumbnail)}" alt="${esc(p.name)}" class="mt-0.5 h-16 w-16 shrink-0 rounded-xl object-cover shadow-sm ring-1 ring-white/60" loading="lazy" />` : ''}
           <div class="edit-only -my-1 -mr-2 gap-0.5">
             <button class="drag-handle h-12 w-12 place-items-center rounded-lg text-stone-500 hover:bg-white/70" aria-label="Drag to reorder ${esc(p.name)}" style="display:grid"><i class="ph-light ph-dots-six-vertical text-2xl"></i></button>
             <button data-del="${p.id}" class="h-12 w-12 place-items-center rounded-lg text-stone-500 hover:bg-white/70 hover:text-rose-600" aria-label="Remove ${esc(p.name)}" style="display:grid"><i class="ph-light ph-trash text-xl"></i></button>
