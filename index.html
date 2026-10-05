@@ -373,15 +373,15 @@
       { day_number: 1, date: 'Oct 12', notes: 'Rest of the day free at leisure', places: [
         { name: 'Kansai Airport → Kyoto', loc: 'Haruka Express', tag: 'Arrival',  start: '11:40', end: '13:30', category: 'transit', cost: 3600 },
         { name: 'The Machiya Nishijin',   loc: 'Nishijin, Kamigyo-ku', tag: 'Check-in', start: '14:30', end: '15:30', category: 'stay', cost: 0 },
-        { name: 'Fushimi Inari Taisha',   loc: 'Fukakusa, Fushimi', tag: 'Sunset climb', start: '16:00', end: '18:00', category: 'sight', cost: 0 },
+        { name: 'Fushimi Inari Taisha', thumbnail: 'https://images.unsplash.com/photo-1492571350019-22de08371fd3?w=200&h=200&auto=format&fit=crop', loc: 'Fukakusa, Fushimi', tag: 'Sunset climb', start: '16:00', end: '18:00', category: 'sight', cost: 0 },
         { name: 'Pontocho Kushikatsu',    loc: 'Pontocho Alley', tag: 'Dinner', start: '19:30', end: '21:00', category: 'food', cost: 4500 },
       ]},
       { day_number: 2, date: 'Oct 13', notes: 'Evening open — wander the Gion lanterns', places: [
-        { name: 'Arashiyama Bamboo Grove', loc: 'Sagaogurayama', tag: 'Early walk', start: '07:30', end: '09:30', category: 'sight', cost: 0 },
+        { name: 'Arashiyama Bamboo Grove', thumbnail: 'https://images.unsplash.com/photo-1542051812871-610196884a43?w=200&h=200&auto=format&fit=crop', loc: 'Sagaogurayama', tag: 'Early walk', start: '07:30', end: '09:30', category: 'sight', cost: 0 },
         { name: 'Tenryū-ji Garden',        loc: 'Susukinobaba-cho', tag: 'Garden', start: '10:00', end: '11:30', category: 'sight', cost: 500 },
         { name: 'Handmade Soba',           loc: 'Togetsukyo Bridge', tag: 'Lunch', start: '12:00', end: '13:00', category: 'food', cost: 1400 },
         { name: 'Sagano Scenic Railway',   loc: 'Torokko Saga Station', tag: 'Scenic ride', start: '14:00', end: '15:00', category: 'transit', cost: 880 },
-        { name: 'Kinkaku-ji',              loc: 'Kita-ku', tag: 'Golden Pavilion', start: '16:00', end: '17:00', category: 'sight', cost: 500 },
+        { name: 'Kinkaku-ji',              thumbnail: 'https://images.unsplash.com/photo-1515444744559-7be63e1600de?w=200&h=200&auto=format&fit=crop', loc: 'Kita-ku', tag: 'Golden Pavilion', start: '16:00', end: '17:00', category: 'sight', cost: 500 },
         { name: 'Tsujiri Matcha Parfait',  loc: 'Gion', tag: 'Dessert', start: '18:00', end: '19:00', category: 'food', cost: 900 },
       ]},
       { day_number: 3, date: 'Oct 14', notes: 'Fly home with a bag full of tenugui', places: [
@@ -641,7 +641,8 @@
       return `
       <li class="place flex items-stretch gap-3" data-id="${p.id}">
         <div class="flex w-7 shrink-0 flex-col items-center pt-3"><i class="ph-light ${c.icon} text-[22px] text-stone-500"></i><span class="mt-1.5 w-0.5 flex-1 rounded bg-stone-300"></span></div>
-        <div class="mb-4 flex min-w-0 flex-1 items-start gap-2 rounded-xl bg-brand-100 px-4 py-3 transition hover:bg-brand-200/70">
+        <div class="mb-4 flex min-w-0 flex-1 items-start gap-3 rounded-2xl bg-white/60 backdrop-blur-md border border-white/60 px-4 py-3 shadow-glass transition hover:bg-white/80">
+          ${p.thumbnail ? `<img src="${esc(p.thumbnail)}" alt="${esc(p.name)}" class="mt-0.5 h-16 w-16 shrink-0 rounded-xl object-cover shadow-sm ring-1 ring-white/60" loading="lazy" />` : ''}
           <div class="min-w-0 flex-1">
             <p class="text-[15px] font-medium leading-snug">${esc(p.name)}</p>
             <p class="mt-1 flex items-center gap-1.5 text-[11px] text-stone-500"><i class="ph-light ph-map-pin text-sm"></i><span class="truncate">${esc(p.loc)} • ${esc(p.tag)}</span></p>
