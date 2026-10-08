@@ -120,7 +120,7 @@ export default function TripSwitcher({
 
       {/* Enhanced Dropdown Menu */}
       {isOpen && (
-        <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-80 sm:w-96 origin-top-right rounded-3xl bg-white/95 backdrop-blur-2xl border border-white/80 shadow-2xl ring-1 ring-black/5 z-50 p-2.5 animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-80 sm:w-96 origin-top-right rounded-3xl bg-white/95 backdrop-blur-2xl border border-white/80 shadow-2xl ring-1 ring-black/5 z-[10000] p-2.5 animate-in fade-in zoom-in-95 duration-150">
           {/* Dropdown Header */}
           <div className="px-3 py-2 border-b border-stone-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
