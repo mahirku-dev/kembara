@@ -509,7 +509,7 @@ export default function VaultClient({
       fileData: fileBase64 || undefined,
       uploadedAt: todayFormatted,
       details: {
-        subtitle: newDocSubtitle.trim() || `Dokumen resmi untuk perjalanan ${trip.title}`,
+        subtitle: newDocSubtitle.trim() || "Dokumen Resmi Perjalanan",
         issuer: "Dokumen Pribadi",
         bookingCode: newDocBookingCode.trim() || `KMB-${Math.floor(100000 + Math.random() * 900000)}`,
         dates: "Tersimpan di Kembara Vault",
@@ -668,7 +668,7 @@ export default function VaultClient({
                 Vault &amp; Dokumen
               </h2>
               <p className="text-[12px] text-stone-500 mt-0.5 line-clamp-1">
-                {`Kelola checklist perlengkapan & berkas perjalanan ${trip.destination || trip.title}`}
+                Kelola checklist perlengkapan &amp; berkas perjalanan
               </p>
             </div>
           </div>
