@@ -310,3 +310,4 @@ create policy "Authenticated users can update trip covers"
 create policy "Authenticated users can delete trip covers"
   on storage.objects for delete
   using (bucket_id = 'trip-covers' and auth.role() = 'authenticated');
+
