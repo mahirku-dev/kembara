@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   CheckCircle,
@@ -54,11 +54,39 @@ export default function PreparationProgressCard({
     return initial;
   });
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(`kembara_milestones_${trip.id}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            setCheckedIds(new Set(parsed));
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to load milestones from localStorage:", err);
+      }
+    }
+  }, [trip.id]);
+
   const toggleMilestone = (id: string) => {
     setCheckedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(
+            `kembara_milestones_${trip.id}`,
+            JSON.stringify(Array.from(next))
+          );
+        } catch (err) {
+          console.warn("Failed to save milestones to localStorage:", err);
+        }
+      }
+
       return next;
     });
   };

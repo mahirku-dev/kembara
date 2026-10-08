@@ -230,7 +230,7 @@ export default async function DashboardPage({
             membersCount={membersCount}
             placesCount={placesCount}
             docsCount={3}
-            onOpenMembers={() => {}}
+            currentUserId={user.id}
           />
         )}
 

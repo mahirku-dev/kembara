@@ -280,7 +280,7 @@ export default function TripSwitcher({
                     </button>
 
                     {/* Quick Action Icons */}
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
                       {/* Members Button */}
                       <button
                         type="button"
@@ -290,7 +290,7 @@ export default function TripSwitcher({
                           setIsOpen(false);
                           setManagingMembersTrip(t);
                         }}
-                        className="p-2 rounded-xl text-stone-400 hover:text-brand-600 hover:bg-white shadow-xs transition min-h-[36px] min-w-[36px] flex items-center justify-center"
+                        className="p-1.5 sm:p-2 rounded-xl text-stone-400 hover:text-brand-600 hover:bg-white shadow-xs transition min-h-[36px] min-w-[36px] flex items-center justify-center"
                       >
                         <Users size={16} weight="bold" />
                       </button>
@@ -305,7 +305,7 @@ export default function TripSwitcher({
                             setIsOpen(false);
                             setEditingTrip(t);
                           }}
-                          className="p-2 rounded-xl text-stone-400 hover:text-brand-600 hover:bg-white shadow-xs transition min-h-[36px] min-w-[36px] flex items-center justify-center"
+                          className="p-1.5 sm:p-2 rounded-xl text-stone-400 hover:text-brand-600 hover:bg-white shadow-xs transition min-h-[36px] min-w-[36px] flex items-center justify-center"
                         >
                           <PencilSimple size={16} weight="bold" />
                         </button>
@@ -321,7 +321,7 @@ export default function TripSwitcher({
                             setIsOpen(false);
                             setDeletingTrip(t);
                           }}
-                          className="p-2 rounded-xl text-stone-400 hover:text-red-600 hover:bg-white shadow-xs transition min-h-[36px] min-w-[36px] flex items-center justify-center"
+                          className="p-1.5 sm:p-2 rounded-xl text-stone-400 hover:text-red-600 hover:bg-white shadow-xs transition min-h-[36px] min-w-[36px] flex items-center justify-center"
                         >
                           <Trash size={16} weight="bold" />
                         </button>
