@@ -414,9 +414,8 @@ export default function ItineraryClient({
             "Insert with place_id failed, trying fallback without place_id:",
             resWithPlaceId.error.message || resWithPlaceId.error
           );
-          // Fallback without place_id if column does not exist on remote schema yet
           delete insertPayload.place_id;
-          insertPayload.description = `${desc} (${place.name.trim()})`;
+          insertPayload.description = desc;
 
           const fallbackRes = await supabase
             .from("expenses")
@@ -935,11 +934,11 @@ export default function ItineraryClient({
                           <button
                             type="button"
                             onClick={() => setLocationEditPlace(p)}
-                            className="mt-1 flex items-center gap-1 text-[11.5px] text-stone-600 hover:text-brand-600 font-medium truncate max-w-full text-left group"
+                            className="mt-1.5 flex items-center gap-1.5 text-xs text-stone-600 hover:text-brand-600 font-medium truncate max-w-full text-left group py-1 active:scale-98 transition"
                             title="Klik untuk ubah lokasi di peta"
                           >
                             <Icons.MapPin
-                              size={13}
+                              size={14}
                               weight="fill"
                               className="text-rose-500 shrink-0"
                             />
@@ -947,18 +946,18 @@ export default function ItineraryClient({
                               {p.address}
                             </span>
                             <Icons.PencilSimple
-                              size={11}
-                              className="opacity-0 group-hover:opacity-100 transition shrink-0 ml-0.5 text-stone-400"
+                              size={12}
+                              className="opacity-60 group-hover:opacity-100 transition shrink-0 ml-0.5 text-stone-400"
                             />
                           </button>
                         ) : (
                           <button
                             type="button"
                             onClick={() => setLocationEditPlace(p)}
-                            className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-rose-600 hover:text-rose-700 font-semibold bg-rose-50 px-2.5 py-0.5 rounded-lg border border-rose-200 transition active:scale-95"
+                            className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-rose-600 hover:text-rose-700 font-semibold bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-xl border border-rose-200 transition active:scale-95"
                           >
-                            <Icons.MapPin size={12} weight="fill" />
-                            <span>Set Lokasi Peta (Mandatory)</span>
+                            <Icons.MapPin size={13} weight="fill" />
+                            <span>Set Lokasi Peta (Wajib)</span>
                           </button>
                         )}
                       </div>
@@ -996,9 +995,9 @@ export default function ItineraryClient({
                         <button
                           type="button"
                           onClick={() => setViewingExpensesPlaceId(p.id)}
-                          className="inline-flex items-center gap-1 text-[11.5px] font-bold text-emerald-700 hover:text-emerald-900 bg-white px-2.5 py-1 rounded-lg border border-emerald-300 shadow-sm transition hover:bg-emerald-100 active:scale-95 shrink-0 ml-2"
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-white px-3 py-1.5 rounded-xl border border-emerald-300 shadow-sm transition hover:bg-emerald-100 active:scale-95 shrink-0 ml-2"
                         >
-                          <Icons.Receipt size={13} weight="bold" />
+                          <Icons.Receipt size={14} weight="bold" />
                           <span>Lihat Pengeluaran</span>
                         </button>
                       </div>
@@ -1017,13 +1016,13 @@ export default function ItineraryClient({
                           value={noteDraft}
                           onChange={(e) => setNoteDraft(e.target.value)}
                           placeholder="Tulis catatan penting, tips, atau kontak Muthawif..."
-                          className="w-full rounded-lg border border-brand-200 bg-white p-2.5 text-xs text-stone-800 placeholder:text-stone-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 resize-none"
+                          className="w-full rounded-xl border border-brand-200 bg-white p-2.5 text-xs text-stone-800 placeholder:text-stone-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 resize-none"
                         />
                         <div className="mt-2 flex items-center justify-end gap-2">
                           <button
                             type="button"
                             onClick={() => setEditingNotePlaceId(null)}
-                            className="px-3 py-1 text-xs font-medium text-stone-500 hover:text-stone-700"
+                            className="px-3 py-1.5 text-xs font-medium text-stone-500 hover:text-stone-700"
                           >
                             Batal
                           </button>
@@ -1031,15 +1030,15 @@ export default function ItineraryClient({
                             type="button"
                             disabled={savingNotePlaceId === p.id}
                             onClick={() => handleSaveNote(p)}
-                            className="inline-flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-1 text-xs font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
+                            className="inline-flex items-center gap-1 rounded-xl bg-brand-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-50"
                           >
-                            <Icons.Check size={13} weight="bold" />
+                            <Icons.Check size={14} weight="bold" />
                             Simpan
                           </button>
                         </div>
                       </div>
                     ) : p.notes ? (
-                      <div className="mt-3 rounded-xl bg-amber-50/80 border border-amber-200/70 p-2.5 text-xs text-stone-700 leading-relaxed group relative">
+                      <div className="mt-3 rounded-xl bg-amber-50/80 border border-amber-200/70 p-3 text-xs text-stone-700 leading-relaxed group relative">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-start gap-2 min-w-0 flex-1">
                             <Icons.NotePencil
@@ -1047,26 +1046,26 @@ export default function ItineraryClient({
                               className="text-amber-600 shrink-0 mt-0.5"
                               weight="fill"
                             />
-                            <p className="whitespace-pre-line text-[12.5px] text-stone-800 leading-snug">
+                            <p className="whitespace-pre-line text-xs text-stone-800 leading-snug">
                               {p.notes}
                             </p>
                           </div>
-                          <div className="flex items-center gap-1 shrink-0 opacity-70 group-hover:opacity-100 transition">
+                          <div className="flex items-center gap-1 shrink-0">
                             <button
                               type="button"
                               onClick={() => handleStartEditNote(p)}
-                              className="grid h-6 w-6 place-items-center rounded text-stone-500 hover:text-amber-700 hover:bg-amber-100/70 transition"
+                              className="grid h-8 w-8 place-items-center rounded-lg text-stone-500 hover:text-amber-700 hover:bg-amber-100/70 active:scale-95 transition"
                               title="Edit Catatan"
                             >
-                              <Icons.PencilSimple size={13} />
+                              <Icons.PencilSimple size={14} />
                             </button>
                             <button
                               type="button"
                               onClick={() => setNoteToDelete(p)}
-                              className="grid h-6 w-6 place-items-center rounded text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                              className="grid h-8 w-8 place-items-center rounded-lg text-stone-400 hover:text-rose-600 hover:bg-rose-50 active:scale-95 transition"
                               title="Hapus Catatan"
                             >
-                              <Icons.Trash size={13} />
+                              <Icons.Trash size={14} />
                             </button>
                           </div>
                         </div>
@@ -1075,25 +1074,25 @@ export default function ItineraryClient({
 
                     {/* ================= QUICK ADD ACTIONS: (+ Tambah Catatan / + Tambah Pengeluaran) ================= */}
                     {(!p.notes || expensesList.length === 0) && !isEditingNote && (
-                      <div className="mt-2.5 flex items-center gap-3">
+                      <div className="mt-3 flex items-center gap-2 flex-wrap">
                         {!p.notes && (
                           <button
                             type="button"
                             onClick={() => handleStartEditNote(p)}
-                            className="inline-flex items-center gap-1 text-[11.5px] font-medium text-stone-400 hover:text-brand-600 hover:underline transition"
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-600 hover:text-brand-600 bg-stone-50 hover:bg-brand-50 border border-stone-200/70 hover:border-brand-200 px-3 py-1.5 rounded-xl transition active:scale-95"
                           >
-                            <Icons.NotePencil size={13} />
-                            <span>+ Tambah catatan</span>
+                            <Icons.NotePencil size={13} className="text-brand-600" />
+                            <span>+ Catatan</span>
                           </button>
                         )}
                         {expensesList.length === 0 && (
                           <button
                             type="button"
                             onClick={() => handleOpenExpenseModal(p)}
-                            className="inline-flex items-center gap-1 text-[11.5px] font-medium text-stone-400 hover:text-emerald-600 hover:underline transition"
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-600 hover:text-emerald-700 bg-stone-50 hover:bg-emerald-50 border border-stone-200/70 hover:border-emerald-200 px-3 py-1.5 rounded-xl transition active:scale-95"
                           >
-                            <Icons.Wallet size={13} />
-                            <span>+ Tambah pengeluaran</span>
+                            <Icons.Wallet size={13} className="text-emerald-600" />
+                            <span>+ Pengeluaran</span>
                           </button>
                         )}
                       </div>

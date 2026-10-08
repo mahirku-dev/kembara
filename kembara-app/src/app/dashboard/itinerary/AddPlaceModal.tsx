@@ -462,7 +462,7 @@ export default function AddPlaceModal({
         const expenseInserts = validExpenses.map((exp) => ({
           trip_id: tripId,
           place_id: newPlace.id,
-          description: exp.description.trim() || `Agenda: ${name.trim()}`,
+          description: exp.description.trim() || "Pengeluaran Agenda",
           amount: exp.numAmount,
           category: exp.category,
           currency: exp.currency || defaultCurrency,
@@ -477,7 +477,7 @@ export default function AddPlaceModal({
           console.warn("Insert with place_id failed, falling back without place_id:", expErr.message);
           const fallbackInserts = validExpenses.map((exp) => ({
             trip_id: tripId,
-            description: `${exp.description.trim() || `Agenda: ${name.trim()}`} (${name.trim()})`,
+            description: exp.description.trim() || "Pengeluaran Agenda",
             amount: exp.numAmount,
             category: exp.category,
             currency: exp.currency || defaultCurrency,
