@@ -204,3 +204,4 @@ create policy "Users can view packing lists of their trips"
 create policy "Editors and hosts can manage packing lists"
   on packing_lists for all
   using (is_trip_editor_or_host(trip_id));
+

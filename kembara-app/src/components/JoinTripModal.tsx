@@ -194,3 +194,4 @@ export default function JoinTripModal({
     document.body
   );
 }
+

@@ -60,19 +60,22 @@ function NavLinkInner({ href, label, iconName, variant }: NavLinkProps) {
     <Link
       href={targetHref}
       className={clsx(
-        "flex flex-col items-center justify-center gap-1 rounded-xl py-2 transition",
+        "flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-1 transition relative",
         isActive
-          ? "text-brand-600"
-          : "text-stone-400 hover:text-brand-600 hover:bg-brand-50/50"
+          ? "text-brand-600 font-semibold"
+          : "text-stone-400 hover:text-brand-600 active:scale-95"
       )}
     >
-      <IconComp size={22} weight={isActive ? "fill" : "regular"} aria-hidden />
-      <span className="text-[10px] font-medium">{label}</span>
+      <div className={clsx("p-1 rounded-xl transition", isActive && "bg-brand-50 text-brand-600")}>
+        <IconComp size={20} weight={isActive ? "fill" : "regular"} aria-hidden />
+      </div>
+      <span className="text-[10px] tracking-tight leading-none">{label}</span>
     </Link>
   );
 }
 
 export default function NavLink(props: NavLinkProps) {
+  const FallbackIcon = ICONS[props.iconName] || House;
   return (
     <Suspense
       fallback={
@@ -81,10 +84,22 @@ export default function NavLink(props: NavLinkProps) {
           className={
             props.variant === "sidebar"
               ? "flex items-center gap-3 rounded-2xl px-4 py-3 text-[14px] font-medium text-stone-500"
-              : "flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-stone-400"
+              : "flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-1 text-stone-400"
           }
         >
-          <span className="text-xs">{props.label}</span>
+          {props.variant === "sidebar" ? (
+            <>
+              <FallbackIcon size={20} weight="regular" aria-hidden />
+              <span>{props.label}</span>
+            </>
+          ) : (
+            <>
+              <div className="p-1 rounded-xl">
+                <FallbackIcon size={20} weight="regular" aria-hidden />
+              </div>
+              <span className="text-[10px] tracking-tight leading-none">{props.label}</span>
+            </>
+          )}
         </Link>
       }
     >

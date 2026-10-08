@@ -5,6 +5,10 @@ import BudgetClient from "./BudgetClient";
 import CreateTripModal from "../CreateTripModal";
 import { fetchUserTrips } from "@/lib/serverTrips";
 
+import { Wallet } from "@phosphor-icons/react/dist/ssr";
+import TripSwitcher from "@/components/TripSwitcher";
+import UserProfileMenu from "@/components/UserProfileMenu";
+
 export default async function BudgetPage({
   searchParams,
 }: {
@@ -24,14 +28,42 @@ export default async function BudgetPage({
   if (!activeTrip) {
     return (
       <div className="flex flex-col h-full overflow-y-auto pb-28 lg:pb-10">
-        <div className="sticky top-0 z-30 bg-white/60 backdrop-blur-xl border-b border-white/60 px-5 pt-4 pb-4 lg:px-10">
-          <h2 className="text-[22px] font-medium text-brand-600">Keuangan & Budget</h2>
-        </div>
-        <div className="flex flex-1 flex-col items-center justify-center px-5 py-20 text-center">
-          <p className="text-[15px] font-medium text-stone-500">Belum ada perjalanan</p>
-          <p className="mt-1 text-[13px] text-stone-400">Buat perjalanan terlebih dahulu untuk mulai mencatat budget.</p>
-          <div className="mt-4">
-            <CreateTripModal buttonText="Buat Perjalanan Sekarang" variant="primary" />
+        {/* Standard Dynamic Header */}
+        <header className="sticky top-0 z-[1100] bg-white/60 backdrop-blur-xl border-b border-white/60 px-5 pt-4 pb-3 lg:px-10 shrink-0">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-3">
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-600 border border-brand-200/50 shadow-sm shrink-0">
+                <Wallet size={22} weight="fill" />
+              </span>
+              <div>
+                <h2 className="text-[20px] font-bold text-brand-700 leading-tight">
+                  Budget &amp; Keuangan
+                </h2>
+                <p className="text-[12px] text-stone-500 mt-0.5 line-clamp-1">
+                  Kelola anggaran &amp; catatan belanja perjalanan Anda
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 shrink-0 justify-between sm:justify-end">
+              {trips.length > 0 && (
+                <TripSwitcher trips={trips} activeTrip={activeTrip} currentUserId={user.id} />
+              )}
+              <UserProfileMenu user={user} />
+            </div>
+          </div>
+        </header>
+
+        {/* Empty State Card */}
+        <div className="px-5 pt-6 lg:px-10 space-y-6">
+          <div className="rounded-3xl border border-dashed border-brand-200 bg-brand-50/30 p-8 text-center max-w-md mx-auto my-12">
+            <p className="text-[15px] font-medium text-stone-700">Belum ada perjalanan</p>
+            <p className="mt-1 text-[13px] text-stone-400">
+              Buat perjalanan terlebih dahulu untuk mulai mencatat dan mengelola budget pengeluaran.
+            </p>
+            <div className="mt-4">
+              <CreateTripModal buttonText="Buat Perjalanan Sekarang" variant="primary" />
+            </div>
           </div>
         </div>
       </div>
