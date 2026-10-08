@@ -16,12 +16,14 @@ import {
   Crown,
   Eye,
   ShareNetwork,
+  Key,
 } from "@phosphor-icons/react";
 import TripCountdown from "./TripCountdown";
 import type { UpcomingPlace } from "./UpcomingAgendaCard";
 import { formatMoney } from "@/lib/geo";
 import EditTripModal from "@/components/EditTripModal";
 import TripMembersModal from "@/components/TripMembersModal";
+import JoinTripModal from "@/components/JoinTripModal";
 
 interface ActiveTripHeroProps {
   trip: Trip;
@@ -38,6 +40,7 @@ export default function ActiveTripHero({
 }: ActiveTripHeroProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
 
   const isHost = isTripHost(trip.current_user_role, currentUserId, trip.user_id);
   const canEdit = canEditTrip(trip.current_user_role) || isHost;
@@ -110,8 +113,8 @@ export default function ActiveTripHero({
                 )}
               </div>
 
-              {/* Action Buttons: Members & Edit */}
-              <div className="flex items-center gap-2">
+              {/* Action Buttons: Members, Join, & Edit */}
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
                   onClick={() => setIsMembersModalOpen(true)}
@@ -120,6 +123,16 @@ export default function ActiveTripHero({
                 >
                   <Users size={14} weight="bold" className="text-emerald-400" />
                   <span>Anggota & Undangan</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsJoinModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 px-3 py-1 text-xs font-semibold text-stone-200 hover:text-white backdrop-blur-md border border-white/15 transition shadow-xs"
+                  title="Gabung ke perjalanan lain dengan kode"
+                >
+                  <Key size={13} weight="bold" className="text-amber-300" />
+                  <span>Gabung Trip</span>
                 </button>
 
                 {isHost && (
@@ -275,6 +288,14 @@ export default function ActiveTripHero({
           onClose={() => setIsMembersModalOpen(false)}
           currentUserId={currentUserId}
           onMembersUpdated={onTripUpdated}
+        />
+      )}
+
+      {/* Join Trip Modal */}
+      {isJoinModalOpen && (
+        <JoinTripModal
+          isOpen={isJoinModalOpen}
+          onClose={() => setIsJoinModalOpen(false)}
         />
       )}
     </>

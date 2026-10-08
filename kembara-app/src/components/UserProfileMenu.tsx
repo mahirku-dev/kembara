@@ -12,8 +12,10 @@ import {
   EnvelopeSimple,
   CheckCircle,
   CircleNotch,
+  Key,
 } from "@phosphor-icons/react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
+import JoinTripModal from "@/components/JoinTripModal";
 
 interface UserProfileMenuProps {
   user: SupabaseUser | {
@@ -34,6 +36,7 @@ interface UserProfileMenuProps {
 
 export default function UserProfileMenu({ user }: UserProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -183,8 +186,20 @@ export default function UserProfileMenu({ user }: UserProfileMenuProps) {
             </div>
           </div>
 
-          {/* Action Button: Sign Out */}
-          <div className="mt-4 pt-3 border-t border-stone-100">
+          {/* Quick Actions */}
+          <div className="mt-3 pt-3 border-t border-stone-100 space-y-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                setShowJoinModal(true);
+              }}
+              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-brand-50 hover:bg-brand-100 border border-brand-200/80 py-2.5 px-4 text-xs font-bold text-brand-700 transition active:scale-[0.98]"
+            >
+              <Key size={15} weight="bold" />
+              <span>Gabung Perjalanan dengan Kode</span>
+            </button>
+
             <button
               onClick={handleSignOut}
               disabled={signingOut}
@@ -204,6 +219,14 @@ export default function UserProfileMenu({ user }: UserProfileMenuProps) {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Join Trip Modal */}
+      {showJoinModal && (
+        <JoinTripModal
+          isOpen={showJoinModal}
+          onClose={() => setShowJoinModal(false)}
+        />
       )}
     </div>
   );

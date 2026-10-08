@@ -108,7 +108,7 @@ export default function TripMembersModal({
   const handleCopyLink = () => {
     if (!currentInviteCode) return;
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const joinUrl = `${origin}/dashboard?joinCode=${currentInviteCode}`;
+    const joinUrl = `${origin}/join?code=${currentInviteCode}`;
     navigator.clipboard.writeText(joinUrl);
     setCopiedLink(true);
     showToast("Link undangan berhasil disalin!");
@@ -118,7 +118,7 @@ export default function TripMembersModal({
   const handleShareWhatsapp = () => {
     if (!currentInviteCode) return;
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const joinUrl = `${origin}/dashboard?joinCode=${currentInviteCode}`;
+    const joinUrl = `${origin}/join?code=${currentInviteCode}`;
     const text = `Assalamu'alaikum! Yuk gabung ke rencana perjalanan "${trip.title}" di Kembara 🕋✈️.\n\n🔑 Kode Undangan: *${currentInviteCode}*\n🔗 Buka Link: ${joinUrl}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };

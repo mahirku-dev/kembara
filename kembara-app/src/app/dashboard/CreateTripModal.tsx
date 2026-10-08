@@ -4,10 +4,11 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
-import { Plus, X, CalendarBlank, MapPin, CurrencyDollar, CircleNotch } from "@phosphor-icons/react";
+import { Plus, X, CalendarBlank, MapPin, CurrencyDollar, CircleNotch, Key } from "@phosphor-icons/react";
 import { differenceInDays, addDays, format, parseISO } from "date-fns";
 import TripCoverPicker from "@/components/TripCoverPicker";
 import { generateInviteCode } from "@/lib/invite";
+import JoinTripModal from "@/components/JoinTripModal";
 
 interface CreateTripModalProps {
   buttonText?: string;
@@ -25,6 +26,7 @@ export default function CreateTripModal({
   hideTriggerButton = false,
 }: CreateTripModalProps) {
   const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
   const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
 
   const [mounted, setMounted] = useState(false);
@@ -174,6 +176,26 @@ export default function CreateTripModal({
             className="grid h-8 w-8 place-items-center rounded-full text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition"
           >
             <X size={18} weight="bold" />
+          </button>
+        </div>
+
+        {/* Join Trip Quick Banner */}
+        <div className="mt-3 rounded-2xl bg-brand-50/80 border border-brand-200/80 p-3 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Key size={16} weight="bold" className="text-brand-600 shrink-0" />
+            <span className="text-xs text-stone-700 font-medium truncate">
+              Punya kode undangan dari teman?
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              handleClose();
+              setShowJoinModal(true);
+            }}
+            className="shrink-0 text-xs font-bold text-brand-700 hover:text-brand-900 underline cursor-pointer"
+          >
+            Gabung Trip
           </button>
         </div>
 
@@ -329,6 +351,14 @@ export default function CreateTripModal({
       )}
 
       {mounted && modalContent && createPortal(modalContent, document.body)}
+
+      {/* Join Trip Modal */}
+      {showJoinModal && (
+        <JoinTripModal
+          isOpen={showJoinModal}
+          onClose={() => setShowJoinModal(false)}
+        />
+      )}
     </>
   );
 }

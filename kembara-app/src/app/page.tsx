@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Compass, CircleNotch, GoogleLogo } from "@phosphor-icons/react";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const searchParams = useSearchParams();
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -15,10 +17,14 @@ export default function LoginPage() {
     startTransition(async () => {
       try {
         const supabase = createClient();
+        const joinCode = searchParams.get("joinCode") || searchParams.get("code");
+        const nextParam = searchParams.get("next");
+        const nextUrl = nextParam || (joinCode ? `/join?code=${joinCode}` : "/dashboard");
+
         const { error } = await supabase.auth.signInWithOAuth({
           provider: "google",
           options: {
-            redirectTo: `${window.location.origin}/auth/callback`,
+            redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextUrl)}`,
           },
         });
         if (error) {
@@ -69,5 +75,19 @@ export default function LoginPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <CircleNotch size={32} className="animate-spin text-brand-600" />
+        </div>
+      }
+    >
+      <LoginPageContent />
+    </Suspense>
   );
 }
