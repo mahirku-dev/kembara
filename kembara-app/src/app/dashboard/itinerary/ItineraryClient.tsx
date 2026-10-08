@@ -1060,18 +1060,14 @@ export default function ItineraryClient({
             })()}
           </h3>
 
-          {/* Subtitle: Rute Kota */}
+          {/* Subtitle: Rute Kota (hanya tampil jika ada lokasi) */}
           {(() => {
             const route = getDayCitiesRoute(day.places);
-            const routeText =
-              route ||
-              (day.notes && !/^hari\s+\d+/i.test(day.notes.trim())
-                ? day.notes
-                : trip.destination || "Rute kegiatan");
+            if (!route) return null;
 
             return (
               <p className="text-xs sm:text-[13px] text-stone-500 font-medium mt-0.5">
-                {routeText}
+                {route}
               </p>
             );
           })()}
