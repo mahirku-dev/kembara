@@ -171,6 +171,32 @@ export function getDayCitiesRoute(places: Place[]): string {
   return cities.join(" - ");
 }
 
+export function getIndonesianDayOrdinal(dayNum: number): string {
+  const ordinals: Record<number, string> = {
+    1: "Hari Pertama",
+    2: "Hari Kedua",
+    3: "Hari Ketiga",
+    4: "Hari Keempat",
+    5: "Hari Kelima",
+    6: "Hari Keenam",
+    7: "Hari Ketujuh",
+    8: "Hari Kedelapan",
+    9: "Hari Kesembilan",
+    10: "Hari Kesepuluh",
+    11: "Hari Kesebelas",
+    12: "Hari Kedua Belas",
+    13: "Hari Ketiga Belas",
+    14: "Hari Keempat Belas",
+    15: "Hari Kelima Belas",
+    16: "Hari Keenam Belas",
+    17: "Hari Ketujuh Belas",
+    18: "Hari Kedelapan Belas",
+    19: "Hari Kesembilan Belas",
+    20: "Hari Kedua Puluh",
+  };
+  return ordinals[dayNum] || `Hari ke-${dayNum}`;
+}
+
 export default function ItineraryClient({
   trip,
   days: initialDays,
@@ -747,12 +773,9 @@ export default function ItineraryClient({
   const formatDayLabel = (day: DayWithPlaces, idx: number) => {
     const isToday = isTodayDay(day);
     const dayNum = day.day_number || idx + 1;
-    const route = getDayCitiesRoute(day.places);
 
     let text = `Hari ${dayNum}`;
-    if (route) {
-      text = `Hari ${dayNum} | ${route}`;
-    } else if (day.date) {
+    if (day.date) {
       try {
         const dateStr = format(parseISO(day.date), "d MMM", { locale: idLocale });
         text = `Hari ${dayNum} • ${dateStr}`;
@@ -965,11 +988,37 @@ export default function ItineraryClient({
 
       {/* Main Timeline */}
       <div className="px-5 pt-6 lg:px-10">
-        {day.notes && (
-          <p className="text-[14px] font-medium text-stone-500 mb-6">
-            {day.notes}
-          </p>
-        )}
+        {/* Day Heading & Route Header */}
+        <div className="mb-6">
+          <div className="flex items-baseline justify-between gap-3 flex-wrap">
+            <h3 className="text-lg sm:text-xl font-bold text-stone-900 tracking-tight">
+              {(() => {
+                const dayNum = day.day_number || selectedDayIdx + 1;
+                const ordinalText = getIndonesianDayOrdinal(dayNum);
+                const route = getDayCitiesRoute(day.places);
+                return route ? `${ordinalText} | ${route}` : ordinalText;
+              })()}
+            </h3>
+            {day.date && (
+              <span className="text-xs font-semibold text-stone-500 bg-stone-100/80 px-2.5 py-1 rounded-lg border border-stone-200/60">
+                {(() => {
+                  try {
+                    return format(parseISO(day.date), "EEEE, d MMMM yyyy", {
+                      locale: idLocale,
+                    });
+                  } catch {
+                    return null;
+                  }
+                })()}
+              </span>
+            )}
+          </div>
+          {day.notes && (
+            <p className="text-[13px] text-stone-500 mt-1.5 leading-relaxed">
+              {day.notes}
+            </p>
+          )}
+        </div>
 
         {day.places.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-stone-200 py-14 text-center my-4">
