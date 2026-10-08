@@ -292,16 +292,9 @@ export default function InteractiveMap({ trip, places = [] }: Props) {
             markersLayer
           );
 
-          marker.bindPopup(`
-            <div style="font-family: inherit; padding: 4px; min-width: 180px;">
-              <span style="font-size: 10px; font-weight: 700; color: #047857; text-transform: uppercase;">${item.category}</span>
-              <h4 style="font-size: 14px; font-weight: 700; margin: 3px 0; color: #1c1917;">${item.name}</h4>
-              <p style="font-size: 12px; color: #57534e; margin: 0; line-height: 1.4;">${item.desc}</p>
-            </div>
-          `);
-
           marker.on("click", () => {
             setSelectedItem({ type: "landmark", data: item });
+            map.panTo([item.lat, item.lng], { animate: true });
           });
         });
       } else {
@@ -350,36 +343,9 @@ export default function InteractiveMap({ trip, places = [] }: Props) {
 
           const marker = L.marker([lat, lng], { icon: agendaIcon }).addTo(markersLayer);
 
-          marker.bindPopup(`
-            <div style="font-family: inherit; padding: 4px; min-width: 200px;">
-              <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 4px;">
-                <span style="font-size: 9px; font-weight: 800; background: #eff6ff; color: #1d4ed8; padding: 2px 6px; border-radius: 6px; text-transform: uppercase;">
-                  HARI ${dayNumber}
-                </span>
-                ${
-                  place.category
-                    ? `<span style="font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase;">${place.category}</span>`
-                    : ""
-                }
-              </div>
-              <h4 style="font-size: 14px; font-weight: 700; margin: 2px 0 4px; color: #0f172a;">${place.name}</h4>
-              ${
-                place.address
-                  ? `<p style="font-size: 11px; color: #64748b; margin: 0 0 4px; line-height: 1.3;">📍 ${place.address}</p>`
-                  : ""
-              }
-              ${
-                place.start_time
-                  ? `<p style="font-size: 11px; font-weight: 600; color: #2563eb; margin: 0;">⏰ ${place.start_time}${
-                      place.end_time ? " - " + place.end_time : ""
-                    }</p>`
-                  : ""
-              }
-            </div>
-          `);
-
           marker.on("click", () => {
             setSelectedItem({ type: "agenda", data: place });
+            map.panTo([lat, lng], { animate: true });
           });
         });
       }
@@ -545,8 +511,10 @@ export default function InteractiveMap({ trip, places = [] }: Props) {
               </div>
 
               <button
+                type="button"
                 onClick={() => setSelectedItem(null)}
-                className="text-stone-400 hover:text-stone-700 p-1 rounded-full hover:bg-stone-100 transition shrink-0"
+                className="grid h-8 w-8 place-items-center text-stone-400 hover:text-stone-700 rounded-full hover:bg-stone-100 active:scale-95 transition shrink-0"
+                title="Tutup Kartu"
               >
                 <X size={16} weight="bold" />
               </button>
