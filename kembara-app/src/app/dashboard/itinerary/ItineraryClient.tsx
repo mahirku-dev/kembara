@@ -744,7 +744,7 @@ export default function ItineraryClient({
           trip_id: trip.id,
           day_number: newDayNumber,
           date: nextDate,
-          notes: `Hari ${newDayNumber} - Agenda Kegiatan`,
+          notes: null,
         })
         .select()
         .single();
@@ -1040,36 +1040,41 @@ export default function ItineraryClient({
 
       {/* Main Timeline */}
       <div className="px-5 pt-6 lg:px-10">
-        {/* Day Heading & Route Header */}
-        <div className="mb-6">
-          <div className="flex items-baseline justify-between gap-3 flex-wrap">
-            <h3 className="text-lg sm:text-xl font-bold text-stone-900 tracking-tight">
-              {(() => {
-                const dayNum = day.day_number || selectedDayIdx + 1;
-                const ordinalText = getIndonesianDayOrdinal(dayNum);
-                const route = getDayCitiesRoute(day.places);
-                return route ? `${ordinalText} | ${route}` : ordinalText;
-              })()}
-            </h3>
-            {day.date && (
-              <span className="text-xs font-semibold text-stone-500 bg-stone-100/80 px-2.5 py-1 rounded-lg border border-stone-200/60">
-                {(() => {
-                  try {
-                    return format(parseISO(day.date), "EEEE, d MMMM yyyy", {
-                      locale: idLocale,
-                    });
-                  } catch {
-                    return null;
-                  }
-                })()}
-              </span>
-            )}
-          </div>
-          {day.notes && (
-            <p className="text-[13px] text-stone-500 mt-1.5 leading-relaxed">
-              {day.notes}
-            </p>
-          )}
+        {/* Day Heading & Route Subtitle */}
+        <div className="mb-5">
+          <h3 className="text-base sm:text-lg font-bold text-stone-900 tracking-tight leading-snug">
+            {(() => {
+              const dayNum = day.day_number || selectedDayIdx + 1;
+              const ordinalText = getIndonesianDayOrdinal(dayNum);
+              if (day.date) {
+                try {
+                  const dateStr = format(parseISO(day.date), "d MMMM yyyy", {
+                    locale: idLocale,
+                  });
+                  return `${ordinalText}, ${dateStr}`;
+                } catch {
+                  return ordinalText;
+                }
+              }
+              return ordinalText;
+            })()}
+          </h3>
+
+          {/* Subtitle: Rute Kota */}
+          {(() => {
+            const route = getDayCitiesRoute(day.places);
+            const routeText =
+              route ||
+              (day.notes && !/^hari\s+\d+/i.test(day.notes.trim())
+                ? day.notes
+                : trip.destination || "Rute kegiatan");
+
+            return (
+              <p className="text-xs sm:text-[13px] text-stone-500 font-medium mt-0.5">
+                {routeText}
+              </p>
+            );
+          })()}
         </div>
 
         {day.places.length === 0 ? (
