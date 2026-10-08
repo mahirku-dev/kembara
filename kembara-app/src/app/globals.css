@@ -1,0 +1,62 @@
+
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), "Inter", "sans-serif";
+  --font-arabic: var(--font-amiri), "Amiri", "serif";
+  
+  --color-brand-50: #f5f7fd;
+  --color-brand-100: #e6ecfb;
+  --color-brand-200: #d3ddf7;
+  --color-brand-300: #a9bcee;
+  --color-brand-400: #738fdc;
+  --color-brand-500: #4a69c9;
+  --color-brand-600: #3b5bb9;
+  --color-brand-700: #2e4799;
+  --color-brand-800: #243978;
+  
+  --color-peach-50: #fff6f2;
+  --color-peach-100: #fde9e0;
+  --color-peach-200: #f9d3c3;
+  --color-peach-600: #c2512a;
+
+  --shadow-card: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  --shadow-panel: 0 30px 60px -20px rgba(60,70,140,.25);
+  --shadow-cta: 0 16px 24px -10px rgba(59,91,185,.65);
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+@layer base {
+  :root {
+    --background: #fafaf9;
+    --foreground: #1c1917;
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    /* Soft geometric gradient background for Kembara */
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(225, 45%, 90%, 1) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(340, 30%, 92%, 1) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, hsla(200, 40%, 90%, 1) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, hsla(150, 30%, 92%, 1) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+  
+  /* Hide scrollbar for clean UI */
+  ::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+  }
+}
+
+@layer utilities {
+  .hide-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .hide-scroll::-webkit-scrollbar {
+    display: none;
+  }
+}
+
