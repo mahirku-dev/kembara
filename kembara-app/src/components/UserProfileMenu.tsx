@@ -117,9 +117,16 @@ export default function UserProfileMenu({ user }: UserProfileMenuProps) {
 
       {/* Profile Modal / Popover */}
       {isOpen && (
-        <div className="absolute right-0 top-12 z-[10000] w-80 sm:w-88 rounded-3xl bg-white/95 backdrop-blur-2xl border border-white/80 shadow-2xl p-5 text-stone-800 animate-in fade-in zoom-in-95 duration-200">
-          {/* Header & Close */}
-          <div className="flex items-start justify-between pb-3 border-b border-stone-100">
+        <>
+          {/* Mobile Backdrop overlay */}
+          <div
+            className="fixed inset-0 z-[9999] bg-black/20 backdrop-blur-2xs sm:hidden animate-in fade-in duration-150"
+            onClick={() => setIsOpen(false)}
+          />
+
+          <div className="fixed inset-x-4 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 z-[10000] max-w-sm sm:w-88 mx-auto sm:mx-0 rounded-3xl bg-white/98 backdrop-blur-2xl border border-white/80 shadow-2xl p-5 text-stone-800 animate-in fade-in zoom-in-95 duration-200">
+            {/* Header & Close */}
+            <div className="flex items-start justify-between pb-3 border-b border-stone-100">
             <span className="text-[11px] font-bold tracking-wider text-brand-600 uppercase">
               Profil Pengguna
             </span>
@@ -219,6 +226,7 @@ export default function UserProfileMenu({ user }: UserProfileMenuProps) {
             </button>
           </div>
         </div>
+        </>
       )}
 
       {/* Join Trip Modal */}

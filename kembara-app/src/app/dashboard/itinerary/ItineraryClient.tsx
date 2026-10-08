@@ -83,6 +83,94 @@ function formatTotalExpenses(expenses: Expense[], defaultCurrency = "IDR"): stri
   return parts.join(" + ");
 }
 
+const KNOWN_CITIES: { patterns: RegExp[]; name: string }[] = [
+  { patterns: [/makkah/i, /mecca/i, /mekkah/i, /mekah/i], name: "Mekkah" },
+  { patterns: [/madinah/i, /medina/i], name: "Madinah" },
+  { patterns: [/jeddah/i, /jidda/i], name: "Jeddah" },
+  { patterns: [/riyadh/i], name: "Riyadh" },
+  { patterns: [/taif/i, /thaif/i], name: "Taif" },
+  { patterns: [/jakarta/i, /soekarno[- ]hatta/i, /halim/i, /cengkareng/i], name: "Jakarta" },
+  { patterns: [/surabaya/i, /juanda/i], name: "Surabaya" },
+  { patterns: [/bandung/i, /kertajati/i], name: "Bandung" },
+  { patterns: [/yogyakarta/i, /jogja/i, /kulon progo/i, /yia/i], name: "Yogyakarta" },
+  { patterns: [/semarang/i, /ahmad yani/i], name: "Semarang" },
+  { patterns: [/solo/i, /surakarta/i, /adi soemarmo/i], name: "Solo" },
+  { patterns: [/denpasar/i, /bali/i, /ngurah rai/i], name: "Bali" },
+  { patterns: [/lombok/i, /mataram/i, /praya/i], name: "Lombok" },
+  { patterns: [/medan/i, /kualanamu/i], name: "Medan" },
+  { patterns: [/padang/i, /minangkabau/i], name: "Padang" },
+  { patterns: [/palembang/i, /sultan mahmud badaruddin/i], name: "Palembang" },
+  { patterns: [/makassar/i, /hasanuddin/i], name: "Makassar" },
+  { patterns: [/balikpapan/i, /sepinggan/i], name: "Balikpapan" },
+  { patterns: [/banjarmasin/i, /syamsudin noor/i], name: "Banjarmasin" },
+  { patterns: [/kuala lumpur/i, /klia/i], name: "Kuala Lumpur" },
+  { patterns: [/penang/i], name: "Penang" },
+  { patterns: [/singapore/i, /singapura/i, /changi/i], name: "Singapore" },
+  { patterns: [/bangkok/i, /suvarnabhumi/i, /don mueang/i], name: "Bangkok" },
+  { patterns: [/istanbul/i, /sabiha/i], name: "Istanbul" },
+  { patterns: [/dubai/i, /dxb/i], name: "Dubai" },
+  { patterns: [/abu dhabi/i], name: "Abu Dhabi" },
+  { patterns: [/doha/i, /hamad/i], name: "Doha" },
+  { patterns: [/cairo/i, /kairo/i], name: "Kairo" },
+  { patterns: [/amman/i], name: "Amman" },
+  { patterns: [/jerusalem/i, /yerusalem/i, /al-quds/i], name: "Yerusalem" },
+  { patterns: [/tokyo/i, /haneda/i, /narita/i], name: "Tokyo" },
+  { patterns: [/seoul/i, /incheon/i], name: "Seoul" },
+  { patterns: [/london/i, /heathrow/i, /gatwick/i], name: "London" },
+  { patterns: [/paris/i, /charles de gaulle/i], name: "Paris" },
+];
+
+export function extractCityFromPlace(place: Place): string | null {
+  const fullText = `${place.address || ""} ${place.name || ""}`;
+  
+  // 1. Match against known cities first
+  for (const city of KNOWN_CITIES) {
+    if (city.patterns.some((p) => p.test(fullText))) {
+      return city.name;
+    }
+  }
+
+  // 2. Parse from address components if available
+  if (place.address) {
+    const parts = place.address
+      .split(",")
+      .map((p) => p.trim().replace(/\d+/g, "").trim())
+      .filter(
+        (p) =>
+          p.length > 2 &&
+          !/^(indonesia|saudi arabia|malaysia|singapore|thailand|turkey|uae|egypt|jordan|japan|south korea|uk|france)$/i.test(
+            p
+          )
+      );
+
+    if (parts.length > 0) {
+      const candidate = parts[parts.length - 1];
+      if (candidate && candidate.length <= 25) {
+        return candidate;
+      }
+    }
+  }
+
+  return null;
+}
+
+export function getDayCitiesRoute(places: Place[]): string {
+  if (!places || places.length === 0) return "";
+  
+  const cities: string[] = [];
+  for (const p of places) {
+    const city = extractCityFromPlace(p);
+    if (city) {
+      // Deduplicate consecutive identical cities
+      if (cities.length === 0 || cities[cities.length - 1] !== city) {
+        cities.push(city);
+      }
+    }
+  }
+
+  return cities.join(" - ");
+}
+
 export default function ItineraryClient({
   trip,
   days: initialDays,
@@ -658,11 +746,23 @@ export default function ItineraryClient({
 
   const formatDayLabel = (day: DayWithPlaces, idx: number) => {
     const isToday = isTodayDay(day);
-    const dateStr = day.date
-      ? format(parseISO(day.date), "d MMM", { locale: idLocale })
-      : `Hari ${idx + 1}`;
+    const dayNum = day.day_number || idx + 1;
+    const route = getDayCitiesRoute(day.places);
+
+    let text = `Hari ${dayNum}`;
+    if (route) {
+      text = `Hari ${dayNum} | ${route}`;
+    } else if (day.date) {
+      try {
+        const dateStr = format(parseISO(day.date), "d MMM", { locale: idLocale });
+        text = `Hari ${dayNum} • ${dateStr}`;
+      } catch {
+        text = `Hari ${dayNum}`;
+      }
+    }
+
     return {
-      text: `Hari ${idx + 1} • ${dateStr}`,
+      text,
       isToday,
     };
   };
@@ -681,22 +781,22 @@ export default function ItineraryClient({
 
         {/* Sticky Header */}
         <div className="sticky top-0 z-[1100] bg-white/60 backdrop-blur-xl border-b border-white/60 px-5 pt-4 pb-3 lg:px-10">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-2.5">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between gap-2.5 sm:gap-4 mb-2.5">
+            <div className="flex items-center gap-3 min-w-0">
               <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-600 border border-brand-200/50 shadow-sm shrink-0">
                 <Icons.ListBullets size={22} weight="fill" />
               </span>
-              <div>
-                <h2 className="text-[20px] font-bold text-brand-700 leading-tight">
+              <div className="min-w-0">
+                <h2 className="text-[18px] sm:text-[20px] font-bold text-brand-700 leading-tight truncate">
                   Itinerary & Agenda
                 </h2>
-                <p className="text-[12px] text-stone-500 mt-0.5 line-clamp-1">
+                <p className="text-[12px] text-stone-500 mt-0.5 line-clamp-1 truncate">
                   {`Jadwal kegiatan & ziarah ${trip.destination || trip.title}`}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 shrink-0 justify-between sm:justify-end flex-wrap">
+            <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
               {allTrips && allTrips.length > 0 && (
                 <TripSwitcher trips={allTrips} activeTrip={trip} currentUserId={user?.id} />
               )}
@@ -708,9 +808,9 @@ export default function ItineraryClient({
                   buttonText="Tambah Agenda"
                 />
               ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-2xl bg-stone-100 border border-stone-200 px-3.5 py-2 text-xs font-semibold text-stone-600 shadow-xs">
+                <span className="inline-flex items-center gap-1.5 rounded-2xl bg-stone-100 border border-stone-200 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-semibold text-stone-600 shadow-xs">
                   <Icons.Eye size={15} weight="bold" />
-                  <span>Mode Lihat Saja</span>
+                  <span className="hidden sm:inline">Mode Lihat Saja</span>
                 </span>
               )}
               {user && <UserProfileMenu user={user} />}
@@ -740,7 +840,7 @@ export default function ItineraryClient({
                   tripId={trip.id}
                   dayNumber={1}
                   onPlaceAdded={handlePlaceAdded}
-                  buttonText="+ Tambah Agenda Pertama"
+                  buttonText="Tambah Agenda Pertama"
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-600 px-5 py-2.5 text-xs font-semibold text-white shadow-cta transition hover:bg-brand-700 active:scale-95"
                 />
                 <button
@@ -749,7 +849,7 @@ export default function ItineraryClient({
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-2xl bg-stone-100 hover:bg-stone-200 px-4 py-2.5 text-xs font-semibold text-stone-700 transition active:scale-95"
                 >
                   <Icons.Plus size={14} weight="bold" />
-                  <span>+ Inisialisasi Hari 1</span>
+                  <span>Inisialisasi Hari 1</span>
                 </button>
               </div>
             )}
@@ -778,22 +878,22 @@ export default function ItineraryClient({
 
       {/* Sticky Header */}
       <div className="sticky top-0 z-[1100] bg-white/60 backdrop-blur-xl border-b border-white/60 px-5 pt-4 pb-3 lg:px-10">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-2.5">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-2.5 sm:gap-4 mb-2.5">
+          <div className="flex items-center gap-3 min-w-0">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-600 border border-brand-200/50 shadow-sm shrink-0">
               <Icons.ListBullets size={22} weight="fill" />
             </span>
-            <div>
-              <h2 className="text-[20px] font-bold text-brand-700 leading-tight">
+            <div className="min-w-0">
+              <h2 className="text-[18px] sm:text-[20px] font-bold text-brand-700 leading-tight truncate">
                 Itinerary & Agenda
               </h2>
-              <p className="text-[12px] text-stone-500 mt-0.5 line-clamp-1">
+              <p className="text-[12px] text-stone-500 mt-0.5 line-clamp-1 truncate">
                 {`Jadwal kegiatan & ziarah ${trip.destination || trip.title}`}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0 justify-between sm:justify-end flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             {allTrips && allTrips.length > 0 && (
               <TripSwitcher trips={allTrips} activeTrip={trip} currentUserId={user?.id} />
             )}
@@ -805,9 +905,9 @@ export default function ItineraryClient({
                 onPlaceAdded={handlePlaceAdded}
               />
             ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-2xl bg-stone-100 border border-stone-200 px-3.5 py-2 text-xs font-semibold text-stone-600 shadow-xs">
+              <span className="inline-flex items-center gap-1.5 rounded-2xl bg-stone-100 border border-stone-200 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-semibold text-stone-600 shadow-xs">
                 <Icons.Eye size={15} weight="bold" />
-                <span>Mode Lihat Saja</span>
+                <span className="hidden sm:inline">Mode Lihat Saja</span>
               </span>
             )}
             {user && <UserProfileMenu user={user} />}

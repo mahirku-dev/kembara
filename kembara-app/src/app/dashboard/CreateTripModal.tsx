@@ -19,7 +19,7 @@ interface CreateTripModalProps {
 }
 
 export default function CreateTripModal({
-  buttonText = "+ Buat Perjalanan",
+  buttonText = "Buat Perjalanan",
   variant = "primary",
   isOpen: controlledIsOpen,
   onClose: controlledOnClose,

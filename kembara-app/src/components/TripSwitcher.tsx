@@ -328,7 +328,7 @@ export default function TripSwitcher({
                 className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-brand-600 hover:bg-brand-700 px-3 py-2.5 text-xs font-bold text-white shadow-cta transition active:scale-95"
               >
                 <Plus size={14} weight="bold" />
-                <span>+ Buat Baru</span>
+                <span>Buat Baru</span>
               </button>
             )}
           </div>

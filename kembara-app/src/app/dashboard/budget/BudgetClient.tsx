@@ -466,23 +466,23 @@ export default function BudgetClient({
 
       {/* Sticky Header */}
       <div className="sticky top-0 z-[1100] bg-white/60 backdrop-blur-xl border-b border-white/60 px-5 pt-4 pb-3 lg:px-10">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-2">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-2.5 sm:gap-4 mb-2">
+          <div className="flex items-center gap-3 min-w-0">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-600 border border-brand-200/50 shadow-sm shrink-0">
               <Wallet size={22} weight="fill" />
             </span>
-            <div>
-              <h2 className="text-[20px] font-bold text-brand-700 leading-tight">
+            <div className="min-w-0">
+              <h2 className="text-[18px] sm:text-[20px] font-bold text-brand-700 leading-tight truncate">
                 Budget &amp; Keuangan
               </h2>
-              <p className="text-[12px] text-stone-500 mt-0.5 line-clamp-1">
+              <p className="text-[12px] text-stone-500 mt-0.5 line-clamp-1 truncate">
                 Kelola anggaran &amp; catatan belanja perjalanan
               </p>
             </div>
           </div>
 
           {/* Quick Header Actions */}
-          <div className="flex items-center gap-2 flex-wrap justify-between sm:justify-end">
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             {allTrips && allTrips.length > 0 && (
               <TripSwitcher trips={allTrips} activeTrip={trip} currentUserId={user?.id} />
             )}
@@ -492,7 +492,7 @@ export default function BudgetClient({
                 <button
                   type="button"
                   onClick={() => setIsExchangeModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-brand-200 px-3 py-1.5 text-xs font-bold text-brand-700 shadow-xs transition hover:bg-brand-50 active:scale-95"
+                  className="hidden sm:inline-flex items-center gap-1.5 rounded-xl bg-white border border-brand-200 px-3 py-1.5 text-xs font-bold text-brand-700 shadow-xs transition hover:bg-brand-50 active:scale-95"
                 >
                   <ArrowsLeftRight size={14} weight="bold" />
                   <span>Tukar Uang</span>
@@ -511,7 +511,7 @@ export default function BudgetClient({
                     setActiveCurrenciesDraft(destinationCurrencies);
                     setIsEditBudgetOpen(true);
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3 py-1.5 text-xs font-bold text-stone-700 shadow-xs transition hover:bg-stone-50 active:scale-95"
+                  className="hidden md:inline-flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3 py-1.5 text-xs font-bold text-stone-700 shadow-xs transition hover:bg-stone-50 active:scale-95"
                 >
                   <PencilSimple size={14} weight="bold" />
                   <span>Target Budget</span>
@@ -525,7 +525,7 @@ export default function BudgetClient({
             ) : (
               <span className="inline-flex items-center gap-1.5 rounded-xl bg-stone-100 border border-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-600 shadow-xs">
                 <Eye size={14} weight="bold" />
-                <span>Mode Lihat Saja</span>
+                <span className="hidden sm:inline">Mode Lihat Saja</span>
               </span>
             )}
 
