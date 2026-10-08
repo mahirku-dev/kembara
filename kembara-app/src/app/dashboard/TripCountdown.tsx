@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Hourglass, Sparkle, CheckCircle, CalendarBlank, MapPin, Clock } from "@phosphor-icons/react";
+import { Hourglass, Sparkle, CheckCircle, CalendarBlank, Clock } from "@phosphor-icons/react";
 import type { UpcomingPlace } from "./UpcomingAgendaCard";
+import { format, parseISO } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
 
 interface TripCountdownProps {
   startDate: string | null;
@@ -14,25 +16,29 @@ interface TripCountdownProps {
 interface TimeLeft {
   days: number;
   hours: number;
-  minutes: number;
-  seconds: number;
   status: "agenda" | "future_trip" | "ongoing_trip" | "completed" | "no_date";
   label: string;
   sublabel?: string;
+  targetDateFormatted?: string;
 }
 
 function computeTargetDate(
   startDate: string | null,
   endDate: string | null,
   targetAgenda?: UpcomingPlace | null
-): { target: Date | null; status: TimeLeft["status"]; label: string; sublabel?: string } {
+): {
+  target: Date | null;
+  status: TimeLeft["status"];
+  label: string;
+  sublabel?: string;
+  targetDateFormatted?: string;
+} {
   const now = new Date();
 
-  // 1. If there is a target agenda, calculate target timestamp to its start_time
+  // 1. Target next upcoming agenda if available
   if (targetAgenda) {
     let dateStr = targetAgenda.day_date;
     if (!dateStr && startDate) {
-      // Calculate date from trip startDate + (day_number - 1)
       const s = new Date(startDate);
       s.setDate(s.getDate() + Math.max(0, (targetAgenda.day_number || 1) - 1));
       dateStr = s.toISOString().split("T")[0];
@@ -46,17 +52,23 @@ function computeTargetDate(
 
       const diff = agendaDate.getTime() - now.getTime();
       if (diff > 0) {
+        let formattedStr = timeStr;
+        try {
+          formattedStr = `${format(parseISO(dateStr), "d MMMM yyyy", { locale: idLocale })} · ${timeStr}`;
+        } catch {}
+
         return {
           target: agendaDate,
           status: "agenda",
-          label: `Menuju: ${targetAgenda.name}`,
-          sublabel: `Hari ${targetAgenda.day_number || 1} • ${timeStr}`,
+          label: targetAgenda.name,
+          sublabel: `Hari ${targetAgenda.day_number || 1}`,
+          targetDateFormatted: formattedStr,
         };
       }
     }
   }
 
-  // 2. Fallback to trip start date if in the future
+  // 2. Future trip countdown to start date
   if (startDate) {
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
@@ -66,24 +78,30 @@ function computeTargetDate(
     const diffToStart = start.getTime() - now.getTime();
     const diffToEnd = end.getTime() - now.getTime();
 
+    let formattedDate = "";
+    try {
+      formattedDate = format(parseISO(startDate), "d MMMM yyyy", { locale: idLocale });
+    } catch {}
+
     if (diffToStart > 0) {
       return {
         target: start,
         status: "future_trip",
-        label: "Menuju Keberangkatan Trip",
+        label: "Menuju keberangkatan",
+        targetDateFormatted: formattedDate,
       };
     } else if (diffToEnd >= 0) {
       return {
         target: end,
         status: "ongoing_trip",
-        label: "Perjalanan Sedang Berlangsung",
+        label: "Perjalanan sedang berlangsung",
         sublabel: "Pantau agenda harian Anda",
       };
     } else {
       return {
         target: null,
         status: "completed",
-        label: "Perjalanan Selesai",
+        label: "Perjalanan selesai",
       };
     }
   }
@@ -91,7 +109,7 @@ function computeTargetDate(
   return {
     target: null,
     status: "no_date",
-    label: "Belum Ada Jadwal",
+    label: "Belum ada jadwal",
   };
 }
 
@@ -100,14 +118,14 @@ function calculateTimeLeft(
   endDate: string | null,
   targetAgenda?: UpcomingPlace | null
 ): TimeLeft {
-  const { target, status, label, sublabel } = computeTargetDate(
+  const { target, status, label, sublabel, targetDateFormatted } = computeTargetDate(
     startDate,
     endDate,
     targetAgenda
   );
 
   if (!target) {
-    return { days: 0, hours: 0, minutes: 0, seconds: 0, status, label, sublabel };
+    return { days: 0, hours: 0, status, label, sublabel, targetDateFormatted };
   }
 
   const now = new Date();
@@ -117,20 +135,17 @@ function calculateTimeLeft(
     return {
       days: 0,
       hours: 0,
-      minutes: 0,
-      seconds: 0,
       status: status === "agenda" ? "ongoing_trip" : status,
       label,
       sublabel,
+      targetDateFormatted,
     };
   }
 
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-  const minutes = Math.floor((diff / (1000 * 60)) % 60);
-  const seconds = Math.floor((diff / 1000) % 60);
 
-  return { days, hours, minutes, seconds, status, label, sublabel };
+  return { days, hours, status, label, sublabel, targetDateFormatted };
 }
 
 export default function TripCountdown({
@@ -146,116 +161,53 @@ export default function TripCountdown({
 
   useEffect(() => {
     setMounted(true);
+    // Update every minute (no flickering seconds)
     const timer = setInterval(() => {
       setTimeLeft(calculateTimeLeft(startDate, endDate, targetAgenda));
-    }, 1000);
+    }, 60000);
 
     return () => clearInterval(timer);
   }, [startDate, endDate, targetAgenda]);
 
   if (!mounted) {
-    return (
-      <div className={`grid grid-cols-4 gap-2 ${className}`}>
-        {["HARI", "JAM", "MENIT", "DETIK"].map((l) => (
-          <div
-            key={l}
-            className="flex flex-col items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 px-3 py-2 text-center"
-          >
-            <span className="text-xl md:text-2xl font-black font-mono text-white tracking-wider">
-              --
-            </span>
-            <span className="text-[9px] font-bold text-emerald-200/80 uppercase tracking-wider mt-0.5">
-              {l}
-            </span>
-          </div>
-        ))}
-      </div>
-    );
+    return null;
   }
 
   if (timeLeft.status === "no_date") {
-    return (
-      <div className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2.5 text-xs font-semibold text-white/90 backdrop-blur-md border border-white/15">
-        <CalendarBlank size={16} className="text-emerald-300" />
-        <span>Atur jadwal agenda atau tanggal keberangkatan untuk hitung mundur</span>
-      </div>
-    );
+    return null;
   }
 
   if (timeLeft.status === "completed") {
     return (
-      <div className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500/20 px-4 py-2.5 text-xs font-semibold text-emerald-200 backdrop-blur-md border border-emerald-400/30">
-        <CheckCircle size={16} weight="fill" className="text-emerald-300" />
-        <span>Perjalanan telah selesai dilaksanakan</span>
+      <div className={`inline-flex items-center gap-2 text-xs text-emerald-300 ${className}`}>
+        <CheckCircle size={15} weight="fill" className="text-emerald-400 shrink-0" />
+        <span>Perjalanan telah selesai</span>
       </div>
     );
   }
 
-  const pad = (n: number) => String(Math.max(0, n)).padStart(2, "0");
+  if (timeLeft.status === "ongoing_trip") {
+    return (
+      <div className={`inline-flex items-center gap-2 text-xs text-amber-300 font-medium ${className}`}>
+        <Sparkle size={15} weight="fill" className="text-amber-400 shrink-0 animate-pulse" />
+        <span>Perjalanan sedang berlangsung</span>
+      </div>
+    );
+  }
 
+  // Future trip / Agenda countdown in clean modern single-row / compact typography
   return (
-    <div className={`flex flex-col gap-2 ${className}`}>
-      {/* Dynamic Status Header */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        {timeLeft.status === "agenda" ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/25 px-3 py-1 text-[11px] font-bold text-emerald-200 backdrop-blur-sm border border-emerald-400/30 shadow-sm">
-            <Clock size={13} weight="fill" className="text-emerald-300 animate-spin" />
-            <span className="truncate max-w-[220px]">{timeLeft.label}</span>
-            {timeLeft.sublabel && (
-              <span className="opacity-75 font-normal text-[10px]">({timeLeft.sublabel})</span>
-            )}
-          </span>
-        ) : timeLeft.status === "ongoing_trip" ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/25 px-3 py-1 text-[11px] font-bold text-amber-200 uppercase tracking-wider backdrop-blur-sm border border-amber-300/30 animate-pulse">
-            <Sparkle size={13} weight="fill" />
-            Perjalanan Sedang Berlangsung
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 px-3 py-1 text-[11px] font-bold text-emerald-300 uppercase tracking-wider backdrop-blur-sm border border-emerald-400/30">
-            <Hourglass size={13} weight="fill" />
-            Menuju Keberangkatan Trip
-          </span>
+    <div className={`flex items-baseline gap-2.5 flex-wrap ${className}`}>
+      <span className="text-xl sm:text-2xl font-black text-emerald-300 tracking-tight">
+        {timeLeft.days > 0 ? `${timeLeft.days} hari lagi` : `${timeLeft.hours} jam lagi`}
+      </span>
+      <span className="text-xs text-stone-300/90 font-medium flex items-center gap-1.5">
+        <span>•</span>
+        <span>{timeLeft.label}</span>
+        {timeLeft.targetDateFormatted && (
+          <span className="text-stone-400 hidden sm:inline">({timeLeft.targetDateFormatted})</span>
         )}
-      </div>
-
-      {/* Live Countdown Numbers Box Grid */}
-      <div className="grid grid-cols-4 gap-2 max-w-sm">
-        <div className="group relative overflow-hidden flex flex-col items-center justify-center rounded-2xl bg-white/15 hover:bg-white/20 backdrop-blur-md border border-white/20 px-2.5 py-2 text-center transition shadow-sm">
-          <span className="text-xl md:text-2xl font-black font-mono text-white tracking-tight drop-shadow-sm">
-            {pad(timeLeft.days)}
-          </span>
-          <span className="text-[9px] font-bold text-emerald-200/90 uppercase tracking-wider mt-0.5">
-            Hari
-          </span>
-        </div>
-
-        <div className="group relative overflow-hidden flex flex-col items-center justify-center rounded-2xl bg-white/15 hover:bg-white/20 backdrop-blur-md border border-white/20 px-2.5 py-2 text-center transition shadow-sm">
-          <span className="text-xl md:text-2xl font-black font-mono text-white tracking-tight drop-shadow-sm">
-            {pad(timeLeft.hours)}
-          </span>
-          <span className="text-[9px] font-bold text-emerald-200/90 uppercase tracking-wider mt-0.5">
-            Jam
-          </span>
-        </div>
-
-        <div className="group relative overflow-hidden flex flex-col items-center justify-center rounded-2xl bg-white/15 hover:bg-white/20 backdrop-blur-md border border-white/20 px-2.5 py-2 text-center transition shadow-sm">
-          <span className="text-xl md:text-2xl font-black font-mono text-white tracking-tight drop-shadow-sm">
-            {pad(timeLeft.minutes)}
-          </span>
-          <span className="text-[9px] font-bold text-emerald-200/90 uppercase tracking-wider mt-0.5">
-            Menit
-          </span>
-        </div>
-
-        <div className="group relative overflow-hidden flex flex-col items-center justify-center rounded-2xl bg-white/15 hover:bg-white/20 backdrop-blur-md border border-white/20 px-2.5 py-2 text-center transition shadow-sm">
-          <span className="text-xl md:text-2xl font-black font-mono text-emerald-300 tracking-tight drop-shadow-sm animate-pulse">
-            {pad(timeLeft.seconds)}
-          </span>
-          <span className="text-[9px] font-bold text-emerald-200/90 uppercase tracking-wider mt-0.5">
-            Detik
-          </span>
-        </div>
-      </div>
+      </span>
     </div>
   );
 }

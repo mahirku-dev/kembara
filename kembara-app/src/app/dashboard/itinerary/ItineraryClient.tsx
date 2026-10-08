@@ -788,10 +788,10 @@ export default function ItineraryClient({
               </span>
               <div className="min-w-0">
                 <h2 className="text-[18px] sm:text-[20px] font-bold text-brand-700 leading-tight truncate">
-                  Itinerary & Agenda
+                  Agenda &amp; Rute
                 </h2>
                 <p className="text-[12px] text-stone-500 mt-0.5 line-clamp-1 truncate">
-                  {`Jadwal kegiatan & ziarah ${trip.destination || trip.title}`}
+                  {`Jadwal & rute kegiatan ${trip.destination || trip.title}`}
                 </p>
               </div>
             </div>
@@ -885,10 +885,10 @@ export default function ItineraryClient({
             </span>
             <div className="min-w-0">
               <h2 className="text-[18px] sm:text-[20px] font-bold text-brand-700 leading-tight truncate">
-                Itinerary & Agenda
+                Agenda &amp; Rute
               </h2>
               <p className="text-[12px] text-stone-500 mt-0.5 line-clamp-1 truncate">
-                {`Jadwal kegiatan & ziarah ${trip.destination || trip.title}`}
+                {`Jadwal & rute kegiatan ${trip.destination || trip.title}`}
               </p>
             </div>
           </div>

@@ -40,7 +40,7 @@ export default async function VaultPage({
                   Vault &amp; Dokumen
                 </h2>
                 <p className="text-[12px] text-stone-500 mt-0.5 line-clamp-1 truncate">
-                  Kelola checklist perlengkapan &amp; berkas perjalanan Anda
+                  Tiket, dokumen &amp; booking perjalanan Anda
                 </p>
               </div>
             </div>

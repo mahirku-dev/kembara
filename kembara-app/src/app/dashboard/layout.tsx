@@ -5,8 +5,8 @@ import NavLink, { type NavIconName } from "./NavLink";
 
 const NAV_ITEMS: Array<{ href: string; label: string; iconName: NavIconName }> = [
   { href: "/dashboard", label: "Home", iconName: "House" },
-  { href: "/dashboard/itinerary", label: "Itinerary", iconName: "ListBullets" },
-  { href: "/dashboard/map", label: "Map", iconName: "MapTrifold" },
+  { href: "/dashboard/itinerary", label: "Agenda", iconName: "ListBullets" },
+  { href: "/dashboard/map", label: "Peta", iconName: "MapTrifold" },
   { href: "/dashboard/budget", label: "Budget", iconName: "Wallet" },
   { href: "/dashboard/vault", label: "Vault", iconName: "SuitcaseRolling" },
 ];

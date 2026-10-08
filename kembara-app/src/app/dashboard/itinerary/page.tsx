@@ -41,10 +41,10 @@ export default async function ItineraryPage({
               </span>
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg sm:text-[20px] font-bold text-brand-700 leading-tight truncate">
-                  Itinerary &amp; Agenda
+                  Agenda &amp; Rute
                 </h2>
                 <p className="text-[11px] sm:text-[12px] text-stone-500 mt-0.5 truncate">
-                  Jadwal kegiatan &amp; ziarah perjalanan Anda
+                  Jadwal &amp; rencana kegiatan perjalanan Anda
                 </p>
               </div>
             </div>

@@ -59,8 +59,10 @@ function NavLinkInner({ href, label, iconName, variant }: NavLinkProps) {
   return (
     <Link
       href={targetHref}
+      aria-label={label}
+      aria-current={isActive ? "page" : undefined}
       className={clsx(
-        "flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-1 transition relative",
+        "flex flex-col items-center justify-center gap-0.5 rounded-xl min-h-[46px] py-1 px-1 transition relative",
         isActive
           ? "text-brand-600 font-semibold"
           : "text-stone-400 hover:text-brand-600 active:scale-95"
