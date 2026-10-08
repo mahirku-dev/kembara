@@ -84,29 +84,60 @@ function formatTotalExpenses(expenses: Expense[], defaultCurrency = "IDR"): stri
 }
 
 const KNOWN_CITIES: { patterns: RegExp[]; name: string }[] = [
+  // Arab Saudi
   { patterns: [/makkah/i, /mecca/i, /mekkah/i, /mekah/i], name: "Mekkah" },
   { patterns: [/madinah/i, /medina/i], name: "Madinah" },
   { patterns: [/jeddah/i, /jidda/i], name: "Jeddah" },
   { patterns: [/riyadh/i], name: "Riyadh" },
   { patterns: [/taif/i, /thaif/i], name: "Taif" },
-  { patterns: [/jakarta/i, /soekarno[- ]hatta/i, /halim/i, /cengkareng/i], name: "Jakarta" },
-  { patterns: [/surabaya/i, /juanda/i], name: "Surabaya" },
-  { patterns: [/bandung/i, /kertajati/i], name: "Bandung" },
-  { patterns: [/yogyakarta/i, /jogja/i, /kulon progo/i, /yia/i], name: "Yogyakarta" },
+  { patterns: [/dammam/i, /khobar/i], name: "Dammam" },
+
+  // Indonesia
+  { patterns: [/jakarta/i, /soekarno[- ]hatta/i, /halim/i, /cengkareng/i, /gambir/i, /kemayoran/i], name: "Jakarta" },
+  { patterns: [/surabaya/i, /juanda/i, /gubeng/i, /pasar turi/i], name: "Surabaya" },
+  { patterns: [/bandung/i, /kertajati/i, /lembang/i], name: "Bandung" },
+  { patterns: [/yogyakarta/i, /jogja/i, /kulon progo/i, /yia/i, /sleman/i, /bantul/i, /malioboro/i], name: "Yogyakarta" },
   { patterns: [/semarang/i, /ahmad yani/i], name: "Semarang" },
   { patterns: [/solo/i, /surakarta/i, /adi soemarmo/i], name: "Solo" },
-  { patterns: [/denpasar/i, /bali/i, /ngurah rai/i], name: "Bali" },
-  { patterns: [/lombok/i, /mataram/i, /praya/i], name: "Lombok" },
+  { patterns: [/denpasar/i, /bali/i, /ngurah rai/i, /kuta/i, /seminyak/i, /ubud/i, /sanur/i, /jimbaran/i, /nusa dua/i, /badung/i], name: "Denpasar" },
+  { patterns: [/mataram/i, /lombok/i, /praya/i, /gili/i, /senggigi/i], name: "Mataram" },
   { patterns: [/medan/i, /kualanamu/i], name: "Medan" },
-  { patterns: [/padang/i, /minangkabau/i], name: "Padang" },
+  { patterns: [/padang/i, /minangkabau/i, /bukittinggi/i], name: "Padang" },
   { patterns: [/palembang/i, /sultan mahmud badaruddin/i], name: "Palembang" },
-  { patterns: [/makassar/i, /hasanuddin/i], name: "Makassar" },
+  { patterns: [/makassar/i, /hasanuddin/i, /ujung pandang/i], name: "Makassar" },
   { patterns: [/balikpapan/i, /sepinggan/i], name: "Balikpapan" },
   { patterns: [/banjarmasin/i, /syamsudin noor/i], name: "Banjarmasin" },
-  { patterns: [/kuala lumpur/i, /klia/i], name: "Kuala Lumpur" },
-  { patterns: [/penang/i], name: "Penang" },
+  { patterns: [/pontianak/i, /supadio/i], name: "Pontianak" },
+  { patterns: [/manado/i, /sam ratulangi/i], name: "Manado" },
+  { patterns: [/bogor/i, /puncak/i], name: "Bogor" },
+  { patterns: [/depok/i], name: "Depok" },
+  { patterns: [/tangerang/i, /bsd/i, /serpong/i], name: "Tangerang" },
+  { patterns: [/bekasi/i], name: "Bekasi" },
+  { patterns: [/malang/i, /batu/i, /abdul rachman saleh/i], name: "Malang" },
+  { patterns: [/cirebon/i], name: "Cirebon" },
+  { patterns: [/sukabumi/i], name: "Sukabumi" },
+  { patterns: [/tasikmalaya/i], name: "Tasikmalaya" },
+  { patterns: [/pekalongan/i], name: "Pekalongan" },
+  { patterns: [/tegal/i], name: "Tegal" },
+  { patterns: [/magelang/i, /borobudur/i], name: "Magelang" },
+  { patterns: [/banyuwangi/i, /blimbingsari/i], name: "Banyuwangi" },
+  { patterns: [/labuan bajo/i, /komodo/i], name: "Labuan Bajo" },
+  { patterns: [/kupang/i, /eltari/i], name: "Kupang" },
+  { patterns: [/ambon/i, /pattimura/i], name: "Ambon" },
+  { patterns: [/jayapura/i, /sentani/i], name: "Jayapura" },
+  { patterns: [/banda aceh/i, /sultan iskandar muda/i], name: "Banda Aceh" },
+  { patterns: [/pekanbaru/i, /sultan syarif kasim/i], name: "Pekanbaru" },
+  { patterns: [/batam/i, /hang nadim/i], name: "Batam" },
+  { patterns: [/jambi/i, /sultan thaha/i], name: "Jambi" },
+  { patterns: [/bengkulu/i, /fatmawati/i], name: "Bengkulu" },
+  { patterns: [/bandar lampung/i, /lampung/i, /radin inten/i], name: "Lampung" },
+
+  // Mancanegara
+  { patterns: [/kuala lumpur/i, /klia/i, /petaling jaya/i, /sepang/i], name: "Kuala Lumpur" },
+  { patterns: [/penang/i, /george town/i], name: "Penang" },
   { patterns: [/singapore/i, /singapura/i, /changi/i], name: "Singapore" },
   { patterns: [/bangkok/i, /suvarnabhumi/i, /don mueang/i], name: "Bangkok" },
+  { patterns: [/phuket/i], name: "Phuket" },
   { patterns: [/istanbul/i, /sabiha/i], name: "Istanbul" },
   { patterns: [/dubai/i, /dxb/i], name: "Dubai" },
   { patterns: [/abu dhabi/i], name: "Abu Dhabi" },
@@ -115,14 +146,24 @@ const KNOWN_CITIES: { patterns: RegExp[]; name: string }[] = [
   { patterns: [/amman/i], name: "Amman" },
   { patterns: [/jerusalem/i, /yerusalem/i, /al-quds/i], name: "Yerusalem" },
   { patterns: [/tokyo/i, /haneda/i, /narita/i], name: "Tokyo" },
+  { patterns: [/osaka/i, /kansai/i], name: "Osaka" },
+  { patterns: [/kyoto/i], name: "Kyoto" },
   { patterns: [/seoul/i, /incheon/i], name: "Seoul" },
   { patterns: [/london/i, /heathrow/i, /gatwick/i], name: "London" },
   { patterns: [/paris/i, /charles de gaulle/i], name: "Paris" },
+  { patterns: [/sydney/i, /kingsford smith/i], name: "Sydney" },
+  { patterns: [/melbourne/i], name: "Melbourne" },
 ];
+
+const PROVINCE_PATTERNS =
+  /^(provinsi|prov\.|daerah khusus|daerah istimewa|dki|di |jawa barat|jawa timur|jawa tengah|banten|bali|nusa tenggara barat|nusa tenggara timur|ntb|ntt|sumatera utara|sumut|sumatera barat|sumbar|sumatera selatan|sumsel|riau|kepulauan riau|kepri|jambi|bengkulu|lampung|bangka belitung|babel|kalimantan barat|kalbar|kalimantan timur|kaltim|kalimantan selatan|kalsel|kalimantan tengah|kalteng|kalimantan utara|kaltara|sulawesi selatan|sulsel|sulawesi utara|sulut|sulawesi tengah|sulteng|sulawesi tenggara|sultra|gorontalo|sulawesi barat|sulbar|maluku|maluku utara|papua|papua barat|papua selatan|papua tengah|papua pegunungan|papua barat daya|makkah province|medina province|al madinah province|riyadh province|eastern province|province|state|prefecture|region|oblast|governorate|wilayah|special region)/i;
+
+const COUNTRY_PATTERNS =
+  /^(indonesia|saudi arabia|arab saudi|malaysia|singapore|singapura|thailand|turkey|turkiye|turki|uae|united arab emirates|egypt|mesir|jordan|yordania|japan|jepang|south korea|korea selatan|korea|united kingdom|uk|england|inggris|france|prancis|germany|jerman|australia|united states|usa|amerika serikat)$/i;
 
 export function extractCityFromPlace(place: Place): string | null {
   const fullText = `${place.address || ""} ${place.name || ""}`;
-  
+
   // 1. Match against known cities first
   for (const city of KNOWN_CITIES) {
     if (city.patterns.some((p) => p.test(fullText))) {
@@ -138,14 +179,25 @@ export function extractCityFromPlace(place: Place): string | null {
       .filter(
         (p) =>
           p.length > 2 &&
-          !/^(indonesia|saudi arabia|malaysia|singapore|thailand|turkey|uae|egypt|jordan|japan|south korea|uk|france)$/i.test(
-            p
-          )
+          !COUNTRY_PATTERNS.test(p) &&
+          !PROVINCE_PATTERNS.test(p)
       );
 
     if (parts.length > 0) {
-      const candidate = parts[parts.length - 1];
-      if (candidate && candidate.length <= 25) {
+      let candidate = parts[parts.length - 1];
+      // Strip common prefixes: "Kota Administrasi", "Kota", "Kabupaten", "Kab."
+      candidate = candidate
+        .replace(
+          /^(kota administrasi|kota madya|kota adm\.|kota|kabupaten|kab\.)\s+/i,
+          ""
+        )
+        .trim();
+
+      if (
+        candidate &&
+        candidate.length <= 30 &&
+        !PROVINCE_PATTERNS.test(candidate)
+      ) {
         return candidate;
       }
     }
