@@ -1,6 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import type { ItineraryDay, Place, Trip } from "@/types";
+import type { ItineraryDay, PackingItem, Place, Trip } from "@/types";
 import { House } from "@phosphor-icons/react/dist/ssr";
 import { format, parseISO } from "date-fns";
 import CreateTripModal from "./CreateTripModal";
@@ -40,8 +40,7 @@ export default async function DashboardPage({
   let tripStatus: "future" | "ongoing" | "past" | "no_date" = "no_date";
   let placesCount = 0;
   let membersCount = 1;
-  let packingDoneCount = 0;
-  let packingTotalCount = 0;
+  let packingItems: PackingItem[] = [];
   const now = new Date();
   const todayStr = format(now, "yyyy-MM-dd");
 
@@ -154,17 +153,16 @@ export default async function DashboardPage({
       .from("trip_members")
       .select("*", { count: "exact", head: true })
       .eq("trip_id", activeTrip.id);
-    membersCount = (mCount || 0) + 1; // +1 for host
+    membersCount = mCount && mCount > 0 ? mCount : 1;
 
-    // 3. Fetch Packing List Items
+    // 3. Fetch Packing List Items from Vault
     const { data: packItems } = await supabase
       .from("packing_lists")
-      .select("is_checked")
-      .eq("trip_id", activeTrip.id);
-    if (packItems) {
-      packingTotalCount = packItems.length;
-      packingDoneCount = packItems.filter((p) => p.is_checked).length;
-    }
+      .select("*")
+      .eq("trip_id", activeTrip.id)
+      .order("created_at", { ascending: true })
+      .returns<PackingItem[]>();
+    packingItems = packItems ?? [];
   }
 
   const dashboardSubtitle = activeTrip
@@ -239,13 +237,11 @@ export default async function DashboardPage({
           <UpcomingAgendaCard trip={activeTrip} place={nextAgenda} />
         )}
 
-        {/* 4. Preparation Progress Card */}
+        {/* 4. Preparation Progress Card (Real Vault Checklist) */}
         {activeTrip && (
           <PreparationProgressCard
             trip={activeTrip}
-            packingDoneCount={packingDoneCount}
-            packingTotalCount={packingTotalCount}
-            docsCount={3}
+            initialPackingItems={packingItems}
           />
         )}
 
