@@ -476,7 +476,7 @@ export default function BudgetClient({
                 Budget &amp; Keuangan
               </h2>
               <p className="text-[12px] text-stone-500 mt-0.5 line-clamp-1">
-                {`Kelola anggaran & catatan belanja ${trip.destination || trip.title}`}
+                Kelola anggaran &amp; catatan belanja perjalanan
               </p>
             </div>
           </div>
@@ -492,10 +492,10 @@ export default function BudgetClient({
                 <button
                   type="button"
                   onClick={() => setIsExchangeModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-2xl bg-white border border-brand-200 px-3.5 py-2 text-xs font-bold text-brand-700 shadow-sm transition hover:bg-brand-50 active:scale-95"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-brand-200 px-3 py-1.5 text-xs font-bold text-brand-700 shadow-xs transition hover:bg-brand-50 active:scale-95"
                 >
-                  <ArrowsLeftRight size={15} weight="bold" />
-                  <span>Tukar Uang (Valas)</span>
+                  <ArrowsLeftRight size={14} weight="bold" />
+                  <span>Tukar Uang</span>
                 </button>
 
                 <button
@@ -511,10 +511,10 @@ export default function BudgetClient({
                     setActiveCurrenciesDraft(destinationCurrencies);
                     setIsEditBudgetOpen(true);
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-2xl bg-white border border-stone-200 px-3.5 py-2 text-xs font-bold text-stone-700 shadow-sm transition hover:bg-stone-50 active:scale-95"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3 py-1.5 text-xs font-bold text-stone-700 shadow-xs transition hover:bg-stone-50 active:scale-95"
                 >
-                  <PencilSimple size={15} weight="bold" />
-                  <span>Atur Target Budget</span>
+                  <PencilSimple size={14} weight="bold" />
+                  <span>Target Budget</span>
                 </button>
 
                 <AddExpenseModal
@@ -523,8 +523,8 @@ export default function BudgetClient({
                 />
               </>
             ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-2xl bg-stone-100 border border-stone-200 px-3.5 py-2 text-xs font-semibold text-stone-600 shadow-xs">
-                <Eye size={15} weight="bold" />
+              <span className="inline-flex items-center gap-1.5 rounded-xl bg-stone-100 border border-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-600 shadow-xs">
+                <Eye size={14} weight="bold" />
                 <span>Mode Lihat Saja</span>
               </span>
             )}
@@ -533,32 +533,34 @@ export default function BudgetClient({
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 hide-scroll mt-3 border-t border-stone-100 pt-2.5">
-          {[
-            { id: "overview", label: "Dompet & Ringkasan", icon: Wallet },
-            { id: "categories", label: "Pos Kategori (Target vs Realisasi)", icon: ChartPieSlice },
-            { id: "daily", label: "Laporan Harian", icon: CalendarBlank },
-            { id: "transactions", label: `Semua Transaksi (${expenses.length})`, icon: Receipt },
-            { id: "exchange", label: `Tukar Uang (${exchangeRecords.length})`, icon: ArrowsLeftRight },
-          ].map((tab) => {
-            const IconComp = tab.icon;
-            const isSelected = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
-                  isSelected
-                    ? "bg-brand-600 text-white shadow-md"
-                    : "bg-white/70 border border-stone-200 text-stone-600 hover:bg-brand-50"
-                }`}
-              >
-                <IconComp size={14} weight={isSelected ? "bold" : "regular"} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+        {/* Navigation Tabs with scroll hint */}
+        <div className="relative mt-2.5 border-t border-stone-100 pt-2.5">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 hide-scroll">
+            {[
+              { id: "overview", label: "Dompet & Ringkasan", icon: Wallet },
+              { id: "categories", label: "Pos Kategori", icon: ChartPieSlice },
+              { id: "daily", label: "Laporan Harian", icon: CalendarBlank },
+              { id: "transactions", label: `Transaksi (${expenses.length})`, icon: Receipt },
+              { id: "exchange", label: `Tukar Uang (${exchangeRecords.length})`, icon: ArrowsLeftRight },
+            ].map((tab) => {
+              const IconComp = tab.icon;
+              const isSelected = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
+                    isSelected
+                      ? "bg-brand-600 text-white shadow-sm"
+                      : "bg-white/80 border border-stone-200 text-stone-600 hover:bg-brand-50 active:scale-95"
+                  }`}
+                >
+                  <IconComp size={14} weight={isSelected ? "bold" : "regular"} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
