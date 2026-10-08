@@ -12,18 +12,25 @@ import {
   CalendarBlank,
   MapPin,
   SuitcaseRolling,
-  Sparkle,
+  Users,
+  Key,
+  Crown,
+  Eye,
+  UserPlus,
 } from "@phosphor-icons/react";
 import type { Trip } from "@/types";
 import CreateTripModal from "@/app/dashboard/CreateTripModal";
 import EditTripModal from "@/components/EditTripModal";
 import DeleteTripModal from "@/components/DeleteTripModal";
+import TripMembersModal from "@/components/TripMembersModal";
+import JoinTripModal from "@/components/JoinTripModal";
 
 interface TripSwitcherProps {
   trips: Trip[];
   activeTrip: Trip | null;
   className?: string;
   showCreateButton?: boolean;
+  currentUserId?: string;
 }
 
 export default function TripSwitcher({
@@ -31,16 +38,27 @@ export default function TripSwitcher({
   activeTrip,
   className = "",
   showCreateButton = true,
+  currentUserId,
 }: TripSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [deletingTrip, setDeletingTrip] = useState<Trip | null>(null);
+  const [managingMembersTrip, setManagingMembersTrip] = useState<Trip | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  // Check if URL has joinCode query param to open Join modal automatically
+  useEffect(() => {
+    const joinCode = searchParams?.get("joinCode");
+    if (joinCode) {
+      setShowJoinModal(true);
+    }
+  }, [searchParams]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -70,7 +88,24 @@ export default function TripSwitcher({
   };
 
   if (!activeTrip && trips.length === 0) {
-    return <CreateTripModal buttonText="Buat Perjalanan" variant="primary" />;
+    return (
+      <div className="flex items-center gap-2">
+        <CreateTripModal buttonText="Buat Perjalanan" variant="primary" />
+        <button
+          onClick={() => setShowJoinModal(true)}
+          className="inline-flex items-center gap-1.5 rounded-2xl bg-white border border-stone-200 hover:bg-stone-50 px-3.5 py-2 text-xs font-semibold text-stone-700 shadow-xs transition active:scale-95"
+        >
+          <Key size={14} weight="bold" className="text-brand-600" />
+          <span>Gabung dengan Kode</span>
+        </button>
+        {showJoinModal && (
+          <JoinTripModal
+            isOpen={showJoinModal}
+            onClose={() => setShowJoinModal(false)}
+          />
+        )}
+      </div>
+    );
   }
 
   return (
@@ -120,7 +155,7 @@ export default function TripSwitcher({
 
       {/* Enhanced Dropdown Menu */}
       {isOpen && (
-        <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-80 sm:w-96 origin-top-right rounded-3xl bg-white/95 backdrop-blur-2xl border border-white/80 shadow-2xl ring-1 ring-black/5 z-[10000] p-2.5 animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-84 sm:w-96 origin-top-right rounded-3xl bg-white/95 backdrop-blur-2xl border border-white/80 shadow-2xl ring-1 ring-black/5 z-[10000] p-2.5 animate-in fade-in zoom-in-95 duration-150">
           {/* Dropdown Header */}
           <div className="px-3 py-2 border-b border-stone-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -130,7 +165,7 @@ export default function TripSwitcher({
               <div>
                 <p className="text-xs font-bold text-stone-900">Perjalanan Saya</p>
                 <p className="text-[11px] text-stone-400">
-                  Pilih perjalanan aktif atau kelola rencana
+                  Pilih perjalanan aktif atau kelola anggota
                 </p>
               </div>
             </div>
@@ -143,6 +178,11 @@ export default function TripSwitcher({
           <div className="max-h-72 overflow-y-auto py-1.5 space-y-1.5 hide-scroll">
             {trips.map((t) => {
               const isCurrent = activeTrip?.id === t.id;
+              const isHost =
+                t.current_user_role === "host" ||
+                t.current_user_role === "owner" ||
+                (currentUserId && t.user_id === currentUserId);
+
               return (
                 <div
                   key={t.id}
@@ -185,6 +225,15 @@ export default function TripSwitcher({
                             <Check size={9} weight="bold" /> Aktif
                           </span>
                         )}
+                        {isHost ? (
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 text-amber-800 px-1.5 py-0.2 text-[9px] font-bold">
+                            <Crown size={9} weight="fill" /> Host
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-stone-100 text-stone-600 px-1.5 py-0.2 text-[9px] font-semibold">
+                            {t.current_user_role === "editor" ? "✏️ Editor" : "👁️ Viewer"}
+                          </span>
+                        )}
                       </div>
 
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] text-stone-400">
@@ -203,20 +252,39 @@ export default function TripSwitcher({
                   </button>
 
                   {/* Quick Action Icons */}
-                  <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 shrink-0">
+                  <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 shrink-0">
+                    {/* Members & Invite Code Button */}
                     <button
                       type="button"
-                      title="Edit Info Perjalanan"
+                      title="Anggota & Kode Undangan"
                       onClick={(e) => {
                         e.stopPropagation();
                         setIsOpen(false);
-                        setEditingTrip(t);
+                        setManagingMembersTrip(t);
                       }}
                       className="p-1.5 rounded-xl text-stone-400 hover:text-brand-600 hover:bg-white shadow-xs transition"
                     >
-                      <PencilSimple size={14} weight="bold" />
+                      <Users size={14} weight="bold" />
                     </button>
-                    {trips.length > 1 && (
+
+                    {/* Edit Info Button (Host/Editor only) */}
+                    {isHost && (
+                      <button
+                        type="button"
+                        title="Edit Info Perjalanan"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsOpen(false);
+                          setEditingTrip(t);
+                        }}
+                        className="p-1.5 rounded-xl text-stone-400 hover:text-brand-600 hover:bg-white shadow-xs transition"
+                      >
+                        <PencilSimple size={14} weight="bold" />
+                      </button>
+                    )}
+
+                    {/* Delete Trip (Host only) */}
+                    {isHost && trips.length > 1 && (
                       <button
                         type="button"
                         title="Hapus Perjalanan"
@@ -236,22 +304,34 @@ export default function TripSwitcher({
             })}
           </div>
 
-          {/* Dropdown Footer: Add Trip Action */}
-          {showCreateButton && (
-            <div className="pt-2 border-t border-stone-100">
+          {/* Dropdown Footer: Actions */}
+          <div className="pt-2 border-t border-stone-100 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                setShowJoinModal(true);
+              }}
+              className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-stone-100 hover:bg-stone-200/80 px-3 py-2.5 text-xs font-semibold text-stone-700 shadow-xs transition active:scale-95"
+            >
+              <Key size={14} weight="bold" className="text-brand-600" />
+              <span>Gabung Kode</span>
+            </button>
+
+            {showCreateButton && (
               <button
                 type="button"
                 onClick={() => {
                   setIsOpen(false);
                   setShowCreateModal(true);
                 }}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-cta transition hover:bg-brand-700 active:scale-95"
+                className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-brand-600 hover:bg-brand-700 px-3 py-2.5 text-xs font-bold text-white shadow-cta transition active:scale-95"
               >
-                <Plus size={16} weight="bold" />
-                <span>+ Tambah Perjalanan Baru</span>
+                <Plus size={14} weight="bold" />
+                <span>+ Buat Baru</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 
@@ -261,6 +341,25 @@ export default function TripSwitcher({
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           hideTriggerButton={true}
+        />
+      )}
+
+      {/* Modal for Joining Trip with Code */}
+      {showJoinModal && (
+        <JoinTripModal
+          isOpen={showJoinModal}
+          onClose={() => setShowJoinModal(false)}
+        />
+      )}
+
+      {/* Modal for Managing Members & Invite Code */}
+      {managingMembersTrip && (
+        <TripMembersModal
+          trip={managingMembersTrip}
+          isOpen={!!managingMembersTrip}
+          onClose={() => setManagingMembersTrip(null)}
+          currentUserId={currentUserId}
+          onMembersUpdated={() => router.refresh()}
         />
       )}
 

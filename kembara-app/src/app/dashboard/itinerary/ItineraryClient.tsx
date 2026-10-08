@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { createClient } from "@/utils/supabase/client";
 import type { Expense, ItineraryDay, Place, Task, Trip } from "@/types";
+import { canEditTrip, isTripHost } from "@/types";
 import * as Icons from "@phosphor-icons/react";
 import { CATS } from "@/lib/dummyData";
 import { clsx } from "clsx";
@@ -88,6 +89,9 @@ export default function ItineraryClient({
   allTrips = [],
   user,
 }: Props) {
+  const isHost = isTripHost(trip.current_user_role, user?.id, trip.user_id);
+  const canEdit = canEditTrip(trip.current_user_role) || isHost;
+
   const [mounted, setMounted] = useState(false);
   const [days, setDays] = useState<DayWithPlaces[]>(initialDays);
   const [selectedDayIdx, setSelectedDayIdx] = useState<number>(() =>
@@ -695,14 +699,21 @@ export default function ItineraryClient({
 
             <div className="flex items-center gap-2.5 shrink-0 justify-between sm:justify-end flex-wrap">
               {allTrips && allTrips.length > 0 && (
-                <TripSwitcher trips={allTrips} activeTrip={trip} />
+                <TripSwitcher trips={allTrips} activeTrip={trip} currentUserId={user?.id} />
               )}
-              <AddPlaceModal
-                tripId={trip.id}
-                dayNumber={1}
-                onPlaceAdded={handlePlaceAdded}
-                buttonText="Tambah Agenda"
-              />
+              {canEdit ? (
+                <AddPlaceModal
+                  tripId={trip.id}
+                  dayNumber={1}
+                  onPlaceAdded={handlePlaceAdded}
+                  buttonText="Tambah Agenda"
+                />
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-2xl bg-stone-100 border border-stone-200 px-3.5 py-2 text-xs font-semibold text-stone-600 shadow-xs">
+                  <Icons.Eye size={15} weight="bold" />
+                  <span>Mode Lihat Saja</span>
+                </span>
+              )}
               {user && <UserProfileMenu user={user} />}
             </div>
           </div>
@@ -719,27 +730,30 @@ export default function ItineraryClient({
                 Mulai Rencana Itinerary
               </h3>
               <p className="mt-1 text-xs text-stone-500 leading-relaxed">
-                Belum ada hari atau jadwal kegiatan yang terdaftar untuk {trip.title}. Tambahkan agenda pertama atau buat hari baru untuk memulai.
+                Belum ada hari atau jadwal kegiatan yang terdaftar untuk {trip.title}.
+                {canEdit ? " Tambahkan agenda pertama atau buat hari baru untuk memulai." : " Menunggu Host atau Editor menambahkan agenda."}
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
-              <AddPlaceModal
-                tripId={trip.id}
-                dayNumber={1}
-                onPlaceAdded={handlePlaceAdded}
-                buttonText="+ Tambah Agenda Pertama"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-600 px-5 py-2.5 text-xs font-semibold text-white shadow-cta transition hover:bg-brand-700 active:scale-95"
-              />
-              <button
-                type="button"
-                onClick={handleAddDay}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-2xl bg-stone-100 hover:bg-stone-200 px-4 py-2.5 text-xs font-semibold text-stone-700 transition active:scale-95"
-              >
-                <Icons.Plus size={14} weight="bold" />
-                <span>+ Inisialisasi Hari 1</span>
-              </button>
-            </div>
+            {canEdit && (
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
+                <AddPlaceModal
+                  tripId={trip.id}
+                  dayNumber={1}
+                  onPlaceAdded={handlePlaceAdded}
+                  buttonText="+ Tambah Agenda Pertama"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-600 px-5 py-2.5 text-xs font-semibold text-white shadow-cta transition hover:bg-brand-700 active:scale-95"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddDay}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-2xl bg-stone-100 hover:bg-stone-200 px-4 py-2.5 text-xs font-semibold text-stone-700 transition active:scale-95"
+                >
+                  <Icons.Plus size={14} weight="bold" />
+                  <span>+ Inisialisasi Hari 1</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -782,14 +796,21 @@ export default function ItineraryClient({
 
           <div className="flex items-center gap-2.5 shrink-0 justify-between sm:justify-end flex-wrap">
             {allTrips && allTrips.length > 0 && (
-              <TripSwitcher trips={allTrips} activeTrip={trip} />
+              <TripSwitcher trips={allTrips} activeTrip={trip} currentUserId={user?.id} />
             )}
-            <AddPlaceModal
-              dayId={day.id}
-              dayNumber={selectedDayIdx + 1}
-              tripId={trip.id}
-              onPlaceAdded={handlePlaceAdded}
-            />
+            {canEdit ? (
+              <AddPlaceModal
+                dayId={day.id}
+                dayNumber={selectedDayIdx + 1}
+                tripId={trip.id}
+                onPlaceAdded={handlePlaceAdded}
+              />
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-2xl bg-stone-100 border border-stone-200 px-3.5 py-2 text-xs font-semibold text-stone-600 shadow-xs">
+                <Icons.Eye size={15} weight="bold" />
+                <span>Mode Lihat Saja</span>
+              </span>
+            )}
             {user && <UserProfileMenu user={user} />}
           </div>
         </div>
@@ -828,16 +849,18 @@ export default function ItineraryClient({
             );
           })}
 
-          {/* Quick Add Day Button */}
-          <button
-            type="button"
-            onClick={handleAddDay}
-            className="shrink-0 inline-flex items-center gap-1 rounded-full bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200/80 px-3.5 py-1.5 text-[12px] font-bold transition active:scale-95 shadow-xs whitespace-nowrap"
-            title="Tambah hari baru ke itinerary"
-          >
-            <Icons.Plus size={13} weight="bold" />
-            <span>Tambah Hari</span>
-          </button>
+          {/* Quick Add Day Button (Host/Editor only) */}
+          {canEdit && (
+            <button
+              type="button"
+              onClick={handleAddDay}
+              className="shrink-0 inline-flex items-center gap-1 rounded-full bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200/80 px-3.5 py-1.5 text-[12px] font-bold transition active:scale-95 shadow-xs whitespace-nowrap"
+              title="Tambah hari baru ke itinerary"
+            >
+              <Icons.Plus size={13} weight="bold" />
+              <span>Tambah Hari</span>
+            </button>
+          )}
         </div>
       </div>
 

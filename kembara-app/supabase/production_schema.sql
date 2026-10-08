@@ -19,11 +19,30 @@ create table if not exists trips (
   budget_sar numeric default 0,
   category_budgets_json jsonb default '{}'::jsonb,
   exchange_records_json jsonb default '[]'::jsonb,
+  invite_code text unique,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Index for trips by user_id
+-- Index for trips by user_id and invite_code
 create index if not exists idx_trips_user_id on trips(user_id);
+create index if not exists idx_trips_invite_code on trips(invite_code);
+
+-- Trigger to auto-generate 6-char unique invite code
+create or replace function generate_trip_invite_code()
+returns trigger as $$
+begin
+  if new.invite_code is null or trim(new.invite_code) = '' then
+    new.invite_code := upper(substring(md5(random()::text || clock_timestamp()::text) from 1 for 6));
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_generate_trip_invite_code on trips;
+create trigger trg_generate_trip_invite_code
+before insert on trips
+for each row
+execute function generate_trip_invite_code();
 
 -- 2. TRIP MEMBERS TABLE
 create table if not exists trip_members (
@@ -31,12 +50,13 @@ create table if not exists trip_members (
   trip_id uuid references trips(id) on delete cascade not null,
   user_id uuid references auth.users on delete set null,
   name text not null,
-  role text default 'member',
+  role text default 'viewer', -- 'host' | 'editor' | 'viewer'
   avatar_url text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 create index if not exists idx_trip_members_trip_id on trip_members(trip_id);
+create index if not exists idx_trip_members_user_id on trip_members(user_id);
 
 -- 3. ITINERARY DAYS TABLE
 create table if not exists itinerary_days (
@@ -112,6 +132,41 @@ create table if not exists packing_lists (
 create index if not exists idx_packing_lists_trip_id on packing_lists(trip_id);
 
 -- =========================================================
+-- SECURITY HELPER FUNCTIONS
+-- =========================================================
+
+-- Helper function: Check if auth user is host or editor of a trip
+create or replace function is_trip_editor_or_host(p_trip_id uuid)
+returns boolean as $$
+begin
+  return exists (
+    select 1 from trips
+    where trips.id = p_trip_id and trips.user_id = auth.uid()
+  ) or exists (
+    select 1 from trip_members
+    where trip_members.trip_id = p_trip_id
+      and trip_members.user_id = auth.uid()
+      and trip_members.role in ('host', 'owner', 'editor')
+  );
+end;
+$$ language plpgsql security definer;
+
+-- Helper function: Check if auth user has read access (host, editor, or viewer)
+create or replace function has_trip_access(p_trip_id uuid)
+returns boolean as $$
+begin
+  return exists (
+    select 1 from trips
+    where trips.id = p_trip_id and trips.user_id = auth.uid()
+  ) or exists (
+    select 1 from trip_members
+    where trip_members.trip_id = p_trip_id
+      and trip_members.user_id = auth.uid()
+  );
+end;
+$$ language plpgsql security definer;
+
+-- =========================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- =========================================================
 
@@ -124,164 +179,174 @@ alter table expenses enable row level security;
 alter table expense_splits enable row level security;
 alter table packing_lists enable row level security;
 
--- Drop existing policies if re-running to avoid duplicate errors
+-- 1. TRIPS POLICIES
 drop policy if exists "Users can view their own trips" on trips;
+drop policy if exists "Users can view trips they own or belong to" on trips;
 drop policy if exists "Users can insert their own trips" on trips;
 drop policy if exists "Users can update their own trips" on trips;
+drop policy if exists "Editors and hosts can update trips" on trips;
 drop policy if exists "Users can delete their own trips" on trips;
 
-create policy "Users can view their own trips" on trips for select using (auth.uid() = user_id);
-create policy "Users can insert their own trips" on trips for insert with check (auth.uid() = user_id);
-create policy "Users can update their own trips" on trips for update using (auth.uid() = user_id);
-create policy "Users can delete their own trips" on trips for delete using (auth.uid() = user_id);
+create policy "Users can view trips they own or belong to"
+  on trips for select
+  using (
+    auth.uid() = user_id
+    or exists (
+      select 1 from trip_members
+      where trip_members.trip_id = trips.id
+        and trip_members.user_id = auth.uid()
+    )
+  );
 
--- TRIP MEMBERS POLICIES
+create policy "Users can insert their own trips"
+  on trips for insert
+  with check (auth.uid() = user_id);
+
+create policy "Editors and hosts can update trips"
+  on trips for update
+  using (
+    auth.uid() = user_id
+    or exists (
+      select 1 from trip_members
+      where trip_members.trip_id = trips.id
+        and trip_members.user_id = auth.uid()
+        and trip_members.role in ('host', 'owner', 'editor')
+    )
+  );
+
+create policy "Users can delete their own trips"
+  on trips for delete
+  using (auth.uid() = user_id);
+
+-- 2. TRIP MEMBERS POLICIES
 drop policy if exists "Users can view members of their trips" on trip_members;
 drop policy if exists "Users can manage members of their trips" on trip_members;
+drop policy if exists "Users can view members" on trip_members;
+drop policy if exists "Users can join trip via code or host can add" on trip_members;
+drop policy if exists "Host can update members" on trip_members;
+drop policy if exists "Host can delete members or member can leave" on trip_members;
 
-create policy "Users can view members of their trips"
+create policy "Users can view members"
   on trip_members for select
-  using (
-    exists (
+  using (has_trip_access(trip_id));
+
+create policy "Users can join trip via code or host can add"
+  on trip_members for insert
+  with check (
+    (auth.uid() = user_id)
+    or exists (
       select 1 from trips
-      where trips.id = trip_members.trip_id
-        and trips.user_id = auth.uid()
+      where trips.id = trip_members.trip_id and trips.user_id = auth.uid()
     )
   );
 
-create policy "Users can manage members of their trips"
-  on trip_members for all
+create policy "Host can update members"
+  on trip_members for update
   using (
     exists (
       select 1 from trips
-      where trips.id = trip_members.trip_id
-        and trips.user_id = auth.uid()
+      where trips.id = trip_members.trip_id and trips.user_id = auth.uid()
     )
   );
 
--- ITINERARY DAYS POLICIES
+create policy "Host can delete members or member can leave"
+  on trip_members for delete
+  using (
+    auth.uid() = user_id
+    or exists (
+      select 1 from trips
+      where trips.id = trip_members.trip_id and trips.user_id = auth.uid()
+    )
+  );
+
+-- 3. ITINERARY DAYS POLICIES
 drop policy if exists "Users can view days of their trips" on itinerary_days;
 drop policy if exists "Users can manage days of their trips" on itinerary_days;
+drop policy if exists "Editors and hosts can manage days" on itinerary_days;
 
 create policy "Users can view days of their trips"
   on itinerary_days for select
-  using (
-    exists (
-      select 1 from trips
-      where trips.id = itinerary_days.trip_id
-        and trips.user_id = auth.uid()
-    )
-  );
+  using (has_trip_access(trip_id));
 
-create policy "Users can manage days of their trips"
+create policy "Editors and hosts can manage days"
   on itinerary_days for all
-  using (
-    exists (
-      select 1 from trips
-      where trips.id = itinerary_days.trip_id
-        and trips.user_id = auth.uid()
-    )
-  );
+  using (is_trip_editor_or_host(trip_id));
 
--- PLACES POLICIES
+-- 4. PLACES POLICIES
 drop policy if exists "Users can view places of their trips" on places;
 drop policy if exists "Users can manage places of their trips" on places;
+drop policy if exists "Editors and hosts can manage places" on places;
 
 create policy "Users can view places of their trips"
   on places for select
   using (
     exists (
       select 1 from itinerary_days
-      join trips on trips.id = itinerary_days.trip_id
       where itinerary_days.id = places.day_id
-        and trips.user_id = auth.uid()
+        and has_trip_access(itinerary_days.trip_id)
     )
   );
 
-create policy "Users can manage places of their trips"
+create policy "Editors and hosts can manage places"
   on places for all
   using (
     exists (
       select 1 from itinerary_days
-      join trips on trips.id = itinerary_days.trip_id
       where itinerary_days.id = places.day_id
-        and trips.user_id = auth.uid()
+        and is_trip_editor_or_host(itinerary_days.trip_id)
     )
   );
 
--- EXPENSES POLICIES
+-- 5. EXPENSES POLICIES
 drop policy if exists "Users can view expenses of their trips" on expenses;
 drop policy if exists "Users can manage expenses of their trips" on expenses;
+drop policy if exists "Editors and hosts can manage expenses" on expenses;
 
 create policy "Users can view expenses of their trips"
   on expenses for select
-  using (
-    exists (
-      select 1 from trips
-      where trips.id = expenses.trip_id
-        and trips.user_id = auth.uid()
-    )
-  );
+  using (has_trip_access(trip_id));
 
-create policy "Users can manage expenses of their trips"
+create policy "Editors and hosts can manage expenses"
   on expenses for all
-  using (
-    exists (
-      select 1 from trips
-      where trips.id = expenses.trip_id
-        and trips.user_id = auth.uid()
-    )
-  );
+  using (is_trip_editor_or_host(trip_id));
 
--- EXPENSE SPLITS POLICIES
+-- 6. EXPENSE SPLITS POLICIES
 drop policy if exists "Users can view splits of their trips" on expense_splits;
 drop policy if exists "Users can manage splits of their trips" on expense_splits;
+drop policy if exists "Editors and hosts can manage splits" on expense_splits;
 
 create policy "Users can view splits of their trips"
   on expense_splits for select
   using (
     exists (
       select 1 from expenses
-      join trips on trips.id = expenses.trip_id
       where expenses.id = expense_splits.expense_id
-        and trips.user_id = auth.uid()
+        and has_trip_access(expenses.trip_id)
     )
   );
 
-create policy "Users can manage splits of their trips"
+create policy "Editors and hosts can manage splits"
   on expense_splits for all
   using (
     exists (
       select 1 from expenses
-      join trips on trips.id = expenses.trip_id
       where expenses.id = expense_splits.expense_id
-        and trips.user_id = auth.uid()
+        and is_trip_editor_or_host(expenses.trip_id)
     )
   );
 
--- PACKING LISTS POLICIES
+-- 7. PACKING LISTS POLICIES
 drop policy if exists "Users can view packing lists of their trips" on packing_lists;
 drop policy if exists "Users can manage packing lists of their trips" on packing_lists;
+drop policy if exists "Editors and hosts can manage packing lists" on packing_lists;
 
 create policy "Users can view packing lists of their trips"
   on packing_lists for select
-  using (
-    exists (
-      select 1 from trips
-      where trips.id = packing_lists.trip_id
-        and trips.user_id = auth.uid()
-    )
-  );
+  using (has_trip_access(trip_id));
 
-create policy "Users can manage packing lists of their trips"
+create policy "Editors and hosts can manage packing lists"
   on packing_lists for all
-  using (
-    exists (
-      select 1 from trips
-      where trips.id = packing_lists.trip_id
-        and trips.user_id = auth.uid()
-    )
-  );
+  using (is_trip_editor_or_host(trip_id));
 
 -- =========================================================
 -- STORAGE BUCKETS SETUP (Public / Storage Policies)
@@ -293,21 +358,24 @@ values ('trip-covers', 'trip-covers', true)
 on conflict (id) do update set public = true;
 
 -- Storage Policy: Anyone can view trip covers
+drop policy if exists "Public Access to Trip Covers" on storage.objects;
 create policy "Public Access to Trip Covers"
   on storage.objects for select
   using (bucket_id = 'trip-covers');
 
 -- Storage Policy: Authenticated users can upload trip covers
+drop policy if exists "Authenticated users can upload trip covers" on storage.objects;
 create policy "Authenticated users can upload trip covers"
   on storage.objects for insert
   with check (bucket_id = 'trip-covers' and auth.role() = 'authenticated');
 
 -- Storage Policy: Authenticated users can update/delete their uploaded trip covers
+drop policy if exists "Authenticated users can update trip covers" on storage.objects;
 create policy "Authenticated users can update trip covers"
   on storage.objects for update
   using (bucket_id = 'trip-covers' and auth.role() = 'authenticated');
 
+drop policy if exists "Authenticated users can delete trip covers" on storage.objects;
 create policy "Authenticated users can delete trip covers"
   on storage.objects for delete
   using (bucket_id = 'trip-covers' and auth.role() = 'authenticated');
-

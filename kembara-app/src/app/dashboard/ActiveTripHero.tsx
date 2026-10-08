@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { Trip } from "@/types";
+import type { Trip, TripRole } from "@/types";
+import { isTripHost, canEditTrip } from "@/types";
 import {
   MapPin,
   CalendarBlank,
@@ -11,19 +12,35 @@ import {
   SuitcaseRolling,
   Sparkle,
   Image as ImageIcon,
+  Users,
+  Crown,
+  Eye,
+  ShareNetwork,
 } from "@phosphor-icons/react";
 import TripCountdown from "./TripCountdown";
 import type { UpcomingPlace } from "./UpcomingAgendaCard";
 import { formatMoney } from "@/lib/geo";
 import EditTripModal from "@/components/EditTripModal";
+import TripMembersModal from "@/components/TripMembersModal";
 
 interface ActiveTripHeroProps {
   trip: Trip;
   nextAgenda: UpcomingPlace | null;
+  currentUserId?: string;
+  onTripUpdated?: () => void;
 }
 
-export default function ActiveTripHero({ trip, nextAgenda }: ActiveTripHeroProps) {
+export default function ActiveTripHero({
+  trip,
+  nextAgenda,
+  currentUserId,
+  onTripUpdated,
+}: ActiveTripHeroProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+
+  const isHost = isTripHost(trip.current_user_role, currentUserId, trip.user_id);
+  const canEdit = canEditTrip(trip.current_user_role) || isHost;
 
   const formatDate = (d: string | null) =>
     d
@@ -66,6 +83,25 @@ export default function ActiveTripHero({ trip, nextAgenda }: ActiveTripHeroProps
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                   Perjalanan Aktif
                 </span>
+
+                {/* Role Pill */}
+                {isHost ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-300 backdrop-blur-md border border-amber-400/25 shadow-xs">
+                    <Crown size={12} weight="fill" className="text-amber-400" />
+                    Host (Pemilik)
+                  </span>
+                ) : trip.current_user_role === "editor" ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/20 px-2.5 py-1 text-[11px] font-bold text-blue-300 backdrop-blur-md border border-blue-400/25">
+                    <PencilSimple size={12} weight="bold" />
+                    Editor
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-stone-300 backdrop-blur-md border border-white/15">
+                    <Eye size={12} weight="bold" />
+                    Viewer (Lihat Saja)
+                  </span>
+                )}
+
                 {trip.destination && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-stone-200 backdrop-blur-md border border-white/10">
                     <MapPin size={12} className="text-emerald-400" />
@@ -74,16 +110,30 @@ export default function ActiveTripHero({ trip, nextAgenda }: ActiveTripHeroProps
                 )}
               </div>
 
-              {/* Edit Trip Quick Button */}
-              <button
-                type="button"
-                onClick={() => setIsEditModalOpen(true)}
-                className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 px-3 py-1 text-xs font-semibold text-stone-200 hover:text-white backdrop-blur-md border border-white/15 transition shadow-xs"
-                title="Edit Rincian & Foto Sampul"
-              >
-                <PencilSimple size={13} weight="bold" />
-                <span>Edit Trip</span>
-              </button>
+              {/* Action Buttons: Members & Edit */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsMembersModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 px-3 py-1 text-xs font-semibold text-stone-200 hover:text-white backdrop-blur-md border border-white/15 transition shadow-xs"
+                  title="Kelola Anggota & Bagikan Kode Undangan"
+                >
+                  <Users size={14} weight="bold" className="text-emerald-400" />
+                  <span>Anggota & Undangan</span>
+                </button>
+
+                {isHost && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 px-3 py-1 text-xs font-semibold text-stone-200 hover:text-white backdrop-blur-md border border-white/15 transition shadow-xs"
+                    title="Edit Rincian & Foto Sampul"
+                  >
+                    <PencilSimple size={13} weight="bold" />
+                    <span>Edit Trip</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Trip Title */}
@@ -108,6 +158,18 @@ export default function ActiveTripHero({ trip, nextAgenda }: ActiveTripHeroProps
                   <span>Target: {formatMoney(Number(trip.total_budget), "IDR")}</span>
                 </div>
               )}
+
+              {trip.invite_code && (
+                <button
+                  type="button"
+                  onClick={() => setIsMembersModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-white/15 border border-white/10 rounded-xl px-3 py-1.5 backdrop-blur-sm transition cursor-pointer"
+                  title="Klik untuk melihat kode undangan"
+                >
+                  <ShareNetwork size={14} className="text-emerald-400 shrink-0" />
+                  <span>Kode: <strong className="font-mono text-white">{trip.invite_code}</strong></span>
+                </button>
+              )}
             </div>
 
             {/* Countdown Component targeting the next agenda */}
@@ -123,12 +185,19 @@ export default function ActiveTripHero({ trip, nextAgenda }: ActiveTripHeroProps
           {/* Right Column: Hero Thumbnail Showcase Card */}
           <div className="shrink-0 w-full lg:w-72 xl:w-80">
             <div
-              onClick={() => setIsEditModalOpen(true)}
+              onClick={() => {
+                if (canEdit) {
+                  setIsEditModalOpen(true);
+                } else {
+                  setIsMembersModalOpen(true);
+                }
+              }}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
-                  setIsEditModalOpen(true);
+                  if (canEdit) setIsEditModalOpen(true);
+                  else setIsMembersModalOpen(true);
                 }
               }}
               className="group relative h-44 sm:h-52 w-full rounded-2xl overflow-hidden bg-white/5 border border-white/20 shadow-2xl transition-all duration-300 hover:border-emerald-400/50 hover:shadow-emerald-950/40 hover:scale-[1.02] cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-emerald-400"
@@ -146,8 +215,17 @@ export default function ActiveTripHero({ trip, nextAgenda }: ActiveTripHeroProps
                   {/* Top Floating Badge on Mobile */}
                   <div className="absolute top-2.5 right-2.5 sm:hidden">
                     <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur-md border border-white/20">
-                      <PencilSimple size={11} weight="bold" />
-                      Ubah
+                      {canEdit ? (
+                        <>
+                          <PencilSimple size={11} weight="bold" />
+                          Ubah
+                        </>
+                      ) : (
+                        <>
+                          <Users size={11} weight="bold" />
+                          Anggota
+                        </>
+                      )}
                     </span>
                   </div>
 
@@ -158,18 +236,31 @@ export default function ActiveTripHero({ trip, nextAgenda }: ActiveTripHeroProps
                       {trip.destination || "Foto Sampul"}
                     </span>
                     <span className="inline-flex items-center gap-1 rounded-lg bg-black/50 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 backdrop-blur-md border border-white/10 group-hover:bg-emerald-600 group-hover:text-white transition">
-                      <Camera size={12} weight="bold" />
-                      <span>Ubah</span>
+                      {canEdit ? (
+                        <>
+                          <Camera size={12} weight="bold" />
+                          <span>Ubah</span>
+                        </>
+                      ) : (
+                        <>
+                          <Users size={12} weight="bold" />
+                          <span>Anggota</span>
+                        </>
+                      )}
                     </span>
                   </div>
 
                   {/* Hover Overlay Hint for Desktop */}
                   <div className="absolute inset-0 bg-brand-950/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 hidden lg:flex flex-col items-center justify-center gap-1.5 backdrop-blur-xs">
                     <span className="p-2 rounded-full bg-white/20 text-white shadow-md">
-                      <PencilSimple size={18} weight="bold" />
+                      {canEdit ? (
+                        <PencilSimple size={18} weight="bold" />
+                      ) : (
+                        <Users size={18} weight="bold" />
+                      )}
                     </span>
                     <span className="text-xs font-bold text-white tracking-wide">
-                      Ganti Foto Sampul
+                      {canEdit ? "Ganti Foto Sampul" : "Lihat Anggota Trip"}
                     </span>
                   </div>
                 </>
@@ -180,10 +271,10 @@ export default function ActiveTripHero({ trip, nextAgenda }: ActiveTripHeroProps
                     <Camera size={24} weight="duotone" />
                   </span>
                   <p className="text-xs font-bold text-white">
-                    + Tambah Foto Sampul
+                    {canEdit ? "+ Tambah Foto Sampul" : "Foto Belum Diatur"}
                   </p>
                   <p className="text-[11px] text-stone-300/80 mt-0.5">
-                    Upload foto kenangan atau pilih tema
+                    {canEdit ? "Upload foto kenangan atau pilih tema" : "Hanya Host/Editor yang dapat mengubah"}
                   </p>
                 </div>
               )}
@@ -192,13 +283,25 @@ export default function ActiveTripHero({ trip, nextAgenda }: ActiveTripHeroProps
         </div>
       </div>
 
-      {/* Edit Trip Modal instance for this banner */}
-      <EditTripModal
-        trip={trip}
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-      />
+      {/* Edit Trip Modal */}
+      {isEditModalOpen && (
+        <EditTripModal
+          trip={trip}
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+        />
+      )}
+
+      {/* Trip Members Modal */}
+      {isMembersModalOpen && (
+        <TripMembersModal
+          trip={trip}
+          isOpen={isMembersModalOpen}
+          onClose={() => setIsMembersModalOpen(false)}
+          currentUserId={currentUserId}
+          onMembersUpdated={onTripUpdated}
+        />
+      )}
     </>
   );
 }
-

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { Expense, ItineraryDay, Place, Trip } from "@/types";
 import ItineraryClient from "./ItineraryClient";
 import CreateTripModal from "../CreateTripModal";
+import { fetchUserTrips } from "@/lib/serverTrips";
 
 interface DayWithPlaces extends ItineraryDay {
   places: Place[];
@@ -21,17 +22,8 @@ export default async function ItineraryPage({
 
   if (!user) redirect("/");
 
-  // Fetch all trips
-  const { data: allTrips } = await supabase
-    .from("trips")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .returns<Trip[]>();
-
-  const trips = allTrips ?? [];
-  const activeTrip = tripId
-    ? trips.find((t) => t.id === tripId) ?? trips[0] ?? null
-    : trips[0] ?? null;
+  // Fetch all trips of the user (as host or member)
+  const { trips, activeTrip } = await fetchUserTrips(supabase, user.id, tripId);
 
   if (!activeTrip) {
     return (

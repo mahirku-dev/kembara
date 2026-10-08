@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { PackingItem, Trip } from "@/types";
 import VaultClient from "./VaultClient";
 import CreateTripModal from "../CreateTripModal";
+import { fetchUserTrips } from "@/lib/serverTrips";
 
 export default async function VaultPage({
   searchParams,
@@ -17,17 +18,8 @@ export default async function VaultPage({
 
   if (!user) redirect("/");
 
-  // Fetch all user's trips
-  const { data: allTrips } = await supabase
-    .from("trips")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .returns<Trip[]>();
-
-  const trips = allTrips ?? [];
-  const activeTrip = tripId
-    ? trips.find((t) => t.id === tripId) ?? trips[0] ?? null
-    : trips[0] ?? null;
+  // Fetch all user's trips (as host or member)
+  const { trips, activeTrip } = await fetchUserTrips(supabase, user.id, tripId);
 
   if (!activeTrip) {
     return (

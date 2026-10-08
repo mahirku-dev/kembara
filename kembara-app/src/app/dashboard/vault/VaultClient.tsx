@@ -675,7 +675,7 @@ export default function VaultClient({
 
           <div className="flex items-center gap-2.5 shrink-0 justify-between sm:justify-end flex-wrap">
             {allTrips && allTrips.length > 0 && (
-              <TripSwitcher trips={allTrips} activeTrip={trip} />
+              <TripSwitcher trips={allTrips} activeTrip={trip} currentUserId={user?.id} />
             )}
             {user && <UserProfileMenu user={user} />}
           </div>

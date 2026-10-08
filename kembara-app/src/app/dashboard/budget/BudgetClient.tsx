@@ -20,7 +20,9 @@ import {
   ArrowRight,
   Globe,
   Sparkle,
+  Eye,
 } from "@phosphor-icons/react";
+import { canEditTrip, isTripHost } from "@/types";
 import { createClient } from "@/utils/supabase/client";
 import { createPortal } from "react-dom";
 import {
@@ -71,6 +73,8 @@ export default function BudgetClient({
   user,
 }: Props) {
   const [trip, setTrip] = useState<Trip>(initialTrip);
+  const isHost = isTripHost(trip.current_user_role, user?.id, trip.user_id);
+  const canEdit = canEditTrip(trip.current_user_role) || isHost;
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
   const [activeTab, setActiveTab] = useState<
     "overview" | "categories" | "daily" | "transactions" | "exchange"
@@ -480,40 +484,51 @@ export default function BudgetClient({
           {/* Quick Header Actions */}
           <div className="flex items-center gap-2 flex-wrap justify-between sm:justify-end">
             {allTrips && allTrips.length > 0 && (
-              <TripSwitcher trips={allTrips} activeTrip={trip} />
+              <TripSwitcher trips={allTrips} activeTrip={trip} currentUserId={user?.id} />
             )}
-            <button
-              type="button"
-              onClick={() => setIsExchangeModalOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-2xl bg-white border border-brand-200 px-3.5 py-2 text-xs font-bold text-brand-700 shadow-sm transition hover:bg-brand-50 active:scale-95"
-            >
-              <ArrowsLeftRight size={15} weight="bold" />
-              <span>Tukar Uang (Valas)</span>
-            </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setBudgetIDRDraft(trip.total_budget ? trip.total_budget.toString() : "0");
-                const fMap = (trip.category_budgets_json?.foreign_budgets as Record<string, number>) || {};
-                const fDraft: Record<string, string> = {};
-                destinationCurrencies.forEach((c) => {
-                  fDraft[c] = fMap[c] ? fMap[c].toString() : (c === "SAR" && trip.budget_sar ? trip.budget_sar.toString() : "0");
-                });
-                setForeignBudgetsDraft(fDraft);
-                setActiveCurrenciesDraft(destinationCurrencies);
-                setIsEditBudgetOpen(true);
-              }}
-              className="inline-flex items-center gap-1.5 rounded-2xl bg-white border border-stone-200 px-3.5 py-2 text-xs font-bold text-stone-700 shadow-sm transition hover:bg-stone-50 active:scale-95"
-            >
-              <PencilSimple size={15} weight="bold" />
-              <span>Atur Target Budget</span>
-            </button>
+            {canEdit ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsExchangeModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-2xl bg-white border border-brand-200 px-3.5 py-2 text-xs font-bold text-brand-700 shadow-sm transition hover:bg-brand-50 active:scale-95"
+                >
+                  <ArrowsLeftRight size={15} weight="bold" />
+                  <span>Tukar Uang (Valas)</span>
+                </button>
 
-            <AddExpenseModal
-              tripId={trip.id}
-              onExpenseAdded={handleExpenseAdded}
-            />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBudgetIDRDraft(trip.total_budget ? trip.total_budget.toString() : "0");
+                    const fMap = (trip.category_budgets_json?.foreign_budgets as Record<string, number>) || {};
+                    const fDraft: Record<string, string> = {};
+                    destinationCurrencies.forEach((c) => {
+                      fDraft[c] = fMap[c] ? fMap[c].toString() : (c === "SAR" && trip.budget_sar ? trip.budget_sar.toString() : "0");
+                    });
+                    setForeignBudgetsDraft(fDraft);
+                    setActiveCurrenciesDraft(destinationCurrencies);
+                    setIsEditBudgetOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-2xl bg-white border border-stone-200 px-3.5 py-2 text-xs font-bold text-stone-700 shadow-sm transition hover:bg-stone-50 active:scale-95"
+                >
+                  <PencilSimple size={15} weight="bold" />
+                  <span>Atur Target Budget</span>
+                </button>
+
+                <AddExpenseModal
+                  tripId={trip.id}
+                  onExpenseAdded={handleExpenseAdded}
+                />
+              </>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-2xl bg-stone-100 border border-stone-200 px-3.5 py-2 text-xs font-semibold text-stone-600 shadow-xs">
+                <Eye size={15} weight="bold" />
+                <span>Mode Lihat Saja</span>
+              </span>
+            )}
+
             {user && <UserProfileMenu user={user} />}
           </div>
         </div>

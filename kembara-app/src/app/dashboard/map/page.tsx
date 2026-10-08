@@ -4,6 +4,7 @@ import { MapTrifold } from "@phosphor-icons/react/dist/ssr";
 import type { ItineraryDay, Place, Trip } from "@/types";
 import TripSwitcher from "@/components/TripSwitcher";
 import MapClient, { type AgendaPlace } from "./MapClient";
+import { fetchUserTrips } from "@/lib/serverTrips";
 
 import UserProfileMenu from "@/components/UserProfileMenu";
 
@@ -24,17 +25,8 @@ export default async function MapPage({
 
   if (!user) redirect("/");
 
-  // Fetch all user trips
-  const { data: allTrips } = await supabase
-    .from("trips")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .returns<Trip[]>();
-
-  const trips = allTrips ?? [];
-  const activeTrip = tripId
-    ? trips.find((t) => t.id === tripId) ?? trips[0] ?? null
-    : trips[0] ?? null;
+  // Fetch all user trips (as host or member)
+  const { trips, activeTrip } = await fetchUserTrips(supabase, user.id, tripId);
 
   let agendaPlaces: AgendaPlace[] = [];
 
@@ -82,7 +74,7 @@ export default async function MapPage({
 
           <div className="flex items-center gap-2.5 shrink-0 justify-between sm:justify-end">
             {trips.length > 0 && (
-              <TripSwitcher trips={trips} activeTrip={activeTrip} />
+              <TripSwitcher trips={trips} activeTrip={activeTrip} currentUserId={user.id} />
             )}
             <UserProfileMenu user={user} />
           </div>

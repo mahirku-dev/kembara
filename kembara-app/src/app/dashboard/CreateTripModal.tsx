@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Plus, X, CalendarBlank, MapPin, CurrencyDollar, CircleNotch } from "@phosphor-icons/react";
 import { differenceInDays, addDays, format, parseISO } from "date-fns";
 import TripCoverPicker from "@/components/TripCoverPicker";
+import { generateInviteCode } from "@/lib/invite";
 
 interface CreateTripModalProps {
   buttonText?: string;
@@ -81,8 +82,9 @@ export default function CreateTripModal({
       }
 
       const budgetNum = totalBudget ? Number(totalBudget.replace(/\D/g, "")) : 0;
+      const inviteCode = generateInviteCode();
 
-      // 1. Insert Trip
+      // 1. Insert Trip with unique invite code
       const { data: trip, error: tripErr } = await supabase
         .from("trips")
         .insert({
@@ -93,6 +95,7 @@ export default function CreateTripModal({
           end_date: endDate || null,
           total_budget: budgetNum,
           cover_url: coverUrl.trim() || null,
+          invite_code: inviteCode,
         })
         .select()
         .single();
@@ -101,12 +104,12 @@ export default function CreateTripModal({
         throw new Error(tripErr?.message || "Gagal membuat perjalanan.");
       }
 
-      // 2. Insert Trip Member (Owner)
+      // 2. Insert Trip Member (Host)
       await supabase.from("trip_members").insert({
         trip_id: trip.id,
         user_id: user.id,
-        name: user.user_metadata?.full_name || user.email?.split("@")[0] || "Owner",
-        role: "owner",
+        name: user.user_metadata?.full_name || user.email?.split("@")[0] || "Host",
+        role: "host",
         avatar_url: user.user_metadata?.avatar_url || null,
       });
 

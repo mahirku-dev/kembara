@@ -13,6 +13,8 @@ export interface ExchangeRecord {
   notes?: string;
 }
 
+export type TripRole = "host" | "owner" | "editor" | "viewer";
+
 export interface Trip {
   id: string;
   user_id: string;
@@ -25,6 +27,10 @@ export interface Trip {
   budget_sar?: number; // SAR Budget
   category_budgets_json?: Record<string, any>;
   exchange_records_json?: ExchangeRecord[];
+  invite_code?: string | null;
+  current_user_role?: TripRole;
+  members_count?: number;
+  trip_members?: TripMember[];
   created_at: string;
 }
 
@@ -33,9 +39,19 @@ export interface TripMember {
   trip_id: string;
   user_id: string | null;
   name: string;
-  role: string;
+  role: TripRole;
   avatar_url: string | null;
   created_at: string;
+}
+
+export function canEditTrip(role?: TripRole | string): boolean {
+  return role === "host" || role === "owner" || role === "editor";
+}
+
+export function isTripHost(role?: TripRole | string, userId?: string, tripOwnerId?: string): boolean {
+  if (role === "host" || role === "owner") return true;
+  if (userId && tripOwnerId && userId === tripOwnerId) return true;
+  return false;
 }
 
 export interface ItineraryDay {

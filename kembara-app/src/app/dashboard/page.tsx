@@ -18,6 +18,7 @@ import CreateTripModal from "./CreateTripModal";
 import TripSwitcher from "@/components/TripSwitcher";
 import UserProfileMenu from "@/components/UserProfileMenu";
 import ActiveTripHero from "./ActiveTripHero";
+import { fetchUserTrips } from "@/lib/serverTrips";
 import UpcomingAgendaCard, { type UpcomingPlace } from "./UpcomingAgendaCard";
 import TodayTripSummaryCard, { type TodayPlace } from "./TodayTripSummaryCard";
 import UmrahInspirationCard from "./UmrahInspirationCard";
@@ -41,17 +42,8 @@ export default async function DashboardPage({
 
   if (!user) redirect("/");
 
-  // Fetch ALL trips of the user ordered by newest
-  const { data: allTrips } = await supabase
-    .from("trips")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .returns<Trip[]>();
-
-  const trips = allTrips ?? [];
-  const activeTrip = tripId
-    ? trips.find((t) => t.id === tripId) ?? trips[0] ?? null
-    : trips[0] ?? null;
+  // Fetch ALL trips of the user (as host or member)
+  const { trips, activeTrip } = await fetchUserTrips(supabase, user.id, tripId);
 
   let nextAgenda: UpcomingPlace | null = null;
   let todayPlaces: TodayPlace[] = [];
@@ -197,7 +189,7 @@ export default async function DashboardPage({
 
           <div className="flex items-center gap-2.5 shrink-0 justify-between sm:justify-end">
             {trips.length > 0 && (
-              <TripSwitcher trips={trips} activeTrip={activeTrip} />
+              <TripSwitcher trips={trips} activeTrip={activeTrip} currentUserId={user.id} />
             )}
             <UserProfileMenu user={user} />
           </div>
@@ -208,7 +200,7 @@ export default async function DashboardPage({
       <div className="px-5 pt-6 lg:px-10 space-y-6">
         {/* Active Trip Banner with Hero Thumbnail & Countdown */}
         {activeTrip ? (
-          <ActiveTripHero trip={activeTrip} nextAgenda={nextAgenda} />
+          <ActiveTripHero trip={activeTrip} nextAgenda={nextAgenda} currentUserId={user.id} />
         ) : (
           /* Empty state — no trips yet */
           <div className="rounded-3xl border border-dashed border-brand-200 bg-brand-50/30 p-8 text-center">
