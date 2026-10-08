@@ -17,7 +17,7 @@ import { format, parseISO } from "date-fns";
 import CreateTripModal from "./CreateTripModal";
 import TripSwitcher from "@/components/TripSwitcher";
 import UserProfileMenu from "@/components/UserProfileMenu";
-import TripCountdown from "./TripCountdown";
+import ActiveTripHero from "./ActiveTripHero";
 import UpcomingAgendaCard, { type UpcomingPlace } from "./UpcomingAgendaCard";
 import TodayTripSummaryCard, { type TodayPlace } from "./TodayTripSummaryCard";
 import UmrahInspirationCard from "./UmrahInspirationCard";
@@ -206,61 +206,9 @@ export default async function DashboardPage({
 
       {/* Main Content */}
       <div className="px-5 pt-6 lg:px-10 space-y-6">
-        {/* Active Trip Banner with Agenda Countdown */}
+        {/* Active Trip Banner with Hero Thumbnail & Countdown */}
         {activeTrip ? (
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-700 via-brand-800 to-stone-900 p-6 lg:p-8 text-white shadow-xl space-y-6">
-            {activeTrip.cover_url && (
-              <>
-                <img
-                  src={activeTrip.cover_url}
-                  alt={activeTrip.title}
-                  className="absolute inset-0 w-full h-full object-cover object-center opacity-30 mix-blend-overlay pointer-events-none"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-stone-950/85 via-brand-950/75 to-stone-900/85 pointer-events-none" />
-              </>
-            )}
-            <div className="absolute -right-10 -bottom-10 w-56 h-56 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -left-10 -top-10 w-48 h-48 bg-brand-500/20 rounded-full blur-3xl pointer-events-none" />
-
-            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-              {/* Trip Details */}
-              <div className="space-y-2.5">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-bold text-emerald-300 uppercase tracking-wider backdrop-blur-sm border border-emerald-400/20">
-                  Perjalanan Aktif
-                </span>
-                <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
-                  {activeTrip.title}
-                </h2>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-emerald-100/80">
-                  {activeTrip.destination && (
-                    <span className="flex items-center gap-1">
-                      <MapPin size={14} className="text-emerald-400" />
-                      {activeTrip.destination}
-                    </span>
-                  )}
-                  <span className="flex items-center gap-1">
-                    <CalendarBlank size={14} className="text-emerald-400" />
-                    {formatDate(activeTrip.start_date)} — {formatDate(activeTrip.end_date)}
-                  </span>
-                  {Number(activeTrip.total_budget || 0) > 0 && (
-                    <span className="flex items-center gap-1">
-                      <CurrencyDollar size={14} className="text-emerald-400" />
-                      Target: {formatMoney(Number(activeTrip.total_budget), "IDR")}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Countdown Component targeting the next agenda */}
-              <div className="shrink-0">
-                <TripCountdown
-                  startDate={activeTrip.start_date}
-                  endDate={activeTrip.end_date}
-                  targetAgenda={nextAgenda}
-                />
-              </div>
-            </div>
-          </div>
+          <ActiveTripHero trip={activeTrip} nextAgenda={nextAgenda} />
         ) : (
           /* Empty state — no trips yet */
           <div className="rounded-3xl border border-dashed border-brand-200 bg-brand-50/30 p-8 text-center">
