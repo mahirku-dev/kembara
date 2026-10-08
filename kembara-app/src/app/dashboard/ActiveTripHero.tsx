@@ -200,54 +200,29 @@ export default function ActiveTripHero({
                   else setIsMembersModalOpen(true);
                 }
               }}
-              className="group relative h-44 sm:h-52 w-full rounded-2xl overflow-hidden bg-white/5 border border-white/20 shadow-2xl transition-all duration-300 hover:border-emerald-400/50 hover:shadow-emerald-950/40 hover:scale-[1.02] cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-emerald-400"
+              className="group relative h-32 sm:h-44 lg:h-52 w-full rounded-2xl overflow-hidden bg-white/5 border border-white/20 shadow-xl transition-all duration-300 hover:border-emerald-400/50 hover:shadow-emerald-950/40 hover:scale-[1.01] cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-emerald-400"
             >
               {trip.cover_url ? (
                 <>
                   <img
                     src={trip.cover_url}
                     alt={`Sampul ${trip.title}`}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-108"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   {/* Subtle Inner Gradient Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-                  {/* Top Floating Badge on Mobile */}
-                  <div className="absolute top-2.5 right-2.5 sm:hidden">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur-md border border-white/20">
-                      {canEdit ? (
-                        <>
-                          <PencilSimple size={11} weight="bold" />
-                          Ubah
-                        </>
-                      ) : (
-                        <>
-                          <Users size={11} weight="bold" />
-                          Anggota
-                        </>
-                      )}
-                    </span>
-                  </div>
-
-                  {/* Bottom Caption on Thumbnail */}
+                  {/* Bottom Action Pill on Thumbnail */}
                   <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between text-xs text-white">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-stone-200 drop-shadow-md truncate max-w-[180px]">
-                      <MapPin size={13} className="text-emerald-400 shrink-0" />
-                      {trip.destination || "Foto Sampul"}
+                    <span className="text-[11px] font-medium text-stone-200 drop-shadow-md truncate">
+                      Foto Sampul
                     </span>
-                    <span className="inline-flex items-center gap-1 rounded-lg bg-black/50 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 backdrop-blur-md border border-white/10 group-hover:bg-emerald-600 group-hover:text-white transition">
-                      {canEdit ? (
-                        <>
-                          <Camera size={12} weight="bold" />
-                          <span>Ubah</span>
-                        </>
-                      ) : (
-                        <>
-                          <Users size={12} weight="bold" />
-                          <span>Anggota</span>
-                        </>
-                      )}
-                    </span>
+                    {canEdit && (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-black/60 px-2.5 py-1 text-[10px] font-semibold text-emerald-300 backdrop-blur-md border border-white/10 group-hover:bg-emerald-600 group-hover:text-white transition">
+                        <Camera size={12} weight="bold" />
+                        <span>Ganti Foto</span>
+                      </span>
+                    )}
                   </div>
 
                   {/* Hover Overlay Hint for Desktop */}

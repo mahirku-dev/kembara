@@ -165,7 +165,7 @@ export default async function DashboardPage({
       : "—";
 
   const dashboardSubtitle = activeTrip
-    ? `Ringkasan persiapan & rencana perjalanan ${activeTrip.destination || activeTrip.title}`
+    ? "Ringkasan persiapan & rencana perjalanan"
     : "Ringkasan panduan & persiapan perjalanan Anda";
 
   return (
