@@ -180,9 +180,20 @@ export default function InteractiveMap({ trip, places = [] }: Props) {
     let isMounted = true;
 
     async function initMap() {
-      if (!mapContainerRef.current || mapInstanceRef.current) return;
+      if (!mapContainerRef.current) return;
 
       const L = (await import("leaflet")).default;
+      if (!isMounted || !mapContainerRef.current) return;
+
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+
+      // Check if container already has a leaflet instance (e.g. from Fast Refresh or StrictMode)
+      if ((mapContainerRef.current as any)._leaflet_id) {
+        delete (mapContainerRef.current as any)._leaflet_id;
+      }
 
       let initialCenter: [number, number] = [23.0, 39.7];
       let initialZoom = 7;
@@ -215,6 +226,8 @@ export default function InteractiveMap({ trip, places = [] }: Props) {
         mapInstanceRef.current = map;
         markersLayerRef.current = markersLayer;
         setIsMapReady(true);
+      } else {
+        map.remove();
       }
     }
 

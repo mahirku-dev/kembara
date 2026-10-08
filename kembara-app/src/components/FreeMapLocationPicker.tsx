@@ -148,6 +148,10 @@ export default function FreeMapLocationPicker({
 
       if (!mapContainerRef.current || !isSubscribed) return;
 
+      if ((mapContainerRef.current as any)._leaflet_id) {
+        delete (mapContainerRef.current as any)._leaflet_id;
+      }
+
       const startLat = initialLat || 21.4225;
       const startLng = initialLng || 39.8262;
 
@@ -205,6 +209,8 @@ export default function FreeMapLocationPicker({
       if (isSubscribed) {
         mapInstanceRef.current = map;
         markerRef.current = marker;
+      } else {
+        map.remove();
       }
     }
 
@@ -212,6 +218,11 @@ export default function FreeMapLocationPicker({
 
     return () => {
       isSubscribed = false;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        markerRef.current = null;
+      }
     };
   }, [isOpen, mounted, initialLat, initialLng]);
 
