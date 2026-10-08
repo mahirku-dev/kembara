@@ -1048,10 +1048,10 @@ export default function ItineraryClient({
               const ordinalText = getIndonesianDayOrdinal(dayNum);
               if (day.date) {
                 try {
-                  const dateStr = format(parseISO(day.date), "d MMMM yyyy", {
+                  const dateStr = format(parseISO(day.date), "EEEE, d MMMM yyyy", {
                     locale: idLocale,
                   });
-                  return `${ordinalText}, ${dateStr}`;
+                  return `${ordinalText} - ${dateStr}`;
                 } catch {
                   return ordinalText;
                 }
