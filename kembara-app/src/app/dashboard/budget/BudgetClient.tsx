@@ -529,7 +529,7 @@ export default function BudgetClient({
               </span>
             )}
 
-            {user && <UserProfileMenu user={user} />}
+            {user && <UserProfileMenu user={user} className="hidden sm:block" />}
           </div>
         </div>
 

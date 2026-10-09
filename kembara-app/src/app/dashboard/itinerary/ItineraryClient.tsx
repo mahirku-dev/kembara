@@ -888,7 +888,7 @@ export default function ItineraryClient({
                   <span className="hidden sm:inline">Mode Lihat Saja</span>
                 </span>
               )}
-              {user && <UserProfileMenu user={user} />}
+              {user && <UserProfileMenu user={user} className="hidden sm:block" />}
             </div>
           </div>
         </div>
@@ -985,7 +985,7 @@ export default function ItineraryClient({
                 <span className="hidden sm:inline">Mode Lihat Saja</span>
               </span>
             )}
-            {user && <UserProfileMenu user={user} />}
+            {user && <UserProfileMenu user={user} className="hidden sm:block" />}
           </div>
         </div>
 

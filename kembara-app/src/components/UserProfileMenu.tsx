@@ -32,9 +32,13 @@ interface UserProfileMenuProps {
           providers?: string[];
         };
       };
+  className?: string;
 }
 
-export default function UserProfileMenu({ user }: UserProfileMenuProps) {
+export default function UserProfileMenu({
+  user,
+  className = "",
+}: UserProfileMenuProps) {
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -94,7 +98,7 @@ export default function UserProfileMenu({ user }: UserProfileMenuProps) {
   };
 
   return (
-    <div className="relative">
+    <div className={`relative ${className}`}>
       {/* Avatar Trigger Button */}
       <button
         type="button"

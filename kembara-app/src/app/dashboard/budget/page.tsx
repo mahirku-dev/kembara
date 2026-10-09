@@ -49,7 +49,7 @@ export default async function BudgetPage({
               {trips.length > 0 && (
                 <TripSwitcher trips={trips} activeTrip={activeTrip} currentUserId={user.id} />
               )}
-              <UserProfileMenu user={user} />
+              <UserProfileMenu user={user} className="hidden sm:block" />
             </div>
           </div>
         </header>

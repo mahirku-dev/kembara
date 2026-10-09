@@ -677,7 +677,7 @@ export default function VaultClient({
             {allTrips && allTrips.length > 0 && (
               <TripSwitcher trips={allTrips} activeTrip={trip} currentUserId={user?.id} />
             )}
-            {user && <UserProfileMenu user={user} />}
+            {user && <UserProfileMenu user={user} className="hidden sm:block" />}
           </div>
         </div>
       </div>
