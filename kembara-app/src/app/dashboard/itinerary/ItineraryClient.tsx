@@ -23,6 +23,7 @@ import {
 } from "@/lib/geo";
 import { useRouter } from "next/navigation";
 import AddPlaceModal from "./AddPlaceModal";
+import EditPlaceModal from "./EditPlaceModal";
 import FreeMapLocationPicker, {
   type SelectedLocationResult,
 } from "@/components/FreeMapLocationPicker";
@@ -184,6 +185,9 @@ export default function ItineraryClient({
     expense: Expense;
     placeId: string;
   } | null>(null);
+
+  // Edit Place (Agenda) Modal
+  const [editingPlace, setEditingPlace] = useState<Place | null>(null);
 
   // Delete confirmation for an entire Place (Agenda)
   const [placeToDelete, setPlaceToDelete] = useState<Place | null>(null);
@@ -742,6 +746,46 @@ export default function ItineraryClient({
     [days]
   );
 
+  const handlePlaceUpdated = useCallback(
+    (updatedPlace: Place, previousDayId?: string) => {
+      setDays((prevDays) => {
+        // If day_id changed, remove from previousDayId and add to new day_id
+        if (previousDayId && previousDayId !== updatedPlace.day_id) {
+          return prevDays.map((d) => {
+            if (d.id === previousDayId) {
+              return {
+                ...d,
+                places: d.places.filter((p) => p.id !== updatedPlace.id),
+              };
+            }
+            if (d.id === updatedPlace.day_id) {
+              const exists = d.places.some((p) => p.id === updatedPlace.id);
+              return {
+                ...d,
+                places: exists
+                  ? d.places.map((p) => (p.id === updatedPlace.id ? updatedPlace : p))
+                  : [...d.places, updatedPlace],
+              };
+            }
+            return d;
+          });
+        }
+
+        // Same day update
+        return prevDays.map((d) => {
+          if (d.id !== updatedPlace.day_id) return d;
+          return {
+            ...d,
+            places: d.places.map((p) => (p.id === updatedPlace.id ? updatedPlace : p)),
+          };
+        });
+      });
+      setEditingPlace(null);
+      showToast("Agenda berhasil diperbarui.");
+    },
+    []
+  );
+
   const isTodayDay = (day: DayWithPlaces) => {
     if (!day.date) return false;
     try {
@@ -1075,14 +1119,24 @@ export default function ItineraryClient({
                             {p.name}
                           </p>
                           {canEdit && (
-                            <button
-                              type="button"
-                              onClick={() => setPlaceToDelete(p)}
-                              className="text-stone-300 hover:text-rose-600 hover:bg-rose-50 p-1 rounded-lg transition active:scale-95 shrink-0"
-                              title="Hapus agenda ini"
-                            >
-                              <Icons.Trash size={14} />
-                            </button>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setEditingPlace(p)}
+                                className="text-stone-400 hover:text-brand-600 hover:bg-brand-50 p-1 rounded-lg transition active:scale-95 shrink-0"
+                                title="Edit agenda ini"
+                              >
+                                <Icons.PencilSimple size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPlaceToDelete(p)}
+                                className="text-stone-400 hover:text-rose-600 hover:bg-rose-50 p-1 rounded-lg transition active:scale-95 shrink-0"
+                                title="Hapus agenda ini"
+                              >
+                                <Icons.Trash size={14} />
+                              </button>
+                            </div>
                           )}
                         </div>
                         {/* Time & Timezone badge */}
@@ -1942,6 +1996,19 @@ export default function ItineraryClient({
           </div>,
           document.body
         )}
+
+      {/* ================= MODAL: EDIT PLACE / AGENDA ================= */}
+      {editingPlace && (
+        <EditPlaceModal
+          place={editingPlace}
+          isOpen={Boolean(editingPlace)}
+          onClose={() => setEditingPlace(null)}
+          tripId={trip.id}
+          days={days}
+          currentDayId={day.id}
+          onPlaceUpdated={handlePlaceUpdated}
+        />
+      )}
 
       {/* ================= MODAL: AI EXTRACT ITINERARY ================= */}
       <AiExtractItineraryModal
