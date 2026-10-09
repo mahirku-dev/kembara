@@ -199,6 +199,16 @@ function heuristicParseItinerary(
       }
     }
 
+    // Extract notes only if there are extra brackets or parentheses with details
+    let notes: string | undefined = undefined;
+    const parenMatch = line.match(/\(([^)]+)\)/);
+    if (parenMatch && parenMatch[1].trim()) {
+      const candidateNote = parenMatch[1].trim();
+      if (candidateNote.toLowerCase() !== cleanName.toLowerCase()) {
+        notes = candidateNote;
+      }
+    }
+
     items.push({
       id: `ext_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       dayNumber: currentDay,
@@ -207,7 +217,7 @@ function heuristicParseItinerary(
       address,
       startTime: startTime || undefined,
       endTime: endTime || undefined,
-      notes: line !== cleanName ? line : undefined,
+      notes,
     });
   }
 
@@ -254,7 +264,7 @@ Follow these rules strictly:
 5. "address": Location or city (e.g. "Bandara Soekarno Hatta Terminal 3, Jakarta", "Madinah", "Makkah", "Bandung").
 6. "startTime": "HH:mm" 24h format (e.g. "08:00", "14:30") or null.
 7. "endTime": "HH:mm" 24h format (e.g. "12:00", "17:00") or null.
-8. "notes": Brief important details (e.g. "Terminal 3 Gate 5", "Voucher PLM-772910", "Pakaian Ihram").
+8. "notes": Brief important details ONLY (e.g. "Terminal 3 Gate 5", "Voucher PLM-772910", "Pakaian Ihram"). STRICT RULE: DO NOT copy or repeat the "name" or activity title into "notes". If there are no specific extra notes, set "notes": null.
 
 Respond ONLY with a valid JSON array, with NO extra markdown text, NO backticks. Example:
 [
@@ -306,30 +316,48 @@ Respond ONLY with a valid JSON array, with NO extra markdown text, NO backticks.
           const parsed = JSON.parse(cleanJsonStr);
           if (Array.isArray(parsed) && parsed.length > 0) {
             const formattedItems: ExtractedAgendaItem[] = parsed.map(
-              (p: any, idx: number) => ({
-                id: `ai_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
-                dayNumber: typeof p.dayNumber === "number" ? Math.max(1, p.dayNumber) : 1,
-                date: p.date || null,
-                name: String(p.name || `Agenda ${idx + 1}`).trim(),
-                category: [
-                  "flight",
-                  "hotel",
-                  "food",
-                  "pray",
-                  "explore",
-                  "train",
-                  "bus",
-                  "transit",
-                  "car",
-                  "other",
-                ].includes(p.category)
-                  ? p.category
-                  : "explore",
-                address: p.address ? String(p.address).trim() : null,
-                startTime: p.startTime ? String(p.startTime).trim() : null,
-                endTime: p.endTime ? String(p.endTime).trim() : null,
-                notes: p.notes ? String(p.notes).trim() : null,
-              })
+              (p: any, idx: number) => {
+                const itemName = String(p.name || `Agenda ${idx + 1}`).trim();
+                let itemNotes = p.notes ? String(p.notes).trim() : null;
+
+                // Sanitize notes: remove if identical to name or just repeating name
+                if (
+                  itemNotes &&
+                  (itemNotes.toLowerCase() === itemName.toLowerCase() ||
+                    itemNotes.toLowerCase() === "null" ||
+                    itemNotes.toLowerCase() === "none")
+                ) {
+                  itemNotes = null;
+                }
+
+                return {
+                  id: `ai_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
+                  dayNumber:
+                    typeof p.dayNumber === "number"
+                      ? Math.max(1, p.dayNumber)
+                      : 1,
+                  date: p.date || null,
+                  name: itemName,
+                  category: [
+                    "flight",
+                    "hotel",
+                    "food",
+                    "pray",
+                    "explore",
+                    "train",
+                    "bus",
+                    "transit",
+                    "car",
+                    "other",
+                  ].includes(p.category)
+                    ? p.category
+                    : "explore",
+                  address: p.address ? String(p.address).trim() : null,
+                  startTime: p.startTime ? String(p.startTime).trim() : null,
+                  endTime: p.endTime ? String(p.endTime).trim() : null,
+                  notes: itemNotes,
+                };
+              }
             );
 
             return NextResponse.json({

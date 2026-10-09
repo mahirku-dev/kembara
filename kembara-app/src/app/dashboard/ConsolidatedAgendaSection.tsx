@@ -9,6 +9,7 @@ import {
   Clock,
   MapPin,
   ArrowRight,
+  ArrowSquareOut,
   Plus,
   Compass,
   CheckCircle,
@@ -113,10 +114,19 @@ export default function ConsolidatedAgendaSection({
                     {place.name}
                   </h4>
                   {place.address && (
-                    <p className="text-[11.5px] text-stone-500 flex items-center gap-1 truncate">
-                      <MapPin size={12} className="shrink-0 text-brand-500" />
-                      <span className="truncate">{place.address}</span>
-                    </p>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                        `${place.name} ${place.address}`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11.5px] text-stone-500 hover:text-brand-600 flex items-center gap-1 truncate group w-fit transition active:scale-95"
+                      title="Buka lokasi di Google Maps"
+                    >
+                      <MapPin size={12} className="shrink-0 text-rose-500 group-hover:scale-110 transition-transform" />
+                      <span className="truncate group-hover:underline">{place.address}</span>
+                      <ArrowSquareOut size={11} className="shrink-0 text-stone-400 group-hover:text-brand-600" />
+                    </a>
                   )}
                 </div>
               </div>
@@ -144,10 +154,19 @@ export default function ConsolidatedAgendaSection({
             {nextAgenda.name}
           </h4>
           {nextAgenda.address && (
-            <p className="text-xs text-stone-500 flex items-center gap-1 truncate">
-              <MapPin size={13} className="shrink-0 text-brand-500" />
-              <span className="truncate">{nextAgenda.address}</span>
-            </p>
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                `${nextAgenda.name} ${nextAgenda.address}`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-stone-500 hover:text-brand-600 flex items-center gap-1 truncate group w-fit transition active:scale-95"
+              title="Buka lokasi di Google Maps"
+            >
+              <MapPin size={13} className="shrink-0 text-rose-500 group-hover:scale-110 transition-transform" />
+              <span className="truncate group-hover:underline">{nextAgenda.address}</span>
+              <ArrowSquareOut size={12} className="shrink-0 text-stone-400 group-hover:text-brand-600" />
+            </a>
           )}
         </div>
       ) : (

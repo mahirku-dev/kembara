@@ -409,9 +409,22 @@ export default function AiExtractItineraryModal({
       // Populate initial city extraction and selection
       const itemsWithSelection: ItemWithLocationState[] = (data.items || []).map(
         (item: ExtractedAgendaItem) => {
-          const detectedCity = extractCityName(item.address, item.name);
+          const cleanName = (item.name || "").trim();
+          let cleanNotes = item.notes?.trim() || null;
+          if (
+            cleanNotes &&
+            (cleanNotes.toLowerCase() === cleanName.toLowerCase() ||
+              cleanNotes === "-" ||
+              cleanNotes.toLowerCase() === "null")
+          ) {
+            cleanNotes = null;
+          }
+
+          const detectedCity = extractCityName(item.address, cleanName);
           return {
             ...item,
+            name: cleanName,
+            notes: cleanNotes,
             selected: true,
             city: detectedCity,
             lat: item.lat || null,
@@ -555,20 +568,33 @@ export default function AiExtractItineraryModal({
       }
 
       // 3. Batch insert places with extracted city/coords
-      const placesToInsert = selected.map((item, idx) => ({
-        day_id: dayMap[item.dayNumber],
-        name: item.name.trim(),
-        address: item.address?.trim() || null,
-        lat: item.lat || null,
-        lng: item.lng || null,
-        start_time: item.startTime || null,
-        end_time: item.endTime || null,
-        category: item.category || "explore",
-        cost: item.cost || 0,
-        notes: item.notes?.trim() || null,
-        sort_order: idx + 1,
-        tasks_json: [],
-      }));
+      const placesToInsert = selected.map((item, idx) => {
+        const cleanName = item.name.trim();
+        let cleanNotes = item.notes?.trim() || null;
+        if (
+          cleanNotes &&
+          (cleanNotes.toLowerCase() === cleanName.toLowerCase() ||
+            cleanNotes === "-" ||
+            cleanNotes.toLowerCase() === "null")
+        ) {
+          cleanNotes = null;
+        }
+
+        return {
+          day_id: dayMap[item.dayNumber],
+          name: cleanName,
+          address: item.address?.trim() || null,
+          lat: item.lat || null,
+          lng: item.lng || null,
+          start_time: item.startTime || null,
+          end_time: item.endTime || null,
+          category: item.category || "explore",
+          cost: item.cost || 0,
+          notes: cleanNotes,
+          sort_order: idx + 1,
+          tasks_json: [],
+        };
+      });
 
       const { error: insertPlacesErr } = await supabase
         .from("places")
@@ -879,6 +905,19 @@ export default function AiExtractItineraryModal({
                                 )}
                               </select>
                             </div>
+                          </div>
+
+                          {/* Row 4: Optional Note / Catatan */}
+                          <div className="pt-0.5">
+                            <input
+                              type="text"
+                              value={item.notes || ""}
+                              onChange={(e) =>
+                                updateItemField(item.id, "notes", e.target.value)
+                              }
+                              placeholder="+ Catatan penting (opsional, misal: Terminal 3 / Pakaian Ihram)"
+                              className="w-full text-[11px] text-stone-600 placeholder:text-stone-400 bg-stone-50/70 border border-stone-200/60 rounded-xl px-2.5 py-1 focus:bg-white focus:outline-none focus:border-brand-400"
+                            />
                           </div>
                         </div>
                       </div>

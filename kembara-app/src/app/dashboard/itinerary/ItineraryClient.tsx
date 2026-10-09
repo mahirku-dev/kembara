@@ -1035,37 +1035,72 @@ export default function ItineraryClient({
                           {p.start_time ?? "—"} — {p.end_time ?? "—"}
                         </p>
 
-                        {/* Location Display (Mandatory feature) */}
-                        {p.address ? (
-                          <button
-                            type="button"
-                            onClick={() => setLocationEditPlace(p)}
-                            className="mt-1.5 flex items-center gap-1.5 text-xs text-stone-600 hover:text-brand-600 font-medium truncate max-w-full text-left group py-1 active:scale-98 transition"
-                            title="Klik untuk ubah lokasi di peta"
-                          >
-                            <Icons.MapPin
-                              size={14}
-                              weight="fill"
-                              className="text-rose-500 shrink-0"
-                            />
-                            <span className="truncate group-hover:underline">
-                              {p.address}
-                            </span>
-                            <Icons.PencilSimple
-                              size={12}
-                              className="opacity-60 group-hover:opacity-100 transition shrink-0 ml-0.5 text-stone-400"
-                            />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setLocationEditPlace(p)}
-                            className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-rose-600 hover:text-rose-700 font-semibold bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-xl border border-rose-200 transition active:scale-95"
-                          >
-                            <Icons.MapPin size={13} weight="fill" />
-                            <span>Set Lokasi Peta (Wajib)</span>
-                          </button>
-                        )}
+                        {/* Location Display & Google Maps Navigation */}
+                        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                          {p.address ? (
+                            <>
+                              <a
+                                href={
+                                  p.lat && p.lng
+                                    ? `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`
+                                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                        `${p.name} ${p.address}`
+                                      )}`
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-xs text-brand-700 bg-brand-50/80 hover:bg-brand-100 border border-brand-200/80 px-2.5 py-1 rounded-xl transition active:scale-95 group font-medium max-w-[260px] sm:max-w-[340px] shadow-2xs"
+                                title="Buka lokasi ini di Google Maps"
+                              >
+                                <Icons.MapPin
+                                  size={13}
+                                  weight="fill"
+                                  className="text-rose-500 shrink-0 group-hover:scale-110 transition-transform"
+                                />
+                                <span className="truncate">{p.address}</span>
+                                <Icons.ArrowSquareOut
+                                  size={12}
+                                  weight="bold"
+                                  className="text-brand-500 group-hover:text-brand-700 shrink-0 ml-0.5"
+                                />
+                              </a>
+
+                              <button
+                                type="button"
+                                onClick={() => setLocationEditPlace(p)}
+                                className="grid h-7 w-7 place-items-center rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition shrink-0"
+                                title="Ubah titik lokasi di peta"
+                              >
+                                <Icons.PencilSimple size={13} />
+                              </button>
+                            </>
+                          ) : (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <a
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                  `${p.name} ${trip.destination || ""}`
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-brand-600 hover:text-brand-700 bg-brand-50/70 hover:bg-brand-100/70 px-2.5 py-1 rounded-xl border border-brand-200/70 transition active:scale-95 group"
+                                title="Cari di Google Maps"
+                              >
+                                <Icons.MapPin size={12} weight="fill" className="text-rose-500" />
+                                <span>Google Maps</span>
+                                <Icons.ArrowSquareOut size={11} weight="bold" className="text-stone-400 group-hover:text-brand-600" />
+                              </a>
+
+                              <button
+                                type="button"
+                                onClick={() => setLocationEditPlace(p)}
+                                className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-xl border border-rose-200 transition active:scale-95"
+                              >
+                                <Icons.PencilSimple size={12} />
+                                <span>Set Peta</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {p.thumbnail_url && (
