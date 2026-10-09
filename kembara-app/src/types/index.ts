@@ -63,10 +63,17 @@ export interface ItineraryDay {
   created_at: string;
 }
 
+export interface Subtask {
+  id: string;
+  title: string;
+  done: boolean;
+}
+
 export interface Task {
   id: string;
   title: string;
   done: boolean;
+  subtasks?: Subtask[];
 }
 
 export interface Place {

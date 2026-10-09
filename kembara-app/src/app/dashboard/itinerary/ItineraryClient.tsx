@@ -158,6 +158,8 @@ export default function ItineraryClient({
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
   const [addingTaskForPlaceId, setAddingTaskForPlaceId] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [addingSubtaskForTaskId, setAddingSubtaskForTaskId] = useState<string | null>(null);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
 
   // Notes state
   const [editingNotePlaceId, setEditingNotePlaceId] = useState<string | null>(null);
@@ -210,11 +212,24 @@ export default function ItineraryClient({
     setOpenTasks((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
-  // Update a task checkbox and persist to Supabase
+  // Update a parent task checkbox (and all its subtasks if present)
   const handleTaskToggle = useCallback(
     async (place: Place, taskId: string, newDone: boolean) => {
       if (!canEdit) return;
       setSavingTaskId(taskId);
+
+      const updatedTasks: Task[] = (place.tasks_json || []).map((t) => {
+        if (t.id !== taskId) return t;
+        const subtasks = (t.subtasks || []).map((st) => ({
+          ...st,
+          done: newDone,
+        }));
+        return {
+          ...t,
+          done: newDone,
+          subtasks,
+        };
+      });
 
       setDays((prevDays) =>
         prevDays.map((d) => ({
@@ -223,9 +238,7 @@ export default function ItineraryClient({
             if (p.id !== place.id) return p;
             return {
               ...p,
-              tasks_json: (p.tasks_json || []).map((t) =>
-                t.id === taskId ? { ...t, done: newDone } : t
-              ),
+              tasks_json: updatedTasks,
             };
           }),
         }))
@@ -233,9 +246,6 @@ export default function ItineraryClient({
 
       try {
         const supabase = createClient();
-        const updatedTasks: Task[] = (place.tasks_json || []).map((t) =>
-          t.id === taskId ? { ...t, done: newDone } : t
-        );
         await supabase
           .from("places")
           .update({ tasks_json: updatedTasks })
@@ -249,7 +259,54 @@ export default function ItineraryClient({
     [canEdit]
   );
 
-  // Add a new task to a place and persist to Supabase
+  // Update a subtask checkbox with auto-completion of parent task
+  const handleSubtaskToggle = useCallback(
+    async (place: Place, taskId: string, subtaskId: string, newDone: boolean) => {
+      if (!canEdit) return;
+      setSavingTaskId(subtaskId);
+
+      const updatedTasks: Task[] = (place.tasks_json || []).map((t) => {
+        if (t.id !== taskId) return t;
+        const subtasks = (t.subtasks || []).map((st) =>
+          st.id === subtaskId ? { ...st, done: newDone } : st
+        );
+        const allSubtasksDone = subtasks.length > 0 && subtasks.every((st) => st.done);
+        return {
+          ...t,
+          subtasks,
+          done: allSubtasksDone,
+        };
+      });
+
+      setDays((prevDays) =>
+        prevDays.map((d) => ({
+          ...d,
+          places: d.places.map((p) => {
+            if (p.id !== place.id) return p;
+            return {
+              ...p,
+              tasks_json: updatedTasks,
+            };
+          }),
+        }))
+      );
+
+      try {
+        const supabase = createClient();
+        await supabase
+          .from("places")
+          .update({ tasks_json: updatedTasks })
+          .eq("id", place.id);
+      } catch (err) {
+        console.error("Gagal memperbarui subtask:", err);
+      } finally {
+        setSavingTaskId(null);
+      }
+    },
+    [canEdit]
+  );
+
+  // Add a new parent task to a place and persist to Supabase
   const handleAddTask = useCallback(
     async (place: Place) => {
       if (!canEdit) return;
@@ -260,6 +317,7 @@ export default function ItineraryClient({
         id: `t_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         title,
         done: false,
+        subtasks: [],
       };
 
       const updatedTasks = [...(place.tasks_json || []), newTask];
@@ -291,6 +349,131 @@ export default function ItineraryClient({
       }
     },
     [canEdit, newTaskTitle]
+  );
+
+  // Add a subtask to a specific parent task
+  const handleAddSubtask = useCallback(
+    async (place: Place, taskId: string) => {
+      if (!canEdit) return;
+      const title = newSubtaskTitle.trim();
+      if (!title) return;
+
+      const newSubtask = {
+        id: `st_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        title,
+        done: false,
+      };
+
+      const updatedTasks: Task[] = (place.tasks_json || []).map((t) => {
+        if (t.id !== taskId) return t;
+        const subtasks = [...(t.subtasks || []), newSubtask];
+        return {
+          ...t,
+          done: subtasks.every((st) => st.done),
+          subtasks,
+        };
+      });
+
+      setDays((prevDays) =>
+        prevDays.map((d) => ({
+          ...d,
+          places: d.places.map((p) => {
+            if (p.id !== place.id) return p;
+            return {
+              ...p,
+              tasks_json: updatedTasks,
+            };
+          }),
+        }))
+      );
+
+      setNewSubtaskTitle("");
+      setAddingSubtaskForTaskId(null);
+
+      try {
+        const supabase = createClient();
+        await supabase
+          .from("places")
+          .update({ tasks_json: updatedTasks })
+          .eq("id", place.id);
+      } catch (err) {
+        console.error("Gagal menambahkan subtask:", err);
+      }
+    },
+    [canEdit, newSubtaskTitle]
+  );
+
+  // Delete a parent task
+  const handleDeleteTask = useCallback(
+    async (place: Place, taskId: string) => {
+      if (!canEdit) return;
+      const updatedTasks = (place.tasks_json || []).filter((t) => t.id !== taskId);
+
+      setDays((prevDays) =>
+        prevDays.map((d) => ({
+          ...d,
+          places: d.places.map((p) => {
+            if (p.id !== place.id) return p;
+            return {
+              ...p,
+              tasks_json: updatedTasks,
+            };
+          }),
+        }))
+      );
+
+      try {
+        const supabase = createClient();
+        await supabase
+          .from("places")
+          .update({ tasks_json: updatedTasks })
+          .eq("id", place.id);
+      } catch (err) {
+        console.error("Gagal menghapus task:", err);
+      }
+    },
+    [canEdit]
+  );
+
+  // Delete a subtask
+  const handleDeleteSubtask = useCallback(
+    async (place: Place, taskId: string, subtaskId: string) => {
+      if (!canEdit) return;
+      const updatedTasks: Task[] = (place.tasks_json || []).map((t) => {
+        if (t.id !== taskId) return t;
+        const subtasks = (t.subtasks || []).filter((st) => st.id !== subtaskId);
+        const allDone = subtasks.length > 0 ? subtasks.every((st) => st.done) : t.done;
+        return {
+          ...t,
+          subtasks,
+          done: allDone,
+        };
+      });
+
+      setDays((prevDays) =>
+        prevDays.map((d) => ({
+          ...d,
+          places: d.places.map((p) => {
+            if (p.id !== place.id) return p;
+            return {
+              ...p,
+              tasks_json: updatedTasks,
+            };
+          }),
+        }))
+      );
+
+      try {
+        const supabase = createClient();
+        await supabase
+          .from("places")
+          .update({ tasks_json: updatedTasks })
+          .eq("id", place.id);
+      } catch (err) {
+        console.error("Gagal menghapus subtask:", err);
+      }
+    },
+    [canEdit]
   );
 
   // Start editing a note for a place
@@ -1405,33 +1588,152 @@ export default function ItineraryClient({
                             </p>
                           ) : (
                             tasks.map((t) => (
-                              <label
-                                key={t.id}
-                                className={clsx(
-                                  "flex items-start gap-2 group",
-                                  canEdit ? "cursor-pointer" : "cursor-default"
-                                )}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={t.done}
-                                  disabled={!canEdit || savingTaskId === t.id}
-                                  onChange={(e) =>
-                                    handleTaskToggle(p, t.id, e.target.checked)
-                                  }
-                                  className="mt-0.5 rounded border-stone-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50"
-                                />
-                                <span
-                                  className={clsx(
-                                    "text-[13px]",
-                                    t.done
-                                      ? "text-stone-400 line-through"
-                                      : "text-stone-700"
+                              <div key={t.id} className="space-y-1.5 pt-1">
+                                {/* Parent Task Row */}
+                                <div className="flex items-center justify-between gap-2 group">
+                                  <label
+                                    className={clsx(
+                                      "flex items-center gap-2 flex-1 min-w-0",
+                                      canEdit ? "cursor-pointer" : "cursor-default"
+                                    )}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={t.done}
+                                      disabled={!canEdit || savingTaskId === t.id}
+                                      onChange={(e) =>
+                                        handleTaskToggle(p, t.id, e.target.checked)
+                                      }
+                                      className="rounded border-stone-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50"
+                                    />
+                                    <span
+                                      className={clsx(
+                                        "text-[13px] font-medium leading-snug break-words",
+                                        t.done
+                                          ? "text-stone-400 line-through"
+                                          : "text-stone-800"
+                                      )}
+                                    >
+                                      {t.title}
+                                    </span>
+                                  </label>
+
+                                  {/* Actions for parent task */}
+                                  {canEdit && (
+                                    <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setAddingSubtaskForTaskId(
+                                            addingSubtaskForTaskId === t.id ? null : t.id
+                                          );
+                                          setNewSubtaskTitle("");
+                                        }}
+                                        className="text-[10.5px] font-semibold text-brand-700 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2 py-0.5 rounded-lg border border-brand-200/60 transition active:scale-95"
+                                        title="Tambah sub-tugas"
+                                      >
+                                        + Sub-tugas
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteTask(p, t.id)}
+                                        className="text-stone-300 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 transition active:scale-95"
+                                        title="Hapus tugas"
+                                      >
+                                        <Icons.Trash size={13} />
+                                      </button>
+                                    </div>
                                   )}
-                                >
-                                  {t.title}
-                                </span>
-                              </label>
+                                </div>
+
+                                {/* Subtasks List */}
+                                {((t.subtasks && t.subtasks.length > 0) || addingSubtaskForTaskId === t.id) && (
+                                  <div className="pl-4 ml-2.5 border-l-2 border-stone-200/80 space-y-1.5 pt-0.5 pb-1">
+                                    {(t.subtasks || []).map((st) => (
+                                      <div
+                                        key={st.id}
+                                        className="flex items-center justify-between gap-2 group/st"
+                                      >
+                                        <label
+                                          className={clsx(
+                                            "flex items-center gap-2 flex-1 min-w-0",
+                                            canEdit ? "cursor-pointer" : "cursor-default"
+                                          )}
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={st.done}
+                                            disabled={!canEdit || savingTaskId === st.id}
+                                            onChange={(e) =>
+                                              handleSubtaskToggle(p, t.id, st.id, e.target.checked)
+                                            }
+                                            className="rounded border-stone-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50 h-3.5 w-3.5"
+                                          />
+                                          <span
+                                            className={clsx(
+                                              "text-[12px] leading-snug break-words",
+                                              st.done
+                                                ? "text-stone-400 line-through"
+                                                : "text-stone-600"
+                                            )}
+                                          >
+                                            {st.title}
+                                          </span>
+                                        </label>
+
+                                        {canEdit && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDeleteSubtask(p, t.id, st.id)}
+                                            className="text-stone-300 hover:text-rose-600 p-0.5 rounded transition opacity-50 group-hover/st:opacity-100"
+                                            title="Hapus sub-tugas"
+                                          >
+                                            <Icons.Trash size={12} />
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+
+                                    {/* Inline input to add a subtask */}
+                                    {canEdit && addingSubtaskForTaskId === t.id && (
+                                      <div className="mt-1.5 flex items-center gap-1.5">
+                                        <input
+                                          type="text"
+                                          value={newSubtaskTitle}
+                                          onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                                          placeholder="Nama sub-tugas..."
+                                          className="flex-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1 text-[11.5px] text-stone-800 placeholder:text-stone-400 focus:border-brand-500 focus:outline-none"
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                              e.preventDefault();
+                                              handleAddSubtask(p, t.id);
+                                            } else if (e.key === "Escape") {
+                                              setAddingSubtaskForTaskId(null);
+                                              setNewSubtaskTitle("");
+                                            }
+                                          }}
+                                          autoFocus
+                                        />
+                                        <button
+                                          onClick={() => handleAddSubtask(p, t.id)}
+                                          className="rounded-lg bg-brand-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-2xs hover:bg-brand-700"
+                                        >
+                                          Simpan
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setAddingSubtaskForTaskId(null);
+                                            setNewSubtaskTitle("");
+                                          }}
+                                          className="rounded-lg px-1.5 py-1 text-[11px] text-stone-400 hover:text-stone-600"
+                                        >
+                                          Batal
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             ))
                           )}
 

@@ -87,6 +87,8 @@ export default function EditPlaceModal({
   const [notesText, setNotesText] = useState(place.notes || "");
   const [tasksList, setTasksList] = useState<Task[]>(place.tasks_json || []);
   const [newTaskInput, setNewTaskInput] = useState("");
+  const [addingSubtaskId, setAddingSubtaskId] = useState<string | null>(null);
+  const [newSubtaskInput, setNewSubtaskInput] = useState("");
 
   // Location States
   const [locationName, setLocationName] = useState("");
@@ -286,6 +288,7 @@ export default function EditPlaceModal({
       id: `t_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       title: clean,
       done: false,
+      subtasks: [],
     };
     setTasksList((prev) => [...prev, newTask]);
     setNewTaskInput("");
@@ -297,7 +300,74 @@ export default function EditPlaceModal({
 
   const handleToggleTaskDone = (taskId: string) => {
     setTasksList((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, done: !t.done } : t))
+      prev.map((t) => {
+        if (t.id !== taskId) return t;
+        const newDone = !t.done;
+        const subtasks = (t.subtasks || []).map((st) => ({
+          ...st,
+          done: newDone,
+        }));
+        return {
+          ...t,
+          done: newDone,
+          subtasks,
+        };
+      })
+    );
+  };
+
+  const handleToggleSubtaskDone = (taskId: string, subtaskId: string) => {
+    setTasksList((prev) =>
+      prev.map((t) => {
+        if (t.id !== taskId) return t;
+        const subtasks = (t.subtasks || []).map((st) =>
+          st.id === subtaskId ? { ...st, done: !st.done } : st
+        );
+        const allDone = subtasks.length > 0 && subtasks.every((st) => st.done);
+        return {
+          ...t,
+          subtasks,
+          done: allDone,
+        };
+      })
+    );
+  };
+
+  const handleAddNewSubtask = (taskId: string) => {
+    const clean = newSubtaskInput.trim();
+    if (!clean) return;
+    const newSubtask = {
+      id: `st_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      title: clean,
+      done: false,
+    };
+    setTasksList((prev) =>
+      prev.map((t) => {
+        if (t.id !== taskId) return t;
+        const subtasks = [...(t.subtasks || []), newSubtask];
+        return {
+          ...t,
+          done: subtasks.every((st) => st.done),
+          subtasks,
+        };
+      })
+    );
+    setNewSubtaskInput("");
+    setAddingSubtaskId(null);
+  };
+
+  const handleRemoveSubtask = (taskId: string, subtaskId: string) => {
+    setTasksList((prev) =>
+      prev.map((t) => {
+        if (t.id !== taskId) return t;
+        const subtasks = (t.subtasks || []).filter((st) => st.id !== subtaskId);
+        const allDone = subtasks.length > 0 ? subtasks.every((st) => st.done) : t.done;
+        return {
+          ...t,
+          subtasks,
+          done: allDone,
+        };
+      })
     );
   };
 
@@ -758,45 +828,140 @@ export default function EditPlaceModal({
               <label className="block text-xs font-semibold text-stone-700 mb-1 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <CheckSquareOffset size={14} className="text-stone-400" />
-                  Daftar Tugas / Checklist
+                  Daftar Tugas &amp; Sub-Tugas
                 </span>
                 <span className="text-[11px] text-stone-400">
-                  {tasksList.length} tugas
+                  {tasksList.filter((t) => t.done).length}/{tasksList.length} tugas utama selesai
                 </span>
               </label>
 
               {tasksList.length > 0 && (
-                <div className="space-y-1.5 mb-2 max-h-36 overflow-y-auto">
+                <div className="space-y-2 mb-2.5 max-h-52 overflow-y-auto pr-1">
                   {tasksList.map((t) => (
                     <div
                       key={t.id}
-                      className="flex items-center justify-between gap-2 p-2 rounded-xl bg-stone-50 border border-stone-200/80 text-xs"
+                      className="p-2.5 rounded-2xl bg-stone-50 border border-stone-200/80 text-xs space-y-2"
                     >
-                      <button
-                        type="button"
-                        onClick={() => handleToggleTaskDone(t.id)}
-                        className={`flex-1 text-left flex items-center gap-2 ${
-                          t.done ? "text-stone-400 line-through" : "text-stone-800"
-                        }`}
-                      >
-                        <span
-                          className={`grid h-4 w-4 place-items-center rounded border ${
-                            t.done
-                              ? "bg-brand-600 border-brand-600 text-white"
-                              : "border-stone-300 bg-white"
+                      {/* Parent Task Row */}
+                      <div className="flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleTaskDone(t.id)}
+                          className={`flex-1 min-w-0 text-left flex items-center gap-2 ${
+                            t.done ? "text-stone-400 line-through" : "text-stone-800 font-semibold"
                           }`}
                         >
-                          {t.done && <Check size={10} weight="bold" />}
-                        </span>
-                        <span>{t.title}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTask(t.id)}
-                        className="text-stone-400 hover:text-rose-600 p-1 transition"
-                      >
-                        <Trash size={13} />
-                      </button>
+                          <span
+                            className={`grid h-4 w-4 place-items-center rounded border shrink-0 ${
+                              t.done
+                                ? "bg-brand-600 border-brand-600 text-white"
+                                : "border-stone-300 bg-white"
+                            }`}
+                          >
+                            {t.done && <Check size={10} weight="bold" />}
+                          </span>
+                          <span className="truncate">{t.title}</span>
+                        </button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddingSubtaskId(addingSubtaskId === t.id ? null : t.id);
+                              setNewSubtaskInput("");
+                            }}
+                            className="text-[10px] font-semibold text-brand-700 hover:text-brand-800 bg-white hover:bg-brand-50 px-2 py-0.5 rounded-lg border border-stone-200 transition active:scale-95"
+                            title="Tambah sub-tugas"
+                          >
+                            + Sub-tugas
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTask(t.id)}
+                            className="text-stone-400 hover:text-rose-600 p-1 transition rounded-lg hover:bg-rose-50"
+                            title="Hapus tugas"
+                          >
+                            <Trash size={13} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Subtasks List */}
+                      {((t.subtasks && t.subtasks.length > 0) || addingSubtaskId === t.id) && (
+                        <div className="pl-3.5 ml-1.5 border-l-2 border-stone-200 space-y-1.5 pt-0.5">
+                          {(t.subtasks || []).map((st) => (
+                            <div
+                              key={st.id}
+                              className="flex items-center justify-between gap-2 group/st"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handleToggleSubtaskDone(t.id, st.id)}
+                                className={`flex-1 min-w-0 text-left flex items-center gap-2 text-[11.5px] ${
+                                  st.done ? "text-stone-400 line-through" : "text-stone-700"
+                                }`}
+                              >
+                                <span
+                                  className={`grid h-3.5 w-3.5 place-items-center rounded border shrink-0 ${
+                                    st.done
+                                      ? "bg-brand-600 border-brand-600 text-white"
+                                      : "border-stone-300 bg-white"
+                                  }`}
+                                >
+                                  {st.done && <Check size={9} weight="bold" />}
+                                </span>
+                                <span className="truncate">{st.title}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSubtask(t.id, st.id)}
+                                className="text-stone-300 hover:text-rose-600 p-0.5 rounded transition opacity-60 group-hover/st:opacity-100"
+                                title="Hapus sub-tugas"
+                              >
+                                <Trash size={11} />
+                              </button>
+                            </div>
+                          ))}
+
+                          {addingSubtaskId === t.id && (
+                            <div className="flex items-center gap-1.5 pt-1">
+                              <input
+                                type="text"
+                                value={newSubtaskInput}
+                                onChange={(e) => setNewSubtaskInput(e.target.value)}
+                                placeholder="Nama sub-tugas..."
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleAddNewSubtask(t.id);
+                                  } else if (e.key === "Escape") {
+                                    setAddingSubtaskId(null);
+                                    setNewSubtaskInput("");
+                                  }
+                                }}
+                                autoFocus
+                                className="flex-1 rounded-xl border border-stone-200 bg-white p-1.5 text-[11px] text-stone-900 focus:border-brand-500 focus:outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleAddNewSubtask(t.id)}
+                                className="rounded-xl bg-brand-600 px-2 py-1 text-[10.5px] font-bold text-white hover:bg-brand-700"
+                              >
+                                Simpan
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAddingSubtaskId(null);
+                                  setNewSubtaskInput("");
+                                }}
+                                className="px-1.5 py-1 text-[10.5px] text-stone-400 hover:text-stone-600"
+                              >
+                                Batal
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
