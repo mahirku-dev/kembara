@@ -1,6 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import type { Expense, ItineraryDay, Place, Trip } from "@/types";
+import type { Expense, ItineraryDay, Place, Trip, TripMember } from "@/types";
 import ItineraryClient from "./ItineraryClient";
 import CreateTripModal from "../CreateTripModal";
 import { fetchUserTrips } from "@/lib/serverTrips";
@@ -74,8 +74,8 @@ export default async function ItineraryPage({
     );
   }
 
-  // Fetch itinerary days and expenses for the active trip concurrently
-  const [{ data: days }, { data: allTripExpenses }] = await Promise.all([
+  // Fetch itinerary days, expenses, and trip members for the active trip concurrently
+  const [{ data: days }, { data: allTripExpenses }, { data: tripMembers }] = await Promise.all([
     supabase
       .from("itinerary_days")
       .select("*, places(*)")
@@ -88,6 +88,12 @@ export default async function ItineraryPage({
       .eq("trip_id", activeTrip.id)
       .order("created_at", { ascending: true })
       .returns<Expense[]>(),
+    supabase
+      .from("trip_members")
+      .select("*")
+      .eq("trip_id", activeTrip.id)
+      .order("created_at", { ascending: true })
+      .returns<TripMember[]>(),
   ]);
 
   // Attach matching expenses to each place (by place_id or description matching)
@@ -125,6 +131,7 @@ export default async function ItineraryPage({
       days={orderedDays}
       allTrips={trips}
       user={user}
+      members={tripMembers ?? []}
     />
   );
 }

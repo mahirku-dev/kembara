@@ -73,6 +73,11 @@ export interface Task {
   id: string;
   title: string;
   done: boolean;
+  assigned_to?: string | null;
+  assigned_name?: string | null;
+  assigned_avatar?: string | null;
+  created_by?: string | null;
+  created_by_name?: string | null;
   subtasks?: Subtask[];
 }
 

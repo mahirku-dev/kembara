@@ -22,7 +22,7 @@ import {
   CheckSquareOffset,
   Plus,
 } from "@phosphor-icons/react";
-import type { ItineraryDay, Place, Task } from "@/types";
+import type { ItineraryDay, Place, Task, TripMember } from "@/types";
 import {
   detectCurrencyFromLocation,
   formatMoney,
@@ -44,6 +44,8 @@ interface EditPlaceModalProps {
   days: ItineraryDay[];
   currentDayId: string;
   onPlaceUpdated: (updatedPlace: Place, previousDayId?: string) => void;
+  members?: TripMember[];
+  currentUser?: any;
 }
 
 interface SearchPlaceResult {
@@ -69,6 +71,8 @@ export default function EditPlaceModal({
   days,
   currentDayId,
   onPlaceUpdated,
+  members = [],
+  currentUser,
 }: EditPlaceModalProps) {
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -87,6 +91,7 @@ export default function EditPlaceModal({
   const [notesText, setNotesText] = useState(place.notes || "");
   const [tasksList, setTasksList] = useState<Task[]>(place.tasks_json || []);
   const [newTaskInput, setNewTaskInput] = useState("");
+  const [taskAssigneeId, setTaskAssigneeId] = useState<string>(currentUser?.id || "");
   const [addingSubtaskId, setAddingSubtaskId] = useState<string | null>(null);
   const [newSubtaskInput, setNewSubtaskInput] = useState("");
 
@@ -284,14 +289,38 @@ export default function EditPlaceModal({
   const handleAddNewTask = () => {
     const clean = newTaskInput.trim();
     if (!clean) return;
+
+    let assignedTo: string | null = null;
+    let assignedName: string | null = null;
+    let assignedAvatar: string | null = null;
+
+    if (taskAssigneeId === currentUser?.id) {
+      assignedTo = currentUser.id;
+      assignedName = currentUser.user_metadata?.full_name || currentUser.email?.split("@")[0] || "Host";
+      assignedAvatar = currentUser.user_metadata?.avatar_url || null;
+    } else if (taskAssigneeId) {
+      const member = members.find((m) => m.user_id === taskAssigneeId || m.id === taskAssigneeId);
+      if (member) {
+        assignedTo = member.user_id || member.id;
+        assignedName = member.name;
+        assignedAvatar = member.avatar_url;
+      }
+    }
+
     const newTask: Task = {
       id: `t_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       title: clean,
       done: false,
+      assigned_to: assignedTo,
+      assigned_name: assignedName,
+      assigned_avatar: assignedAvatar,
+      created_by: currentUser?.id || null,
+      created_by_name: currentUser?.user_metadata?.full_name || currentUser?.email?.split("@")[0] || null,
       subtasks: [],
     };
     setTasksList((prev) => [...prev, newTask]);
     setNewTaskInput("");
+    setTaskAssigneeId(currentUser?.id || "");
   };
 
   const handleRemoveTask = (taskId: string) => {
@@ -861,6 +890,15 @@ export default function EditPlaceModal({
                             {t.done && <Check size={10} weight="bold" />}
                           </span>
                           <span className="truncate">{t.title}</span>
+                          {t.assigned_to === currentUser?.id ? (
+                            <span className="text-[10px] font-bold text-brand-700 bg-brand-50 border border-brand-200/80 px-1.5 py-0.2 rounded shrink-0">
+                              Saya
+                            </span>
+                          ) : t.assigned_name ? (
+                            <span className="text-[10px] font-medium text-stone-600 bg-stone-100 border border-stone-200 px-1.5 py-0.2 rounded shrink-0 truncate max-w-[90px]">
+                              {t.assigned_name}
+                            </span>
+                          ) : null}
                         </button>
                         <div className="flex items-center gap-1 shrink-0">
                           <button
@@ -967,7 +1005,7 @@ export default function EditPlaceModal({
                 </div>
               )}
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <input
                   type="text"
                   value={newTaskInput}
@@ -981,14 +1019,32 @@ export default function EditPlaceModal({
                   }}
                   className="flex-1 rounded-2xl border border-stone-200 bg-stone-50/70 p-2.5 text-xs text-stone-900 focus:bg-white focus:border-brand-500 focus:outline-none"
                 />
-                <button
-                  type="button"
-                  onClick={handleAddNewTask}
-                  className="rounded-2xl bg-brand-50 hover:bg-brand-100 border border-brand-200 px-3 py-2.5 text-xs font-bold text-brand-700 transition active:scale-95 flex items-center gap-1"
-                >
-                  <Plus size={14} weight="bold" />
-                  <span>Tambah</span>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={taskAssigneeId}
+                    onChange={(e) => setTaskAssigneeId(e.target.value)}
+                    className="rounded-xl border border-stone-200 bg-white px-2.5 py-2 text-[11px] font-semibold text-stone-700 focus:border-brand-500 focus:outline-none"
+                    title="Pilih penanggung jawab tugas"
+                  >
+                    <option value={currentUser?.id || ""}>👤 Diri sendiri (Host)</option>
+                    <option value="">🌐 Umum / Semua</option>
+                    {members
+                      .filter((m) => m.user_id !== currentUser?.id)
+                      .map((m) => (
+                        <option key={m.id} value={m.user_id || m.id}>
+                          👤 {m.name} ({m.role})
+                        </option>
+                      ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleAddNewTask}
+                    className="rounded-2xl bg-brand-50 hover:bg-brand-100 border border-brand-200 px-3 py-2 text-xs font-bold text-brand-700 transition active:scale-95 flex items-center gap-1 shrink-0"
+                  >
+                    <Plus size={14} weight="bold" />
+                    <span>Tambah</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

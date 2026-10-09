@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { createClient } from "@/utils/supabase/client";
-import type { Expense, ItineraryDay, Place, Task, Trip } from "@/types";
+import type { Expense, ItineraryDay, Place, Task, Trip, TripMember } from "@/types";
 import { canEditTrip, isTripHost } from "@/types";
 import * as Icons from "@phosphor-icons/react";
 import { CATS } from "@/lib/dummyData";
@@ -58,6 +58,7 @@ interface Props {
   days: DayWithPlaces[];
   allTrips?: Trip[];
   user?: any;
+  members?: TripMember[];
 }
 
 const getInitialDayIndex = (daysList: DayWithPlaces[]) => {
@@ -143,6 +144,7 @@ export default function ItineraryClient({
   days: initialDays,
   allTrips = [],
   user,
+  members = [],
 }: Props) {
   const isHost = isTripHost(trip.current_user_role, user?.id, trip.user_id);
   const canEdit = canEditTrip(trip.current_user_role) || isHost;
@@ -154,12 +156,32 @@ export default function ItineraryClient({
   const [selectedDayIdx, setSelectedDayIdx] = useState<number>(() =>
     getInitialDayIndex(initialDays)
   );
+  const [membersList, setMembersList] = useState<TripMember[]>(members || []);
   const [openTasks, setOpenTasks] = useState<Record<string, boolean>>({});
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
   const [addingTaskForPlaceId, setAddingTaskForPlaceId] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState<string>(user?.id || "");
   const [addingSubtaskForTaskId, setAddingSubtaskForTaskId] = useState<string | null>(null);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+
+  // Sync / fetch trip members
+  useEffect(() => {
+    if (members && members.length > 0) {
+      setMembersList(members);
+    } else if (trip.id) {
+      const supabase = createClient();
+      supabase
+        .from("trip_members")
+        .select("*")
+        .eq("trip_id", trip.id)
+        .order("created_at", { ascending: true })
+        .returns<TripMember[]>()
+        .then(({ data }) => {
+          if (data) setMembersList(data);
+        });
+    }
+  }, [trip.id, members]);
 
   // Notes state
   const [editingNotePlaceId, setEditingNotePlaceId] = useState<string | null>(null);
@@ -212,10 +234,40 @@ export default function ItineraryClient({
     setOpenTasks((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
+  // Permission helpers for tasks
+  const canToggleTask = useCallback(
+    (t: Task) => {
+      if (isHost || canEdit) return true;
+      if (user?.id && (t.assigned_to === user.id || t.created_by === user.id)) return true;
+      if (!t.created_by && !t.assigned_to) return true; // Legacy tasks
+      return false;
+    },
+    [isHost, canEdit, user?.id]
+  );
+
+  const canDeleteTask = useCallback(
+    (t: Task) => {
+      if (isHost) return true;
+      if (user?.id && (t.created_by === user.id || t.assigned_to === user.id)) return true;
+      return false;
+    },
+    [isHost, user?.id]
+  );
+
+  const canAddSubtask = useCallback(
+    (t: Task) => {
+      if (isHost || canEdit) return true;
+      if (user?.id && (t.created_by === user.id || t.assigned_to === user.id)) return true;
+      return false;
+    },
+    [isHost, canEdit, user?.id]
+  );
+
   // Update a parent task checkbox (and all its subtasks if present)
   const handleTaskToggle = useCallback(
     async (place: Place, taskId: string, newDone: boolean) => {
-      if (!canEdit) return;
+      const task = (place.tasks_json || []).find((t) => t.id === taskId);
+      if (!task || !canToggleTask(task)) return;
       setSavingTaskId(taskId);
 
       const updatedTasks: Task[] = (place.tasks_json || []).map((t) => {
@@ -256,13 +308,14 @@ export default function ItineraryClient({
         setSavingTaskId(null);
       }
     },
-    [canEdit]
+    [canToggleTask]
   );
 
   // Update a subtask checkbox with auto-completion of parent task
   const handleSubtaskToggle = useCallback(
     async (place: Place, taskId: string, subtaskId: string, newDone: boolean) => {
-      if (!canEdit) return;
+      const task = (place.tasks_json || []).find((t) => t.id === taskId);
+      if (!task || !canToggleTask(task)) return;
       setSavingTaskId(subtaskId);
 
       const updatedTasks: Task[] = (place.tasks_json || []).map((t) => {
@@ -303,20 +356,56 @@ export default function ItineraryClient({
         setSavingTaskId(null);
       }
     },
-    [canEdit]
+    [canToggleTask]
   );
 
   // Add a new parent task to a place and persist to Supabase
   const handleAddTask = useCallback(
     async (place: Place) => {
-      if (!canEdit) return;
       const title = newTaskTitle.trim();
-      if (!title) return;
+      if (!title || !user) return;
+
+      let assignedTo: string | null = null;
+      let assignedName: string | null = null;
+      let assignedAvatar: string | null = null;
+
+      if (isHost) {
+        if (newTaskAssigneeId === user.id) {
+          // Default Host diri sendiri
+          assignedTo = user.id;
+          assignedName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Host";
+          assignedAvatar = user.user_metadata?.avatar_url || null;
+        } else if (newTaskAssigneeId) {
+          // Selected specific trip member
+          const member = membersList.find(
+            (m) => m.user_id === newTaskAssigneeId || m.id === newTaskAssigneeId
+          );
+          if (member) {
+            assignedTo = member.user_id || member.id;
+            assignedName = member.name;
+            assignedAvatar = member.avatar_url;
+          }
+        } else {
+          // "Semua / Umum"
+          assignedTo = null;
+          assignedName = null;
+        }
+      } else {
+        // Viewer can only add tasks for themselves
+        assignedTo = user.id;
+        assignedName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Saya";
+        assignedAvatar = user.user_metadata?.avatar_url || null;
+      }
 
       const newTask: Task = {
         id: `t_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         title,
         done: false,
+        assigned_to: assignedTo,
+        assigned_name: assignedName,
+        assigned_avatar: assignedAvatar,
+        created_by: user.id,
+        created_by_name: user.user_metadata?.full_name || user.email?.split("@")[0] || null,
         subtasks: [],
       };
 
@@ -337,6 +426,7 @@ export default function ItineraryClient({
 
       setNewTaskTitle("");
       setAddingTaskForPlaceId(null);
+      setNewTaskAssigneeId(user.id);
 
       try {
         const supabase = createClient();
@@ -344,17 +434,21 @@ export default function ItineraryClient({
           .from("places")
           .update({ tasks_json: updatedTasks })
           .eq("id", place.id);
+        showToast("Tugas berhasil ditambahkan.");
       } catch (err) {
         console.error("Gagal menambahkan task:", err);
+        showToast("Gagal menambahkan tugas.");
       }
     },
-    [canEdit, newTaskTitle]
+    [newTaskTitle, user, isHost, newTaskAssigneeId, membersList]
   );
 
   // Add a subtask to a specific parent task
   const handleAddSubtask = useCallback(
     async (place: Place, taskId: string) => {
-      if (!canEdit) return;
+      const task = (place.tasks_json || []).find((t) => t.id === taskId);
+      if (!task || !canAddSubtask(task)) return;
+
       const title = newSubtaskTitle.trim();
       if (!title) return;
 
@@ -400,13 +494,18 @@ export default function ItineraryClient({
         console.error("Gagal menambahkan subtask:", err);
       }
     },
-    [canEdit, newSubtaskTitle]
+    [canAddSubtask, newSubtaskTitle]
   );
 
   // Delete a parent task
   const handleDeleteTask = useCallback(
     async (place: Place, taskId: string) => {
-      if (!canEdit) return;
+      const task = (place.tasks_json || []).find((t) => t.id === taskId);
+      if (!task || !canDeleteTask(task)) {
+        showToast("Anda tidak memiliki izin untuk menghapus tugas ini.");
+        return;
+      }
+
       const updatedTasks = (place.tasks_json || []).filter((t) => t.id !== taskId);
 
       setDays((prevDays) =>
@@ -428,17 +527,23 @@ export default function ItineraryClient({
           .from("places")
           .update({ tasks_json: updatedTasks })
           .eq("id", place.id);
+        showToast("Tugas berhasil dihapus.");
       } catch (err) {
         console.error("Gagal menghapus task:", err);
       }
     },
-    [canEdit]
+    [canDeleteTask]
   );
 
   // Delete a subtask
   const handleDeleteSubtask = useCallback(
     async (place: Place, taskId: string, subtaskId: string) => {
-      if (!canEdit) return;
+      const task = (place.tasks_json || []).find((t) => t.id === taskId);
+      if (!task || !canDeleteTask(task)) {
+        showToast("Anda tidak memiliki izin untuk menghapus sub-tugas ini.");
+        return;
+      }
+
       const updatedTasks: Task[] = (place.tasks_json || []).map((t) => {
         if (t.id !== taskId) return t;
         const subtasks = (t.subtasks || []).filter((st) => st.id !== subtaskId);
@@ -473,7 +578,7 @@ export default function ItineraryClient({
         console.error("Gagal menghapus subtask:", err);
       }
     },
-    [canEdit]
+    [canDeleteTask]
   );
 
   // Start editing a note for a place
@@ -1587,166 +1692,194 @@ export default function ItineraryClient({
                               Belum ada catatan tugas.
                             </p>
                           ) : (
-                            tasks.map((t) => (
-                              <div key={t.id} className="space-y-1.5 pt-1">
-                                {/* Parent Task Row */}
-                                <div className="flex items-center justify-between gap-2 group">
-                                  <label
-                                    className={clsx(
-                                      "flex items-center gap-2 flex-1 min-w-0",
-                                      canEdit ? "cursor-pointer" : "cursor-default"
-                                    )}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={t.done}
-                                      disabled={!canEdit || savingTaskId === t.id}
-                                      onChange={(e) =>
-                                        handleTaskToggle(p, t.id, e.target.checked)
-                                      }
-                                      className="rounded border-stone-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50"
-                                    />
-                                    <span
+                            tasks.map((t) => {
+                              const canToggle = canToggleTask(t);
+                              const canDelete = canDeleteTask(t);
+                              const canSubtask = canAddSubtask(t);
+
+                              return (
+                                <div key={t.id} className="space-y-1.5 pt-1">
+                                  {/* Parent Task Row */}
+                                  <div className="flex items-center justify-between gap-2 group">
+                                    <label
                                       className={clsx(
-                                        "text-[13px] font-medium leading-snug break-words",
-                                        t.done
-                                          ? "text-stone-400 line-through"
-                                          : "text-stone-800"
+                                        "flex items-center gap-2 flex-1 min-w-0 flex-wrap sm:flex-nowrap",
+                                        canToggle ? "cursor-pointer" : "cursor-default"
                                       )}
                                     >
-                                      {t.title}
-                                    </span>
-                                  </label>
+                                      <input
+                                        type="checkbox"
+                                        checked={t.done}
+                                        disabled={!canToggle || savingTaskId === t.id}
+                                        onChange={(e) =>
+                                          handleTaskToggle(p, t.id, e.target.checked)
+                                        }
+                                        className="rounded border-stone-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50 shrink-0"
+                                      />
+                                      <span
+                                        className={clsx(
+                                          "text-[13px] font-medium leading-snug break-words",
+                                          t.done
+                                            ? "text-stone-400 line-through"
+                                            : "text-stone-800"
+                                        )}
+                                      >
+                                        {t.title}
+                                      </span>
 
-                                  {/* Actions for parent task */}
-                                  {canEdit && (
+                                      {/* Assignee Badge */}
+                                      {t.assigned_to === user?.id ? (
+                                        <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-brand-700 bg-brand-50 border border-brand-200/80 px-2 py-0.5 rounded-full shrink-0">
+                                          <Icons.User size={11} weight="bold" />
+                                          <span>Saya</span>
+                                        </span>
+                                      ) : t.assigned_name ? (
+                                        <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-stone-600 bg-stone-100 border border-stone-200/80 px-2 py-0.5 rounded-full shrink-0">
+                                          <Icons.User size={11} />
+                                          <span className="max-w-[110px] truncate">{t.assigned_name}</span>
+                                        </span>
+                                      ) : null}
+
+                                      {/* Created by info if different */}
+                                      {t.created_by && t.created_by !== t.assigned_to && t.created_by_name && (
+                                        <span className="text-[10px] text-stone-400 italic hidden sm:inline truncate max-w-[100px]" title={`Dibuat oleh ${t.created_by_name}`}>
+                                          (oleh {t.created_by === user?.id ? "Saya" : t.created_by_name})
+                                        </span>
+                                      )}
+                                    </label>
+
+                                    {/* Actions for parent task */}
                                     <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition">
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setAddingSubtaskForTaskId(
-                                            addingSubtaskForTaskId === t.id ? null : t.id
-                                          );
-                                          setNewSubtaskTitle("");
-                                        }}
-                                        className="text-[10.5px] font-semibold text-brand-700 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2 py-0.5 rounded-lg border border-brand-200/60 transition active:scale-95"
-                                        title="Tambah sub-tugas"
-                                      >
-                                        + Sub-tugas
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleDeleteTask(p, t.id)}
-                                        className="text-stone-300 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 transition active:scale-95"
-                                        title="Hapus tugas"
-                                      >
-                                        <Icons.Trash size={13} />
-                                      </button>
+                                      {canSubtask && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setAddingSubtaskForTaskId(
+                                              addingSubtaskForTaskId === t.id ? null : t.id
+                                            );
+                                            setNewSubtaskTitle("");
+                                          }}
+                                          className="text-[10.5px] font-semibold text-brand-700 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2 py-0.5 rounded-lg border border-brand-200/60 transition active:scale-95"
+                                          title="Tambah sub-tugas"
+                                        >
+                                          + Sub-tugas
+                                        </button>
+                                      )}
+                                      {canDelete && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteTask(p, t.id)}
+                                          className="text-stone-300 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 transition active:scale-95"
+                                          title="Hapus tugas"
+                                        >
+                                          <Icons.Trash size={13} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Subtasks List */}
+                                  {((t.subtasks && t.subtasks.length > 0) || addingSubtaskForTaskId === t.id) && (
+                                    <div className="pl-4 ml-2.5 border-l-2 border-stone-200/80 space-y-1.5 pt-0.5 pb-1">
+                                      {(t.subtasks || []).map((st) => (
+                                        <div
+                                          key={st.id}
+                                          className="flex items-center justify-between gap-2 group/st"
+                                        >
+                                          <label
+                                            className={clsx(
+                                              "flex items-center gap-2 flex-1 min-w-0",
+                                              canToggle ? "cursor-pointer" : "cursor-default"
+                                            )}
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={st.done}
+                                              disabled={!canToggle || savingTaskId === st.id}
+                                              onChange={(e) =>
+                                                handleSubtaskToggle(p, t.id, st.id, e.target.checked)
+                                              }
+                                              className="rounded border-stone-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50 h-3.5 w-3.5 shrink-0"
+                                            />
+                                            <span
+                                              className={clsx(
+                                                "text-[12px] leading-snug break-words",
+                                                st.done
+                                                  ? "text-stone-400 line-through"
+                                                  : "text-stone-600"
+                                              )}
+                                            >
+                                              {st.title}
+                                            </span>
+                                          </label>
+
+                                          {canDelete && (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleDeleteSubtask(p, t.id, st.id)}
+                                              className="text-stone-300 hover:text-rose-600 p-0.5 rounded transition opacity-50 group-hover/st:opacity-100"
+                                              title="Hapus sub-tugas"
+                                            >
+                                              <Icons.Trash size={12} />
+                                            </button>
+                                          )}
+                                        </div>
+                                      ))}
+
+                                      {/* Inline input to add a subtask */}
+                                      {canSubtask && addingSubtaskForTaskId === t.id && (
+                                        <div className="mt-1.5 flex items-center gap-1.5">
+                                          <input
+                                            type="text"
+                                            value={newSubtaskTitle}
+                                            onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                                            placeholder="Nama sub-tugas..."
+                                            className="flex-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1 text-[11.5px] text-stone-800 placeholder:text-stone-400 focus:border-brand-500 focus:outline-none"
+                                            onKeyDown={(e) => {
+                                              if (e.key === "Enter") {
+                                                e.preventDefault();
+                                                handleAddSubtask(p, t.id);
+                                              } else if (e.key === "Escape") {
+                                                setAddingSubtaskForTaskId(null);
+                                                setNewSubtaskTitle("");
+                                              }
+                                            }}
+                                            autoFocus
+                                          />
+                                          <button
+                                            onClick={() => handleAddSubtask(p, t.id)}
+                                            className="rounded-lg bg-brand-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-2xs hover:bg-brand-700"
+                                          >
+                                            Simpan
+                                          </button>
+                                          <button
+                                            onClick={() => {
+                                              setAddingSubtaskForTaskId(null);
+                                              setNewSubtaskTitle("");
+                                            }}
+                                            className="rounded-lg px-1.5 py-1 text-[11px] text-stone-400 hover:text-stone-600"
+                                          >
+                                            Batal
+                                          </button>
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </div>
-
-                                {/* Subtasks List */}
-                                {((t.subtasks && t.subtasks.length > 0) || addingSubtaskForTaskId === t.id) && (
-                                  <div className="pl-4 ml-2.5 border-l-2 border-stone-200/80 space-y-1.5 pt-0.5 pb-1">
-                                    {(t.subtasks || []).map((st) => (
-                                      <div
-                                        key={st.id}
-                                        className="flex items-center justify-between gap-2 group/st"
-                                      >
-                                        <label
-                                          className={clsx(
-                                            "flex items-center gap-2 flex-1 min-w-0",
-                                            canEdit ? "cursor-pointer" : "cursor-default"
-                                          )}
-                                        >
-                                          <input
-                                            type="checkbox"
-                                            checked={st.done}
-                                            disabled={!canEdit || savingTaskId === st.id}
-                                            onChange={(e) =>
-                                              handleSubtaskToggle(p, t.id, st.id, e.target.checked)
-                                            }
-                                            className="rounded border-stone-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50 h-3.5 w-3.5"
-                                          />
-                                          <span
-                                            className={clsx(
-                                              "text-[12px] leading-snug break-words",
-                                              st.done
-                                                ? "text-stone-400 line-through"
-                                                : "text-stone-600"
-                                            )}
-                                          >
-                                            {st.title}
-                                          </span>
-                                        </label>
-
-                                        {canEdit && (
-                                          <button
-                                            type="button"
-                                            onClick={() => handleDeleteSubtask(p, t.id, st.id)}
-                                            className="text-stone-300 hover:text-rose-600 p-0.5 rounded transition opacity-50 group-hover/st:opacity-100"
-                                            title="Hapus sub-tugas"
-                                          >
-                                            <Icons.Trash size={12} />
-                                          </button>
-                                        )}
-                                      </div>
-                                    ))}
-
-                                    {/* Inline input to add a subtask */}
-                                    {canEdit && addingSubtaskForTaskId === t.id && (
-                                      <div className="mt-1.5 flex items-center gap-1.5">
-                                        <input
-                                          type="text"
-                                          value={newSubtaskTitle}
-                                          onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                                          placeholder="Nama sub-tugas..."
-                                          className="flex-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1 text-[11.5px] text-stone-800 placeholder:text-stone-400 focus:border-brand-500 focus:outline-none"
-                                          onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
-                                              e.preventDefault();
-                                              handleAddSubtask(p, t.id);
-                                            } else if (e.key === "Escape") {
-                                              setAddingSubtaskForTaskId(null);
-                                              setNewSubtaskTitle("");
-                                            }
-                                          }}
-                                          autoFocus
-                                        />
-                                        <button
-                                          onClick={() => handleAddSubtask(p, t.id)}
-                                          className="rounded-lg bg-brand-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-2xs hover:bg-brand-700"
-                                        >
-                                          Simpan
-                                        </button>
-                                        <button
-                                          onClick={() => {
-                                            setAddingSubtaskForTaskId(null);
-                                            setNewSubtaskTitle("");
-                                          }}
-                                          className="rounded-lg px-1.5 py-1 text-[11px] text-stone-400 hover:text-stone-600"
-                                        >
-                                          Batal
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            ))
+                              );
+                            })
                           )}
 
-                          {/* Add task inline form (Host/Editor only) */}
-                          {canEdit && (
+                          {/* Add task inline form (Available to Host, Editor, and Viewer) */}
+                          {user && (
                             addingTaskForPlaceId === p.id ? (
-                              <div className="mt-2 flex items-center gap-2">
+                              <div className="mt-2.5 p-2.5 rounded-2xl bg-stone-50/90 border border-brand-200/80 space-y-2">
                                 <input
                                   type="text"
                                   value={newTaskTitle}
                                   onChange={(e) => setNewTaskTitle(e.target.value)}
-                                  placeholder="Nama tugas..."
-                                  className="flex-1 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-[12px] text-stone-800 placeholder:text-stone-400 focus:border-brand-500 focus:outline-none"
+                                  placeholder={isHost ? "Nama tugas agenda..." : "Nama tugas pribadi Anda..."}
+                                  className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-[12px] text-stone-800 placeholder:text-stone-400 focus:border-brand-500 focus:outline-none shadow-2xs"
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter") {
                                       e.preventDefault();
@@ -1758,32 +1891,65 @@ export default function ItineraryClient({
                                   }}
                                   autoFocus
                                 />
-                                <button
-                                  onClick={() => handleAddTask(p)}
-                                  className="rounded-xl bg-brand-600 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm hover:bg-brand-700"
-                                >
-                                  Simpan
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setAddingTaskForPlaceId(null);
-                                    setNewTaskTitle("");
-                                  }}
-                                  className="rounded-xl px-2 py-1.5 text-[12px] text-stone-400 hover:text-stone-600"
-                                >
-                                  Batal
-                                </button>
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  {isHost ? (
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <span className="text-[11px] text-stone-500 font-medium shrink-0">Tugaskan:</span>
+                                      <select
+                                        value={newTaskAssigneeId}
+                                        onChange={(e) => setNewTaskAssigneeId(e.target.value)}
+                                        className="rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-[11.5px] font-semibold text-stone-700 focus:border-brand-500 focus:outline-none"
+                                      >
+                                        <option value={user.id}>👤 Diri sendiri (Host)</option>
+                                        <option value="">🌐 Umum / Semua Anggota</option>
+                                        {membersList
+                                          .filter((m) => m.user_id !== user.id)
+                                          .map((m) => (
+                                            <option key={m.id} value={m.user_id || m.id}>
+                                              👤 {m.name} ({m.role})
+                                            </option>
+                                          ))}
+                                      </select>
+                                    </div>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-700 bg-brand-50 border border-brand-200/80 px-2.5 py-1 rounded-xl">
+                                      <Icons.User size={12} weight="bold" />
+                                      Tugas untuk: Diri Sendiri
+                                    </span>
+                                  )}
+
+                                  <div className="flex items-center gap-1.5 ml-auto">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setAddingTaskForPlaceId(null);
+                                        setNewTaskTitle("");
+                                      }}
+                                      className="rounded-xl px-2.5 py-1.5 text-[11.5px] font-medium text-stone-500 hover:text-stone-700"
+                                    >
+                                      Batal
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAddTask(p)}
+                                      className="rounded-xl bg-brand-600 px-3.5 py-1.5 text-[11.5px] font-bold text-white shadow-2xs hover:bg-brand-700 active:scale-95 transition"
+                                    >
+                                      Simpan
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
                             ) : (
                               <button
                                 onClick={() => {
                                   setAddingTaskForPlaceId(p.id);
                                   setNewTaskTitle("");
+                                  setNewTaskAssigneeId(user?.id || "");
                                 }}
-                                className="text-[12px] text-brand-600 font-medium hover:underline mt-2 flex items-center gap-1"
+                                className="text-[12px] text-brand-600 font-semibold hover:text-brand-700 hover:underline mt-2 flex items-center gap-1"
                               >
                                 <Icons.Plus size={13} weight="bold" />
-                                <span>Tambah tugas</span>
+                                <span>{isHost ? "Tambah tugas" : "Tambah tugas saya"}</span>
                               </button>
                             )
                           )}
@@ -2309,6 +2475,8 @@ export default function ItineraryClient({
           days={days}
           currentDayId={day.id}
           onPlaceUpdated={handlePlaceUpdated}
+          members={membersList}
+          currentUser={user}
         />
       )}
 
