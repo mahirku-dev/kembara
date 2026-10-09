@@ -809,12 +809,16 @@ export default function AddPlaceModal({
                   className="w-full rounded-2xl border border-stone-200 bg-white/80 pl-9 pr-8 py-2 text-sm text-stone-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
                 >
                   <option value="pray">Ibadah &amp; Shalat (Pray)</option>
-                  <option value="ziarah">Ziarah &amp; Situs Bersejarah</option>
-                  <option value="travel">Transport &amp; Perjalanan</option>
-                  <option value="hotel">Hotel &amp; Istirahat</option>
-                  <option value="food">Makan &amp; Kuliner</option>
-                  <option value="shopping">Belanja &amp; Oleh-oleh</option>
-                  <option value="other">Lainnya</option>
+                  <option value="explore">Ziarah &amp; Situs Bersejarah (Explore)</option>
+                  <option value="hotel">Hotel &amp; Istirahat (Hotel)</option>
+                  <option value="flight">Penerbangan (Flight)</option>
+                  <option value="car">Mobil / Rental Mobil (Car)</option>
+                  <option value="taxi">Taksi / Online Ride (Taxi)</option>
+                  <option value="bus">Bus &amp; Travel (Bus)</option>
+                  <option value="train">Kereta Api (Train)</option>
+                  <option value="food">Makan &amp; Kuliner (Food)</option>
+                  <option value="shopping">Belanja &amp; Oleh-oleh (Shopping)</option>
+                  <option value="other">Lainnya (Other)</option>
                 </select>
               </div>
             </div>

@@ -453,22 +453,25 @@ export default function EditPlaceModal({
                 <Tag size={14} className="text-stone-400" />
                 Kategori Agenda
               </label>
-              <div className="grid grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-1.5">
                 {[
                   { id: "pray", label: "Ibadah" },
                   { id: "explore", label: "Ziarah" },
                   { id: "hotel", label: "Hotel" },
                   { id: "flight", label: "Pesawat" },
-                  { id: "food", label: "Makan" },
-                  { id: "train", label: "Kereta" },
+                  { id: "car", label: "Mobil" },
+                  { id: "taxi", label: "Taksi" },
                   { id: "bus", label: "Bus" },
+                  { id: "train", label: "Kereta" },
+                  { id: "food", label: "Makan" },
+                  { id: "shopping", label: "Belanja" },
                   { id: "other", label: "Lainnya" },
                 ].map((c) => (
                   <button
                     key={c.id}
                     type="button"
                     onClick={() => setCategory(c.id)}
-                    className={`rounded-xl py-2 text-xs font-semibold border transition ${
+                    className={`rounded-xl py-2 px-1 text-xs font-semibold border transition text-center truncate ${
                       category === c.id
                         ? "bg-brand-600 text-white border-brand-600 shadow-xs"
                         : "bg-white border-stone-200 text-stone-600 hover:bg-stone-50"

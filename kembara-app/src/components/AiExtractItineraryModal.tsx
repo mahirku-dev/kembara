@@ -15,6 +15,8 @@ import {
   Compass,
   Train,
   Bus,
+  Car,
+  Taxi,
   Clock,
   MapPin,
   CircleNotch,
@@ -64,8 +66,9 @@ const CATEGORY_CONFIG: Record<
   explore: { label: "Ziarah/Wisata", icon: Compass, color: "bg-blue-50 text-blue-600 border-blue-200" },
   train: { label: "Kereta", icon: Train, color: "bg-purple-50 text-purple-600 border-purple-200" },
   bus: { label: "Bus", icon: Bus, color: "bg-stone-100 text-stone-600 border-stone-200" },
+  car: { label: "Mobil", icon: Car, color: "bg-amber-50 text-amber-700 border-amber-200" },
+  taxi: { label: "Taksi", icon: Taxi, color: "bg-yellow-50 text-yellow-700 border-yellow-200" },
   transit: { label: "Transit", icon: AirplaneTilt, color: "bg-stone-100 text-stone-600 border-stone-200" },
-  car: { label: "Mobil", icon: Compass, color: "bg-stone-100 text-stone-600 border-stone-200" },
   other: { label: "Lainnya", icon: Compass, color: "bg-stone-100 text-stone-600 border-stone-200" },
 };
 

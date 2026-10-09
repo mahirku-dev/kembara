@@ -15,6 +15,7 @@ export interface ExtractedAgendaItem {
     | "bus"
     | "transit"
     | "car"
+    | "taxi"
     | "other";
   address?: string | null;
   lat?: number | null;
@@ -158,10 +159,19 @@ function heuristicParseItinerary(
     ) {
       category = "transit";
     } else if (
-      lower.includes("mobil") ||
       lower.includes("taxi") ||
       lower.includes("taksi") ||
-      lower.includes("rental")
+      lower.includes("grab") ||
+      lower.includes("uber") ||
+      lower.includes("careem") ||
+      lower.includes("gocar")
+    ) {
+      category = "taxi";
+    } else if (
+      lower.includes("mobil") ||
+      lower.includes("rental") ||
+      lower.includes("sewa mobil") ||
+      lower.includes("car")
     ) {
       category = "car";
     }
@@ -260,7 +270,7 @@ Follow these rules strictly:
 1. "dayNumber": (number >= 1) Day sequence. If multi-day rundown, group activities correctly by Day 1, Day 2, etc.
 2. "date": "YYYY-MM-DD" if mentioned in text, otherwise null.
 3. "name": Concise activity title (e.g. "Penerbangan CGK - JED (SV817)", "Check-in Hotel Pullman Zamzam", "Ziarah Masjid Quba & Jabal Uhud", "Makan Siang di Al Romansiah").
-4. "category": EXACTLY one of: "flight", "hotel", "food", "pray", "explore", "train", "bus", "transit", "car", "other".
+4. "category": EXACTLY one of: "flight", "hotel", "food", "pray", "explore", "train", "bus", "transit", "car", "taxi", "other".
 5. "address": Location or city (e.g. "Bandara Soekarno Hatta Terminal 3, Jakarta", "Madinah", "Makkah", "Bandung").
 6. "startTime": "HH:mm" 24h format (e.g. "08:00", "14:30") or null.
 7. "endTime": "HH:mm" 24h format (e.g. "12:00", "17:00") or null.
