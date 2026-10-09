@@ -1112,7 +1112,8 @@ export default function ItineraryClient({
                                   p.lat,
                                   p.lng,
                                   p.address,
-                                  p.name
+                                  p.name,
+                                  trip.destination
                                 )}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -1149,8 +1150,9 @@ export default function ItineraryClient({
                                 href={getGoogleMapsDirectionsUrl(
                                   p.lat,
                                   p.lng,
-                                  `${p.name} ${trip.destination || ""}`,
-                                  p.name
+                                  null,
+                                  p.name,
+                                  trip.destination
                                 )}
                                 target="_blank"
                                 rel="noopener noreferrer"

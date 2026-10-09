@@ -121,7 +121,8 @@ export default function ConsolidatedAgendaSection({
                         place.lat,
                         place.lng,
                         place.address,
-                        place.name
+                        place.name,
+                        trip.destination
                       )}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -161,7 +162,8 @@ export default function ConsolidatedAgendaSection({
                 nextAgenda.lat,
                 nextAgenda.lng,
                 nextAgenda.address,
-                nextAgenda.name
+                nextAgenda.name,
+                trip.destination
               )}
               target="_blank"
               rel="noopener noreferrer"

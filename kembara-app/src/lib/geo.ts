@@ -873,22 +873,47 @@ export function formatTimeRange(
 
 /**
  * Generates an intent URL for Google Maps Navigation & Directions.
- * On mobile Android & iOS, this universally opens the native Google Maps App in Directions / Turn-by-Turn routing mode.
+ * Prioritizes the exact Place Name and Address/City so Google Maps opens
+ * the verified Place of Interest (POI) with its authentic name and photos,
+ * rather than a generic raw coordinate or nearby street name.
  */
 export function getGoogleMapsDirectionsUrl(
   lat?: number | null,
   lng?: number | null,
   address?: string | null,
-  name?: string | null
+  name?: string | null,
+  cityName?: string | null
 ): string {
+  const cleanName = (name || "").trim();
+  const cleanAddress = (address || "").trim();
+  const cleanCity = (cityName || "").trim();
+
+  // 1. Build a rich, human-readable place query that Google Maps can precisely resolve
+  let targetQuery = "";
+
+  if (cleanName && cleanAddress) {
+    if (cleanAddress.toLowerCase().includes(cleanName.toLowerCase())) {
+      targetQuery = cleanAddress;
+    } else {
+      targetQuery = `${cleanName}, ${cleanAddress}`;
+    }
+  } else if (cleanName) {
+    targetQuery = cleanCity ? `${cleanName}, ${cleanCity}` : cleanName;
+  } else if (cleanAddress) {
+    targetQuery = cleanAddress;
+  }
+
+  // If a descriptive place name/address exists, pass it as the destination query.
+  // Google Maps on Android/iOS uses this to match the official POI and display the correct landmark name.
+  if (targetQuery) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(targetQuery)}`;
+  }
+
+  // Fallback to coordinates only if no descriptive name/address is available
   if (lat != null && lng != null && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
     return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
   }
 
-  const queryTarget = [name, address].filter(Boolean).join(" ").trim();
-  if (queryTarget) {
-    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(queryTarget)}`;
-  }
-
   return "https://www.google.com/maps";
 }
+
