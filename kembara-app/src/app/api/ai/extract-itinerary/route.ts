@@ -87,7 +87,10 @@ function heuristicParseItinerary(
     // 4. Remove single timestamps (e.g. "pukul 14:00", "08:00 WIB", "jam 10.30")
     cleanName = cleanName.replace(/(?:pukul|jam|waktu|pkl|at)?\s*\d{1,2}[:.]\d{2}(?:\s*(?:wib|wita|wit|ast|gmt[+-]\d+))?/gi, "");
 
-    // 5. Remove leading/trailing separator symbols (colons, dashes, pipes, bullets, spaces)
+    // 5. Remove all-day markers (e.g. "sepanjang hari", "seharian", "all day", "full day")
+    cleanName = cleanName.replace(/(?:sepanjang\s*hari|seharian|all\s*day|full\s*day)/gi, "");
+
+    // 6. Remove leading/trailing separator symbols (colons, dashes, pipes, bullets, spaces)
     cleanName = cleanName.replace(/^[\s\-:–—|•*#]+/, "").replace(/[\s\-:–—|•*#]+$/, "").trim();
 
     if (!cleanName || cleanName.length < 2) continue;

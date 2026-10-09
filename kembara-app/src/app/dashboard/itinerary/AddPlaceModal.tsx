@@ -73,6 +73,7 @@ export default function AddPlaceModal({
   // Form Fields
   const [name, setName] = useState("");
   const [category, setCategory] = useState("pray");
+  const [isAllDay, setIsAllDay] = useState(false);
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("10:00");
   const [timezone, setTimezone] = useState<string>("KSA");
@@ -350,8 +351,8 @@ export default function AddPlaceModal({
         address: finalAddress,
         lat: lat,
         lng: lng,
-        start_time: startTime ? formatTimeDisplay(startTime) : null,
-        end_time: endTime ? formatTimeDisplay(endTime) : null,
+        start_time: isAllDay ? null : (startTime ? formatTimeDisplay(startTime) : null),
+        end_time: isAllDay ? null : (endTime ? formatTimeDisplay(endTime) : null),
         thumbnail_url: thumbnailUrl.trim() || null,
         notes: null,
         cost: 0,
@@ -380,6 +381,9 @@ export default function AddPlaceModal({
       onPlaceAdded(newPlace as Place);
       setIsOpen(false);
       setName("");
+      setIsAllDay(false);
+      setStartTime("08:00");
+      setEndTime("10:00");
       setAddress("");
       setLat(null);
       setLng(null);
@@ -715,64 +719,89 @@ export default function AddPlaceModal({
             </div>
 
             {/* Time & Timezone Pickers */}
-            <div className="space-y-1.5">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    Jam Mulai
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-stone-400 pointer-events-none">
-                      <Clock size={16} />
-                    </span>
-                    <input
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      className="w-full rounded-2xl border border-stone-200 bg-white/80 pl-9 pr-2 py-2 text-sm text-stone-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    Jam Selesai
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-stone-400 pointer-events-none">
-                      <Clock size={16} />
-                    </span>
-                    <input
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      className="w-full rounded-2xl border border-stone-200 bg-white/80 pl-9 pr-2 py-2 text-sm text-stone-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                    />
-                  </div>
-                </div>
-
-                <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    Zona Waktu
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-stone-400 pointer-events-none">
-                      <Globe size={16} />
-                    </span>
-                    <select
-                      value={timezone}
-                      onChange={(e) => setTimezone(e.target.value)}
-                      className="w-full rounded-2xl border border-stone-200 bg-white/80 pl-9 pr-6 py-2 text-xs font-bold text-stone-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                    >
-                      {POPULAR_TIMEZONES.map((tz) => (
-                        <option key={tz.code} value={tz.code}>
-                          {tz.code} - {tz.label} ({tz.offset})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+            <div className="space-y-2 rounded-2xl bg-stone-50/70 p-3 border border-stone-200/80">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-stone-700 flex items-center gap-1.5">
+                  <Clock size={14} className="text-brand-600" />
+                  Waktu Kegiatan
+                </span>
+                <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isAllDay}
+                    onChange={(e) => setIsAllDay(e.target.checked)}
+                    className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 border-stone-300 transition cursor-pointer"
+                  />
+                  <span className="text-xs font-medium text-stone-700">
+                    Sepanjang hari (All Day)
+                  </span>
+                </label>
               </div>
+
+              {!isAllDay ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-stone-600 mb-1">
+                      Jam Mulai
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-stone-400 pointer-events-none">
+                        <Clock size={15} />
+                      </span>
+                      <input
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="w-full rounded-xl border border-stone-200 bg-white pl-9 pr-2 py-2 text-sm text-stone-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-stone-600 mb-1">
+                      Jam Selesai
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-stone-400 pointer-events-none">
+                        <Clock size={15} />
+                      </span>
+                      <input
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        className="w-full rounded-xl border border-stone-200 bg-white pl-9 pr-2 py-2 text-sm text-stone-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-[11px] font-semibold text-stone-600 mb-1">
+                      Zona Waktu
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-stone-400 pointer-events-none">
+                        <Globe size={15} />
+                      </span>
+                      <select
+                        value={timezone}
+                        onChange={(e) => setTimezone(e.target.value)}
+                        className="w-full rounded-xl border border-stone-200 bg-white pl-9 pr-6 py-2 text-xs font-bold text-stone-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                      >
+                        {POPULAR_TIMEZONES.map((tz) => (
+                          <option key={tz.code} value={tz.code}>
+                            {tz.code} - {tz.label} ({tz.offset})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-2 px-3 rounded-xl bg-amber-50/80 border border-amber-200/60 text-xs text-amber-800 flex items-center gap-2 mt-1">
+                  <Clock size={14} className="text-amber-600 shrink-0" />
+                  <span>Agenda ini dijadwalkan <strong>sepanjang hari</strong> tanpa jam spesifik.</span>
+                </div>
+              )}
             </div>
 
             {/* Thumbnail URL (Opsional) */}

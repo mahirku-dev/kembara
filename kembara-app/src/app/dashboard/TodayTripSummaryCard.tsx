@@ -113,13 +113,18 @@ export default function TodayTripSummaryCard({
               >
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    {place.start_time && (
+                    {place.start_time ? (
                       <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200/60">
                         <Clock size={12} weight="bold" />
                         <span>
                           {place.start_time}
                           {place.end_time ? ` — ${place.end_time}` : ""}
                         </span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-600 border border-stone-200/60">
+                        <Clock size={12} weight="bold" className="text-stone-400" />
+                        <span>Sepanjang hari</span>
                       </span>
                     )}
                     {place.category && (

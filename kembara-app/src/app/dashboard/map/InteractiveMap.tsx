@@ -477,7 +477,7 @@ export default function InteractiveMap({ trip, places = [] }: Props) {
                         <span className="line-clamp-2">{selectedItem.data.address}</span>
                       </p>
                     )}
-                    {selectedItem.data.start_time && (
+                    {selectedItem.data.start_time ? (
                       <p className="text-[11px] font-medium text-brand-600 mt-1 flex items-center gap-1">
                         <Clock size={13} className="shrink-0" />
                         <span>
@@ -486,6 +486,11 @@ export default function InteractiveMap({ trip, places = [] }: Props) {
                             ? ` - ${selectedItem.data.end_time}`
                             : ""}
                         </span>
+                      </p>
+                    ) : (
+                      <p className="text-[11px] font-medium text-stone-500 mt-1 flex items-center gap-1">
+                        <Clock size={13} className="shrink-0 text-stone-400" />
+                        <span>Sepanjang hari</span>
                       </p>
                     )}
                     {selectedItem.data.notes && (

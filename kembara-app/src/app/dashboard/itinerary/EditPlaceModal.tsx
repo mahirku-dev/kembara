@@ -82,6 +82,7 @@ export default function EditPlaceModal({
   const [targetDayId, setTargetDayId] = useState<string>(place.day_id || currentDayId);
   const [name, setName] = useState(place.name || "");
   const [category, setCategory] = useState(place.category || "explore");
+  const [isAllDay, setIsAllDay] = useState(!place.start_time && !place.end_time);
   const [startTime, setStartTime] = useState(formatTimeDisplay(place.start_time) || "08:00");
   const [endTime, setEndTime] = useState(formatTimeDisplay(place.end_time) || "10:00");
   const [timezone, setTimezone] = useState<string>(
@@ -125,6 +126,7 @@ export default function EditPlaceModal({
       setTargetDayId(place.day_id || currentDayId);
       setName(place.name || "");
       setCategory(place.category || "explore");
+      setIsAllDay(!place.start_time && !place.end_time);
       setStartTime(formatTimeDisplay(place.start_time) || "08:00");
       setEndTime(formatTimeDisplay(place.end_time) || "10:00");
       setTimezone(detectTimezoneFromLocation(place.lat, place.lng, place.address, place.name));
@@ -423,8 +425,8 @@ export default function EditPlaceModal({
       const updatePayload: Record<string, any> = {
         name: name.trim(),
         category,
-        start_time: cleanStart || null,
-        end_time: cleanEnd || null,
+        start_time: isAllDay ? null : (cleanStart || null),
+        end_time: isAllDay ? null : (cleanEnd || null),
         address: cleanAddress,
         lat: lat ?? null,
         lng: lng ?? null,
@@ -582,51 +584,78 @@ export default function EditPlaceModal({
               </div>
             </div>
 
-            {/* Waktu & Zona Waktu (3 Kolom Responsive) */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1 flex items-center gap-1">
-                  <Clock size={13} className="text-stone-400" />
-                  Jam Mulai
+            {/* Waktu & Zona Waktu */}
+            <div className="space-y-2 rounded-2xl bg-stone-50/70 p-3 border border-stone-200/80">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-stone-700 flex items-center gap-1.5">
+                  <Clock size={14} className="text-brand-600" />
+                  Waktu Kegiatan
+                </span>
+                <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isAllDay}
+                    onChange={(e) => setIsAllDay(e.target.checked)}
+                    className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 border-stone-300 transition cursor-pointer"
+                  />
+                  <span className="text-xs font-medium text-stone-700">
+                    Sepanjang hari (All Day)
+                  </span>
                 </label>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full rounded-2xl border border-stone-200 bg-stone-50/70 p-2.5 text-xs font-medium text-stone-900 focus:bg-white focus:border-brand-500 focus:outline-none"
-                />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1 flex items-center gap-1">
-                  <Clock size={13} className="text-stone-400" />
-                  Jam Selesai
-                </label>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full rounded-2xl border border-stone-200 bg-stone-50/70 p-2.5 text-xs font-medium text-stone-900 focus:bg-white focus:border-brand-500 focus:outline-none"
-                />
-              </div>
+              {!isAllDay ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-stone-700 mb-1 flex items-center gap-1">
+                      <Clock size={13} className="text-stone-400" />
+                      Jam Mulai
+                    </label>
+                    <input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="w-full rounded-xl border border-stone-200 bg-white p-2.5 text-xs font-medium text-stone-900 focus:border-brand-500 focus:outline-none"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1 flex items-center gap-1">
-                  <Globe size={13} className="text-brand-600" />
-                  Zona Waktu
-                </label>
-                <select
-                  value={timezone}
-                  onChange={(e) => setTimezone(e.target.value)}
-                  className="w-full rounded-2xl border border-stone-200 bg-stone-50/70 p-2.5 text-xs font-bold text-brand-700 focus:bg-white focus:border-brand-500 focus:outline-none"
-                >
-                  {POPULAR_TIMEZONES.map((tz) => (
-                    <option key={tz.code} value={tz.code}>
-                      {tz.code} - {tz.label} ({tz.offset})
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-stone-700 mb-1 flex items-center gap-1">
+                      <Clock size={13} className="text-stone-400" />
+                      Jam Selesai
+                    </label>
+                    <input
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="w-full rounded-xl border border-stone-200 bg-white p-2.5 text-xs font-medium text-stone-900 focus:border-brand-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-stone-700 mb-1 flex items-center gap-1">
+                      <Globe size={13} className="text-brand-600" />
+                      Zona Waktu
+                    </label>
+                    <select
+                      value={timezone}
+                      onChange={(e) => setTimezone(e.target.value)}
+                      className="w-full rounded-xl border border-stone-200 bg-white p-2.5 text-xs font-bold text-brand-700 focus:border-brand-500 focus:outline-none"
+                    >
+                      {POPULAR_TIMEZONES.map((tz) => (
+                        <option key={tz.code} value={tz.code}>
+                          {tz.code} - {tz.label} ({tz.offset})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-2 px-3 rounded-xl bg-amber-50/80 border border-amber-200/60 text-xs text-amber-800 flex items-center gap-2 mt-1">
+                  <Clock size={14} className="text-amber-600 shrink-0" />
+                  <span>Agenda ini dijadwalkan <strong>sepanjang hari</strong> tanpa jam spesifik.</span>
+                </div>
+              )}
             </div>
 
             {/* ================= LOCATION SELECTION SECTION ================= */}

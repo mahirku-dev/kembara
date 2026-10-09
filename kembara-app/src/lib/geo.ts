@@ -868,7 +868,7 @@ export function formatTimeRange(
   if (range && timezone) {
     return `${range} ${timezone}`;
   }
-  return range || "Waktu belum diatur";
+  return range || "Sepanjang hari";
 }
 
 /**

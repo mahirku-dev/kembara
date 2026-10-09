@@ -1428,7 +1428,7 @@ export default function ItineraryClient({
                           )}
                         </div>
                         {/* Time & Timezone badge */}
-                        {(p.start_time || p.end_time) && (
+                        {p.start_time || p.end_time ? (
                           <div className="mt-1 flex items-center gap-1.5 flex-wrap">
                             <span className="inline-flex items-center gap-1 text-[12px] font-medium text-stone-600">
                               <Icons.Clock size={13} weight="bold" className="text-brand-600" />
@@ -1442,6 +1442,13 @@ export default function ItineraryClient({
                                 </span>
                               );
                             })()}
+                          </div>
+                        ) : (
+                          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-stone-500 bg-stone-100/90 border border-stone-200/60 px-2 py-0.5 rounded-md">
+                              <Icons.Clock size={12} weight="bold" className="text-stone-400" />
+                              Sepanjang hari
+                            </span>
                           </div>
                         )}
 
