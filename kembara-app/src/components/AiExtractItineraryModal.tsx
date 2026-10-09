@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { createClient } from "@/utils/supabase/client";
 import {
@@ -22,16 +22,34 @@ import {
   FileText,
   Trash,
   ArrowRight,
+  MagnifyingGlass,
+  MapTrifold,
+  Star,
 } from "@phosphor-icons/react";
 import type { Trip } from "@/types";
 import { format, parseISO, addDays } from "date-fns";
 import type { ExtractedAgendaItem } from "@/app/api/ai/extract-itinerary/route";
+import {
+  POPULAR_LANDMARKS,
+  extractCityName,
+  type LandmarkPreset,
+} from "@/lib/geo";
+import FreeMapLocationPicker, {
+  type SelectedLocationResult,
+} from "@/components/FreeMapLocationPicker";
 
 interface AiExtractItineraryModalProps {
   trip: Trip;
   isOpen: boolean;
   onClose: () => void;
   onImportSuccess?: () => void;
+}
+
+interface ItemWithLocationState extends ExtractedAgendaItem {
+  selected: boolean;
+  city?: string | null;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 const CATEGORY_CONFIG: Record<
@@ -91,6 +109,253 @@ Konfirmasi: PLM-MKH-772910`,
   },
 ];
 
+interface MapSearchResult {
+  place_id: number;
+  display_name: string;
+  name?: string;
+  lat: string;
+  lon: string;
+}
+
+/**
+ * Interactive Location Autocomplete Input with Map suggestions and City Extraction
+ */
+function AgendaLocationInput({
+  item,
+  onLocationSelected,
+  onOpenMapPicker,
+}: {
+  item: ItemWithLocationState;
+  onLocationSelected: (address: string, city: string | null, lat?: number, lng?: number) => void;
+  onOpenMapPicker: (item: ItemWithLocationState) => void;
+}) {
+  const [query, setQuery] = useState(item.address || "");
+  const [isOpen, setIsOpen] = useState(false);
+  const [results, setResults] = useState<MapSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    setQuery(item.address || "");
+  }, [item.address]);
+
+  // Handle outside click to close dropdown
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const handleInputChange = (val: string) => {
+    setQuery(val);
+    setIsOpen(true);
+    const autoCity = extractCityName(val, item.name);
+    onLocationSelected(val, autoCity, item.lat ?? undefined, item.lng ?? undefined);
+
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+
+    if (!val.trim() || val.length < 2) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+
+    setSearching(true);
+    debounceTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            val
+          )}&addressdetails=1&limit=5`,
+          { headers: { "Accept-Language": "id,en" } }
+        );
+        if (res.ok) {
+          const data: MapSearchResult[] = await res.json();
+          setResults(data || []);
+        }
+      } catch (err) {
+        console.error("Location search error:", err);
+      } finally {
+        setSearching(false);
+      }
+    }, 350);
+  };
+
+  const handleSelectPreset = (preset: LandmarkPreset) => {
+    setQuery(preset.address);
+    const city = extractCityName(preset.address, preset.name, preset.lat, preset.lng);
+    onLocationSelected(preset.address, city, preset.lat, preset.lng);
+    setIsOpen(false);
+  };
+
+  const handleSelectSearchResult = (result: MapSearchResult) => {
+    const lat = parseFloat(result.lat);
+    const lng = parseFloat(result.lon);
+    setQuery(result.display_name);
+    const city = extractCityName(result.display_name, result.name, lat, lng);
+    onLocationSelected(result.display_name, city, lat, lng);
+    setIsOpen(false);
+  };
+
+  // Filter matching popular landmarks
+  const matchingPresets = POPULAR_LANDMARKS.filter((p) => {
+    if (!query.trim()) return false;
+    const q = query.toLowerCase();
+    return (
+      p.name.toLowerCase().includes(q) ||
+      p.address.toLowerCase().includes(q) ||
+      p.category.toLowerCase().includes(q)
+    );
+  }).slice(0, 3);
+
+  const recognizedCity = item.city || extractCityName(item.address, item.name, item.lat, item.lng);
+
+  return (
+    <div className="relative flex-1" ref={dropdownRef}>
+      <div className="flex items-center gap-1 bg-stone-50 hover:bg-white focus-within:bg-white px-2.5 py-1.5 rounded-xl border border-stone-200/80 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20 transition shadow-xs">
+        <MapPin size={14} weight="fill" className="text-rose-500 shrink-0" />
+        <input
+          type="text"
+          value={query}
+          onFocus={() => setIsOpen(true)}
+          onChange={(e) => handleInputChange(e.target.value)}
+          placeholder="Ketik lokasi / cari di peta..."
+          className="w-full bg-transparent text-xs text-stone-800 focus:outline-none placeholder:text-stone-400 truncate"
+        />
+
+        {/* City Badge Tag */}
+        {recognizedCity && (
+          <span className="inline-flex items-center gap-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300/80 px-1.5 py-0.5 text-[10px] font-bold shrink-0 shadow-2xs">
+            <span>📍</span>
+            <span>{recognizedCity}</span>
+          </span>
+        )}
+
+        {/* Pick on Visual Map Button */}
+        <button
+          type="button"
+          onClick={() => onOpenMapPicker(item)}
+          className="grid h-6 w-6 place-items-center rounded-lg text-stone-400 hover:text-brand-600 hover:bg-brand-50 transition shrink-0"
+          title="Buka Peta Interaktif"
+        >
+          <MapTrifold size={14} weight="bold" />
+        </button>
+      </div>
+
+      {/* Autocomplete Dropdown */}
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full mt-1.5 z-[1000] rounded-2xl bg-white border border-stone-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-56 overflow-y-auto hide-scroll text-left">
+          {searching && (
+            <div className="flex items-center gap-2 px-3 py-2 text-xs text-stone-500 border-b border-stone-100 bg-stone-50/50">
+              <CircleNotch size={14} className="animate-spin text-brand-600" />
+              <span>Mencari titik lokasi di peta...</span>
+            </div>
+          )}
+
+          {/* Map Search Results */}
+          {results.length > 0 && (
+            <div className="p-1.5">
+              <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider px-2 py-1">
+                Hasil Pencarian Peta
+              </span>
+              {results.map((res) => {
+                const city = extractCityName(res.display_name, res.name, parseFloat(res.lat), parseFloat(res.lon));
+                return (
+                  <button
+                    key={res.place_id}
+                    type="button"
+                    onClick={() => handleSelectSearchResult(res)}
+                    className="w-full flex items-start gap-2.5 rounded-xl px-2.5 py-2 text-left hover:bg-brand-50 transition group"
+                  >
+                    <MapPin size={15} className="text-brand-600 shrink-0 mt-0.5" weight="fill" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-stone-900 group-hover:text-brand-700 truncate">
+                          {res.name || res.display_name.split(",")[0]}
+                        </span>
+                        {city && (
+                          <span className="text-[9.5px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800">
+                            {city}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-stone-500 truncate leading-tight mt-0.5">
+                        {res.display_name}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Matching Popular Landmarks */}
+          {matchingPresets.length > 0 && (
+            <div className="p-1.5 border-t border-stone-100 bg-amber-50/30">
+              <span className="block text-[10px] font-bold text-amber-800 uppercase tracking-wider px-2 py-1 flex items-center gap-1">
+                <Star size={12} weight="fill" className="text-amber-500" />
+                <span>Rekomendasi Landmark Tanah Suci</span>
+              </span>
+              {matchingPresets.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => handleSelectPreset(preset)}
+                  className="w-full flex items-start gap-2 rounded-xl px-2.5 py-1.5 text-left hover:bg-amber-100/60 transition group"
+                >
+                  <span className="text-xs shrink-0">📍</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-stone-900 truncate">
+                        {preset.name}
+                      </span>
+                      <span className="text-[9.5px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800">
+                        {extractCityName(preset.address, preset.name, preset.lat, preset.lng)}
+                      </span>
+                    </div>
+                    <p className="text-[10.5px] text-stone-500 truncate">{preset.address}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Quick presets list when no input or results */}
+          {results.length === 0 && !searching && (
+            <div className="p-2 space-y-1">
+              <span className="block text-[10px] font-bold text-stone-400 uppercase tracking-wider px-2 py-0.5">
+                Pilihan Lokasi Populer
+              </span>
+              {POPULAR_LANDMARKS.slice(0, 4).map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => handleSelectPreset(preset)}
+                  className="w-full flex items-center justify-between gap-2 rounded-xl px-2 py-1.5 text-left text-xs hover:bg-stone-100 transition"
+                >
+                  <span className="font-semibold text-stone-800 truncate">{preset.name}</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 shrink-0">
+                    {extractCityName(preset.address, preset.name, preset.lat, preset.lng)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AiExtractItineraryModal({
   trip,
   isOpen,
@@ -101,11 +366,12 @@ export default function AiExtractItineraryModal({
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [extractedItems, setExtractedItems] = useState<
-    (ExtractedAgendaItem & { selected: boolean })[]
-  >([]);
+  const [extractedItems, setExtractedItems] = useState<ItemWithLocationState[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+
+  // Map picker state for visual pin placement
+  const [mapPickerItem, setMapPickerItem] = useState<ItemWithLocationState | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -140,10 +406,19 @@ export default function AiExtractItineraryModal({
         throw new Error(data.error || "Gagal mengekstrak itinerary.");
       }
 
-      const itemsWithSelection = (data.items || []).map((item: ExtractedAgendaItem) => ({
-        ...item,
-        selected: true,
-      }));
+      // Populate initial city extraction and selection
+      const itemsWithSelection: ItemWithLocationState[] = (data.items || []).map(
+        (item: ExtractedAgendaItem) => {
+          const detectedCity = extractCityName(item.address, item.name);
+          return {
+            ...item,
+            selected: true,
+            city: detectedCity,
+            lat: item.lat || null,
+            lng: item.lng || null,
+          };
+        }
+      );
 
       setExtractedItems(itemsWithSelection);
     } catch (err: any) {
@@ -169,12 +444,41 @@ export default function AiExtractItineraryModal({
 
   const updateItemField = (
     id: string,
-    field: keyof ExtractedAgendaItem,
+    field: keyof ItemWithLocationState,
     value: any
   ) => {
     setExtractedItems((prev) =>
       prev.map((i) => (i.id === id ? { ...i, [field]: value } : i))
     );
+  };
+
+  const handleLocationUpdate = (
+    id: string,
+    address: string,
+    city: string | null,
+    lat?: number,
+    lng?: number
+  ) => {
+    setExtractedItems((prev) =>
+      prev.map((i) =>
+        i.id === id
+          ? {
+              ...i,
+              address,
+              city: city || extractCityName(address, i.name, lat, lng),
+              lat: lat ?? i.lat,
+              lng: lng ?? i.lng,
+            }
+          : i
+      )
+    );
+  };
+
+  const handleSelectFromMapPicker = (loc: SelectedLocationResult) => {
+    if (!mapPickerItem) return;
+    const city = extractCityName(loc.address, loc.name, loc.lat, loc.lng);
+    handleLocationUpdate(mapPickerItem.id, loc.address, city, loc.lat, loc.lng);
+    setMapPickerItem(null);
   };
 
   const removeItem = (id: string) => {
@@ -250,11 +554,13 @@ export default function AiExtractItineraryModal({
         }
       }
 
-      // 3. Batch insert places
+      // 3. Batch insert places with extracted city/coords
       const placesToInsert = selected.map((item, idx) => ({
         day_id: dayMap[item.dayNumber],
         name: item.name.trim(),
         address: item.address?.trim() || null,
+        lat: item.lat || null,
+        lng: item.lng || null,
         start_time: item.startTime || null,
         end_time: item.endTime || null,
         category: item.category || "explore",
@@ -319,36 +625,38 @@ export default function AiExtractItineraryModal({
                 AI Itinerary &amp; Multi-Agenda Extractor
               </h3>
               <p className="text-xs text-stone-500 mt-0.5">
-                Ekstrak jadwal, tiket, dan rundown otomatis ke itinerary
+                Ekstrak otomatis teks rundown, e-ticket, atau voucher hotel
               </p>
             </div>
           </div>
+
           <button
             type="button"
             onClick={onClose}
-            aria-label="Tutup"
             className="grid h-8 w-8 place-items-center rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition"
           >
-            <X size={18} weight="bold" />
+            <X size={18} />
           </button>
         </div>
 
-        {/* Toast / Alerts */}
-        {successToast && (
-          <div className="bg-emerald-600 text-white px-5 py-3 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
-            <CheckCircle size={18} weight="fill" />
-            <span>{successToast}</span>
-          </div>
-        )}
+        {/* Toast / Error Banner */}
         {errorMsg && (
-          <div className="bg-rose-50 border-b border-rose-200 text-rose-700 px-5 py-2.5 text-xs font-medium flex items-center justify-between">
+          <div className="mx-5 mt-4 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-2">
             <span>{errorMsg}</span>
             <button
+              type="button"
               onClick={() => setErrorMsg(null)}
-              className="text-rose-500 hover:text-rose-800"
+              className="text-rose-500 hover:text-rose-700"
             >
               <X size={14} />
             </button>
+          </div>
+        )}
+
+        {successToast && (
+          <div className="mx-5 mt-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+            <CheckCircle size={16} weight="fill" className="text-emerald-600 shrink-0" />
+            <span className="font-semibold">{successToast}</span>
           </div>
         )}
 
@@ -421,15 +729,15 @@ export default function AiExtractItineraryModal({
               </div>
 
               {/* List of Agenda Items */}
-              <div className="space-y-2.5">
-                {extractedItems.map((item, idx) => {
+              <div className="space-y-3">
+                {extractedItems.map((item) => {
                   const cat = CATEGORY_CONFIG[item.category] || CATEGORY_CONFIG.explore;
                   const IconComp = cat.icon;
 
                   return (
                     <div
                       key={item.id}
-                      className={`rounded-2xl p-3 sm:p-3.5 transition border ${
+                      className={`rounded-2xl p-3.5 sm:p-4 transition border ${
                         item.selected
                           ? "bg-white border-brand-300 shadow-sm"
                           : "bg-stone-50/70 border-stone-200/60 opacity-60"
@@ -450,7 +758,7 @@ export default function AiExtractItineraryModal({
                         </button>
 
                         {/* Item Details Form */}
-                        <div className="flex-1 min-w-0 space-y-2">
+                        <div className="flex-1 min-w-0 space-y-2.5">
                           {/* Row 1: Day Badge, Name & Category */}
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-[11px] font-bold text-stone-700 bg-stone-100 px-2 py-0.5 rounded-lg border border-stone-200 shrink-0">
@@ -463,7 +771,7 @@ export default function AiExtractItineraryModal({
                               onChange={(e) =>
                                 updateItemField(item.id, "name", e.target.value)
                               }
-                              className="font-bold text-xs sm:text-sm text-stone-900 bg-transparent border-b border-transparent focus:border-brand-500 focus:bg-white px-1 py-0.5 rounded focus:outline-none flex-1 min-w-[140px]"
+                              className="font-bold text-xs sm:text-sm text-stone-900 bg-transparent border-b border-stone-200 focus:border-brand-500 focus:bg-white px-1.5 py-0.5 rounded focus:outline-none flex-1 min-w-[140px]"
                               placeholder="Nama Agenda"
                             />
 
@@ -495,11 +803,28 @@ export default function AiExtractItineraryModal({
                             </button>
                           </div>
 
-                          {/* Row 2: Times, Location & Day Picker */}
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                          {/* Row 2: Location Search with Map Autocomplete & City Extraction */}
+                          <div className="space-y-1">
+                            <label className="block text-[10.5px] font-semibold text-stone-400 uppercase tracking-wide">
+                              Lokasi &amp; Kota di Peta
+                            </label>
+                            <AgendaLocationInput
+                              item={item}
+                              onLocationSelected={(address, city, lat, lng) =>
+                                handleLocationUpdate(item.id, address, city, lat, lng)
+                              }
+                              onOpenMapPicker={(targetItem) =>
+                                setMapPickerItem(targetItem)
+                              }
+                            />
+                          </div>
+
+                          {/* Row 3: Times & Target Day */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
                             {/* Time */}
                             <div className="flex items-center gap-1.5 bg-stone-50 px-2.5 py-1 rounded-xl border border-stone-200/60">
                               <Clock size={13} className="text-stone-400 shrink-0" />
+                              <span className="text-[11px] text-stone-400 font-medium">Jam:</span>
                               <input
                                 type="text"
                                 value={item.startTime || ""}
@@ -511,7 +836,7 @@ export default function AiExtractItineraryModal({
                                   )
                                 }
                                 placeholder="08:00"
-                                className="w-12 bg-transparent text-stone-800 font-mono text-center focus:outline-none border-b border-stone-300"
+                                className="w-12 bg-transparent text-stone-800 font-mono text-center focus:outline-none border-b border-stone-300 text-xs"
                               />
                               <span className="text-stone-400">-</span>
                               <input
@@ -525,32 +850,14 @@ export default function AiExtractItineraryModal({
                                   )
                                 }
                                 placeholder="10:00"
-                                className="w-12 bg-transparent text-stone-800 font-mono text-center focus:outline-none border-b border-stone-300"
-                              />
-                            </div>
-
-                            {/* Address/Location */}
-                            <div className="flex items-center gap-1.5 bg-stone-50 px-2.5 py-1 rounded-xl border border-stone-200/60">
-                              <MapPin size={13} className="text-rose-500 shrink-0" />
-                              <input
-                                type="text"
-                                value={item.address || ""}
-                                onChange={(e) =>
-                                  updateItemField(
-                                    item.id,
-                                    "address",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="Lokasi/Kota"
-                                className="w-full bg-transparent text-stone-800 focus:outline-none truncate"
+                                className="w-12 bg-transparent text-stone-800 font-mono text-center focus:outline-none border-b border-stone-300 text-xs"
                               />
                             </div>
 
                             {/* Change Target Day */}
                             <div className="flex items-center gap-1.5 bg-stone-50 px-2.5 py-1 rounded-xl border border-stone-200/60">
-                              <span className="text-stone-500 shrink-0 text-[11px]">
-                                Target:
+                              <span className="text-[11px] text-stone-400 font-medium shrink-0">
+                                Target Hari:
                               </span>
                               <select
                                 value={item.dayNumber}
@@ -561,12 +868,12 @@ export default function AiExtractItineraryModal({
                                     parseInt(e.target.value, 10) || 1
                                   )
                                 }
-                                className="w-full bg-transparent font-semibold text-stone-800 focus:outline-none text-[11.5px]"
+                                className="w-full bg-transparent text-xs font-bold text-brand-700 focus:outline-none"
                               >
-                                {Array.from({ length: 15 }, (_, i) => i + 1).map(
-                                  (d) => (
-                                    <option key={d} value={d}>
-                                      Hari ke-{d}
+                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map(
+                                  (n) => (
+                                    <option key={n} value={n}>
+                                      Hari ke-{n}
                                     </option>
                                   )
                                 )}
@@ -583,12 +890,12 @@ export default function AiExtractItineraryModal({
           )}
         </div>
 
-        {/* Modal Footer Actions */}
-        <div className="p-4 border-t border-stone-100 bg-stone-50/80 flex items-center justify-between gap-3 shrink-0">
+        {/* Modal Footer */}
+        <div className="px-5 py-3.5 border-t border-stone-100 flex items-center justify-between gap-3 shrink-0 bg-stone-50/50">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-2xl text-xs font-semibold text-stone-600 hover:bg-stone-200/70 transition"
+            className="h-10 px-4 rounded-xl text-stone-600 text-xs font-semibold hover:bg-stone-200/60 transition"
           >
             Batal
           </button>
@@ -598,17 +905,17 @@ export default function AiExtractItineraryModal({
               type="button"
               onClick={handleExtract}
               disabled={loading || !inputText.trim()}
-              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-600 to-teal-600 hover:from-brand-700 hover:to-teal-700 px-5 py-2.5 text-xs font-bold text-white shadow-cta transition active:scale-95 disabled:opacity-50 min-h-[42px]"
+              className="h-10 px-5 rounded-2xl bg-brand-600 text-white text-xs font-bold hover:bg-brand-700 disabled:opacity-50 shadow-cta transition flex items-center gap-2 active:scale-95"
             >
               {loading ? (
                 <>
-                  <CircleNotch size={16} className="animate-spin" />
-                  <span>AI Sedang Menganalisis...</span>
+                  <CircleNotch size={15} className="animate-spin" />
+                  <span>Menganalisis dengan AI...</span>
                 </>
               ) : (
                 <>
-                  <Sparkle size={16} weight="fill" />
-                  <span>Ekstrak Agenda dengan AI</span>
+                  <Sparkle size={15} weight="fill" />
+                  <span>Ekstrak Multi-Agenda</span>
                 </>
               )}
             </button>
@@ -617,26 +924,37 @@ export default function AiExtractItineraryModal({
               type="button"
               onClick={handleImportToItinerary}
               disabled={saving || selectedCount === 0}
-              className="inline-flex items-center gap-2 rounded-2xl bg-brand-600 hover:bg-brand-700 px-5 py-2.5 text-xs font-bold text-white shadow-cta transition active:scale-95 disabled:opacity-50 min-h-[42px]"
+              className="h-10 px-5 rounded-2xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 shadow-cta transition flex items-center gap-2 active:scale-95"
             >
               {saving ? (
                 <>
-                  <CircleNotch size={16} className="animate-spin" />
-                  <span>Mengimport ke Database...</span>
+                  <CircleNotch size={15} className="animate-spin" />
+                  <span>Menyimpan ke Jadwal...</span>
                 </>
               ) : (
                 <>
-                  <Check size={16} weight="bold" />
-                  <span>Import {selectedCount} Agenda ke Itinerary</span>
-                  <ArrowRight size={14} weight="bold" />
+                  <Check size={15} weight="bold" />
+                  <span>Import {selectedCount} Agenda Terpilih</span>
                 </>
               )}
             </button>
           )}
         </div>
       </div>
+
+      {/* Visual Map Pin Picker Modal */}
+      {mapPickerItem && (
+        <FreeMapLocationPicker
+          isOpen={true}
+          onClose={() => setMapPickerItem(null)}
+          onSelectLocation={handleSelectFromMapPicker}
+          initialLat={mapPickerItem.lat}
+          initialLng={mapPickerItem.lng}
+          initialAddress={mapPickerItem.address}
+          initialName={mapPickerItem.name}
+        />
+      )}
     </div>,
     document.body
   );
 }
-

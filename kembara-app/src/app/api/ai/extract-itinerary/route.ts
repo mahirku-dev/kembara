@@ -17,6 +17,8 @@ export interface ExtractedAgendaItem {
     | "car"
     | "other";
   address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
   startTime?: string | null;
   endTime?: string | null;
   notes?: string | null;
