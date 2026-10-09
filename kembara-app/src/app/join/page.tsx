@@ -20,7 +20,9 @@ import Link from "next/link";
 function JoinPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const codeParam = (searchParams.get("code") || searchParams.get("joinCode") || "").trim().toUpperCase();
+  const rawParam = (searchParams.get("code") || searchParams.get("joinCode") || "").trim();
+  const isAuthCode = rawParam.includes("-") || rawParam.length > 12;
+  const codeParam = isAuthCode ? "" : rawParam.toUpperCase();
 
   const [code, setCode] = useState(codeParam);
   const [user, setUser] = useState<any>(null);
@@ -30,11 +32,19 @@ function JoinPageContent() {
   const [successTripId, setSuccessTripId] = useState<string | null>(null);
   const [successTripTitle, setSuccessTripTitle] = useState<string | null>(null);
 
-  // Check auth state
+  // If an OAuth PKCE code lands on /join?code=<UUID>, redirect to /auth/callback
   useEffect(() => {
+    const raw = searchParams.get("code");
+    if (raw && (raw.includes("-") || raw.length > 12)) {
+      window.location.href = `/auth/callback?code=${encodeURIComponent(raw)}&next=/dashboard`;
+    }
+  }, [searchParams]);
+
+  // Check auth state and listen for session updates
+  useEffect(() => {
+    const supabase = createClient();
     async function checkUser() {
       try {
-        const supabase = createClient();
         const {
           data: { user: currentUser },
         } = await supabase.auth.getUser();
@@ -46,6 +56,17 @@ function JoinPageContent() {
       }
     }
     checkUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setCheckingAuth(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Sync code from URL parameter
@@ -80,7 +101,7 @@ function JoinPageContent() {
     }
   };
 
-  // If user is already authenticated and a code is present in URL, auto join
+  // If user is already authenticated and a valid code is present in URL, auto join
   useEffect(() => {
     if (!checkingAuth && user && codeParam && !successTripId && !error && !loading) {
       handleJoin(codeParam);
@@ -93,7 +114,8 @@ function JoinPageContent() {
     try {
       const supabase = createClient();
       const currentCode = (code || codeParam || "").trim().toUpperCase();
-      const nextUrl = currentCode ? `/join?code=${encodeURIComponent(currentCode)}` : "/dashboard";
+      const validCode = currentCode && !currentCode.includes("-") && currentCode.length <= 12 ? currentCode : "";
+      const nextUrl = validCode ? `/join?code=${encodeURIComponent(validCode)}` : "/dashboard";
       const { error: authErr } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {

@@ -42,6 +42,16 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
+  // If an OAuth authorization code lands on root '/', forward to /auth/callback immediately
+  if (pathname === '/' && request.nextUrl.searchParams.has('code')) {
+    const codeParam = request.nextUrl.searchParams.get('code')!;
+    if (codeParam.includes('-') || codeParam.length > 12) {
+      const callbackUrl = request.nextUrl.clone();
+      callbackUrl.pathname = '/auth/callback';
+      return NextResponse.redirect(callbackUrl);
+    }
+  }
+
   // Protect all /dashboard/* routes — redirect to login if not authenticated
   if (pathname.startsWith('/dashboard') && !user) {
     const url = request.nextUrl.clone()
@@ -51,11 +61,13 @@ export async function proxy(request: NextRequest) {
 
   // Redirect authenticated users away from the login page, preserving any invite code or next target
   if (pathname === '/' && user) {
-    const joinCode = request.nextUrl.searchParams.get('code') || request.nextUrl.searchParams.get('joinCode');
-    if (joinCode) {
+    const rawCode = request.nextUrl.searchParams.get('joinCode') || request.nextUrl.searchParams.get('code');
+    const isValidJoinCode = rawCode && !rawCode.includes('-') && rawCode.length <= 12;
+
+    if (isValidJoinCode) {
       const url = request.nextUrl.clone();
       url.pathname = '/join';
-      url.searchParams.set('code', joinCode.toUpperCase());
+      url.searchParams.set('code', rawCode.toUpperCase());
       url.searchParams.delete('joinCode');
       return NextResponse.redirect(url);
     }

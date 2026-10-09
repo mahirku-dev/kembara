@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, Suspense } from "react";
+import { useState, useEffect, useTransition, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Compass, CircleNotch, GoogleLogo } from "@phosphor-icons/react";
@@ -11,13 +11,45 @@ function LoginPageContent() {
   const [, startTransition] = useTransition();
   const searchParams = useSearchParams();
 
+  // Distinguish true trip invite codes from OAuth PKCE codes (UUIDs)
+  const rawCode = searchParams.get("joinCode") || searchParams.get("code");
+  const isAuthCode = rawCode ? rawCode.includes("-") || rawCode.length > 12 : false;
+  const joinCode = rawCode && !isAuthCode ? rawCode.trim().toUpperCase() : null;
+
+  // If Supabase OAuth redirected here with ?code=<UUID>, forward to /auth/callback immediately
+  useEffect(() => {
+    const codeParam = searchParams.get("code");
+    if (codeParam && (codeParam.includes("-") || codeParam.length > 12)) {
+      setLoading(true);
+      const nextParam = searchParams.get("next") || (joinCode ? `/join?code=${joinCode}` : "/dashboard");
+      window.location.href = `/auth/callback?code=${encodeURIComponent(codeParam)}&next=${encodeURIComponent(nextParam)}`;
+    }
+  }, [searchParams, joinCode]);
+
+  // Listen for active auth session changes
+  useEffect(() => {
+    const supabase = createClient();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        const nextParam = searchParams.get("next");
+        const target = nextParam || (joinCode ? `/join?code=${joinCode}` : "/dashboard");
+        window.location.href = target;
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [searchParams, joinCode]);
+
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError(null);
     startTransition(async () => {
       try {
         const supabase = createClient();
-        const joinCode = searchParams.get("joinCode") || searchParams.get("code");
         const nextParam = searchParams.get("next");
         const nextUrl = nextParam || (joinCode ? `/join?code=${joinCode}` : "/dashboard");
 

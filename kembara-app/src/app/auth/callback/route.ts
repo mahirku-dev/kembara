@@ -14,13 +14,24 @@ export async function GET(request: Request) {
     next = "/dashboard";
   }
 
+  // Sanitize next if it accidentally contains an OAuth UUID code as join code
+  if (next.startsWith("/join?code=") || next.startsWith("/join?joinCode=")) {
+    const nextUrlObj = new URL(next, requestUrl.origin);
+    const joinCode = nextUrlObj.searchParams.get("code") || nextUrlObj.searchParams.get("joinCode");
+    if (joinCode && (joinCode.includes("-") || joinCode.length > 12)) {
+      next = "/dashboard";
+    }
+  }
+
   const forwardedHost = request.headers.get("x-forwarded-host");
   const isLocalEnv = process.env.NODE_ENV === "development";
   const origin = requestUrl.origin;
   const redirectBase = !isLocalEnv && forwardedHost ? `https://${forwardedHost}` : origin;
 
   if (code) {
+    const response = NextResponse.redirect(`${redirectBase}${next}`);
     const cookieStore = await cookies();
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -30,13 +41,14 @@ export async function GET(request: Request) {
             return cookieStore.getAll();
           },
           setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              );
-            } catch {
-              // Server component ignore
-            }
+            cookiesToSet.forEach(({ name, value, options }) => {
+              try {
+                cookieStore.set(name, value, options);
+              } catch {
+                // Ignore in Server Component context
+              }
+              response.cookies.set(name, value, options);
+            });
           },
         },
       }
@@ -44,12 +56,6 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      const response = NextResponse.redirect(`${redirectBase}${next}`);
-      // Ensure all updated session cookies are attached to the redirect response headers
-      const allCookies = cookieStore.getAll();
-      allCookies.forEach((c) => {
-        response.cookies.set(c.name, c.value);
-      });
       return response;
     } else {
       console.error("Auth callback exchange error:", error);
