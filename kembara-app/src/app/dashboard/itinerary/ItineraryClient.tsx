@@ -312,12 +312,39 @@ export default function ItineraryClient({
     setOpenTasks((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
-  // Permission helpers for tasks
+  // Permission & visibility helpers for tasks
+  const canViewTask = useCallback(
+    (t: Task) => {
+      // 1. Host and Editor can see ALL tasks (public tasks, host personal tasks, and all members' tasks)
+      if (isHost || canEdit) return true;
+
+      // 2. Public / General tasks (tugas umum - no assignee): Visible to everyone
+      if (!t.assigned_to) return true;
+
+      // 3. Personal tasks: Visible ONLY to the assignee or the creator
+      if (user?.id && (t.assigned_to === user.id || t.created_by === user.id)) {
+        return true;
+      }
+
+      // Otherwise hidden from this viewer
+      return false;
+    },
+    [isHost, canEdit, user?.id]
+  );
+
   const canToggleTask = useCallback(
     (t: Task) => {
+      // Host and Editor can toggle any visible task
       if (isHost || canEdit) return true;
-      if (user?.id && (t.assigned_to === user.id || t.created_by === user.id)) return true;
-      if (!t.created_by && !t.assigned_to) return true; // Legacy tasks
+
+      // Public / General tasks: Viewer can complete / toggle it
+      if (!t.assigned_to) return true;
+
+      // Personal task: Viewer can complete / toggle their own task
+      if (user?.id && (t.assigned_to === user.id || t.created_by === user.id)) {
+        return true;
+      }
+
       return false;
     },
     [isHost, canEdit, user?.id]
@@ -325,17 +352,33 @@ export default function ItineraryClient({
 
   const canDeleteTask = useCallback(
     (t: Task) => {
+      // Host can delete any task
       if (isHost) return true;
-      if (user?.id && (t.created_by === user.id || t.assigned_to === user.id)) return true;
+
+      // Editor can delete general tasks and tasks they created
+      if (canEdit && (!t.assigned_to || (user?.id && t.created_by === user.id))) {
+        return true;
+      }
+
+      // Viewer CANNOT delete general tasks (!t.assigned_to).
+      // Viewer can ONLY delete personal tasks they themselves created.
+      if (user?.id && t.created_by === user.id && t.assigned_to === user.id) {
+        return true;
+      }
+
       return false;
     },
-    [isHost, user?.id]
+    [isHost, canEdit, user?.id]
   );
 
   const canAddSubtask = useCallback(
     (t: Task) => {
       if (isHost || canEdit) return true;
-      if (user?.id && (t.created_by === user.id || t.assigned_to === user.id)) return true;
+      // Viewer can add subtasks to general tasks or their own personal tasks
+      if (!t.assigned_to) return true;
+      if (user?.id && (t.assigned_to === user.id || t.created_by === user.id)) {
+        return true;
+      }
       return false;
     },
     [isHost, canEdit, user?.id]
@@ -1454,8 +1497,8 @@ export default function ItineraryClient({
                 color: "bg-stone-100 text-stone-600",
               };
               const isOpen = openTasks[p.id];
-              const tasks = p.tasks_json || [];
-              const completedCount = tasks.filter((t) => t.done).length;
+              const visibleTasks = (p.tasks_json || []).filter(canViewTask);
+              const completedCount = visibleTasks.filter((t) => t.done).length;
               const isEditingNote = editingNotePlaceId === p.id;
               const expensesList = p.expenses || [];
               const detectedCur = detectCurrencyFromLocation(
@@ -1776,7 +1819,7 @@ export default function ItineraryClient({
                             className="text-brand-500"
                             aria-hidden
                           />
-                          {completedCount}/{tasks.length} Tugas
+                          {completedCount}/{visibleTasks.length} Tugas
                         </span>
                         <Icons.CaretDown
                           size={14}
@@ -1791,12 +1834,12 @@ export default function ItineraryClient({
 
                       {isOpen && (
                         <div className="mt-2 space-y-2 pl-1 pb-1">
-                          {tasks.length === 0 ? (
+                          {visibleTasks.length === 0 ? (
                             <p className="text-[12px] text-stone-400 italic">
                               Belum ada catatan tugas.
                             </p>
                           ) : (
-                            tasks.map((t) => {
+                            visibleTasks.map((t) => {
                               const canToggle = canToggleTask(t);
                               const canDelete = canDeleteTask(t);
                               const canSubtask = canAddSubtask(t);
@@ -1831,8 +1874,13 @@ export default function ItineraryClient({
                                         {t.title}
                                       </span>
 
-                                      {/* Assignee Badge */}
-                                      {t.assigned_to === user?.id ? (
+                                      {/* Assignee / Type Badge */}
+                                      {!t.assigned_to ? (
+                                        <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full shrink-0">
+                                          <Icons.Globe size={11} />
+                                          <span>Umum</span>
+                                        </span>
+                                      ) : t.assigned_to === user?.id ? (
                                         <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-brand-700 bg-brand-50 border border-brand-200/80 px-2 py-0.5 rounded-full shrink-0">
                                           <Icons.User size={11} weight="bold" />
                                           <span>Saya</span>

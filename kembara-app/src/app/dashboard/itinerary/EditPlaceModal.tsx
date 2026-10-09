@@ -919,7 +919,11 @@ export default function EditPlaceModal({
                             {t.done && <Check size={10} weight="bold" />}
                           </span>
                           <span className="truncate">{t.title}</span>
-                          {t.assigned_to === currentUser?.id ? (
+                          {!t.assigned_to ? (
+                            <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.2 rounded shrink-0">
+                              Umum
+                            </span>
+                          ) : t.assigned_to === currentUser?.id ? (
                             <span className="text-[10px] font-bold text-brand-700 bg-brand-50 border border-brand-200/80 px-1.5 py-0.2 rounded shrink-0">
                               Saya
                             </span>
