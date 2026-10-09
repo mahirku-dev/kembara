@@ -200,7 +200,7 @@ export default function ConsolidatedAgendaSection({
                   router.push(`/dashboard/itinerary?tripId=${trip.id}`);
                   router.refresh();
                 }}
-                buttonText="+ Tambah agenda"
+                buttonText="Tambah Agenda"
                 buttonVariant="secondary"
                 className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-brand-200 bg-white hover:bg-brand-50 px-4 py-2 text-xs font-semibold text-brand-600 shadow-xs transition active:scale-95"
               />

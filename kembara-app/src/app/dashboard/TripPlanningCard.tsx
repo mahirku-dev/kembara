@@ -54,7 +54,7 @@ export default function TripPlanningCard({ trip, currentUserId }: TripPlanningCa
               router.push(`/dashboard/itinerary?tripId=${trip.id}`);
               router.refresh();
             }}
-            buttonText="+ Tambah agenda"
+            buttonText="Tambah Agenda"
             buttonVariant="secondary"
             className="text-xs font-semibold text-brand-600 hover:text-brand-700 inline-flex items-center gap-1 transition active:scale-95"
           />
