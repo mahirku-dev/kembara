@@ -871,6 +871,24 @@ export function formatTimeRange(
   return range || "Waktu belum diatur";
 }
 
+/**
+ * Generates an intent URL for Google Maps Navigation & Directions.
+ * On mobile Android & iOS, this universally opens the native Google Maps App in Directions / Turn-by-Turn routing mode.
+ */
+export function getGoogleMapsDirectionsUrl(
+  lat?: number | null,
+  lng?: number | null,
+  address?: string | null,
+  name?: string | null
+): string {
+  if (lat != null && lng != null && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  }
 
+  const queryTarget = [name, address].filter(Boolean).join(" ").trim();
+  if (queryTarget) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(queryTarget)}`;
+  }
 
-
+  return "https://www.google.com/maps";
+}

@@ -16,7 +16,11 @@ import {
 } from "@phosphor-icons/react";
 import { format, parseISO } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { formatTimeRange, detectTimezoneFromLocation } from "@/lib/geo";
+import {
+  formatTimeRange,
+  detectTimezoneFromLocation,
+  getGoogleMapsDirectionsUrl,
+} from "@/lib/geo";
 import AddPlaceModal from "./itinerary/AddPlaceModal";
 import type { UpcomingPlace } from "./UpcomingAgendaCard";
 import type { TodayPlace } from "./TodayTripSummaryCard";
@@ -113,13 +117,16 @@ export default function ConsolidatedAgendaSection({
                   </h4>
                   {place.address && (
                     <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                        `${place.name} ${place.address}`
-                      )}`}
+                      href={getGoogleMapsDirectionsUrl(
+                        place.lat,
+                        place.lng,
+                        place.address,
+                        place.name
+                      )}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[11.5px] text-stone-500 hover:text-brand-600 flex items-start gap-1 group w-fit transition active:scale-95 break-words max-w-full"
-                      title="Buka lokasi di Google Maps"
+                      title="Buka rute arah di Google Maps"
                     >
                       <MapPin size={12} className="shrink-0 text-rose-500 mt-0.5 group-hover:scale-110 transition-transform" />
                       <span className="group-hover:underline break-words">{place.address}</span>
@@ -150,13 +157,16 @@ export default function ConsolidatedAgendaSection({
           </h4>
           {nextAgenda.address && (
             <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                `${nextAgenda.name} ${nextAgenda.address}`
-              )}`}
+              href={getGoogleMapsDirectionsUrl(
+                nextAgenda.lat,
+                nextAgenda.lng,
+                nextAgenda.address,
+                nextAgenda.name
+              )}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-stone-500 hover:text-brand-600 flex items-start gap-1 group w-fit transition active:scale-95 break-words max-w-full"
-              title="Buka lokasi di Google Maps"
+              title="Buka rute arah di Google Maps"
             >
               <MapPin size={13} className="shrink-0 text-rose-500 mt-0.5 group-hover:scale-110 transition-transform" />
               <span className="group-hover:underline break-words">{nextAgenda.address}</span>

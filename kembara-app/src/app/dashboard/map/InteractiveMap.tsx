@@ -14,6 +14,7 @@ import {
   X,
   Buildings,
 } from "@phosphor-icons/react";
+import { getGoogleMapsDirectionsUrl } from "@/lib/geo";
 
 interface Landmark {
   id: string;
@@ -371,9 +372,7 @@ export default function InteractiveMap({ trip, places = [] }: Props) {
   }, [isMapReady, activeFilter, agendaPlacesWithGps]);
 
   const openInGoogleMaps = (lat: number, lng: number, queryName?: string) => {
-    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      queryName ? `${queryName} ${lat},${lng}` : `${lat},${lng}`
-    )}`;
+    const url = getGoogleMapsDirectionsUrl(lat, lng, queryName, queryName);
     window.open(url, "_blank", "noopener,noreferrer");
   };
 

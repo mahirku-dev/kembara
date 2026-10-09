@@ -19,6 +19,7 @@ import {
   detectTimezoneFromLocation,
   formatTimeDisplay,
   formatTimeRange,
+  getGoogleMapsDirectionsUrl,
 } from "@/lib/geo";
 import { useRouter } from "next/navigation";
 import AddPlaceModal from "./AddPlaceModal";
@@ -208,6 +209,7 @@ export default function ItineraryClient({
   // Update a task checkbox and persist to Supabase
   const handleTaskToggle = useCallback(
     async (place: Place, taskId: string, newDone: boolean) => {
+      if (!canEdit) return;
       setSavingTaskId(taskId);
 
       setDays((prevDays) =>
@@ -240,12 +242,13 @@ export default function ItineraryClient({
         setSavingTaskId(null);
       }
     },
-    []
+    [canEdit]
   );
 
   // Add a new task to a place and persist to Supabase
   const handleAddTask = useCallback(
     async (place: Place) => {
+      if (!canEdit) return;
       const title = newTaskTitle.trim();
       if (!title) return;
 
@@ -283,17 +286,19 @@ export default function ItineraryClient({
         console.error("Gagal menambahkan task:", err);
       }
     },
-    [newTaskTitle]
+    [canEdit, newTaskTitle]
   );
 
   // Start editing a note for a place
   const handleStartEditNote = (place: Place) => {
+    if (!canEdit) return;
     setEditingNotePlaceId(place.id);
     setNoteDraft(place.notes || "");
   };
 
   // Save a note to Supabase and update state
   const handleSaveNote = async (place: Place) => {
+    if (!canEdit) return;
     const text = noteDraft.trim();
     setSavingNotePlaceId(place.id);
 
@@ -324,7 +329,7 @@ export default function ItineraryClient({
 
   // Confirm delete note handler
   const handleConfirmDeleteNote = async () => {
-    if (!noteToDelete) return;
+    if (!canEdit || !noteToDelete) return;
     const place = noteToDelete;
 
     setDays((prevDays) =>
@@ -352,6 +357,7 @@ export default function ItineraryClient({
 
   // Open Expense Form Modal for adding new or editing existing expense
   const handleOpenExpenseModal = (place: Place, existingExp?: Expense) => {
+    if (!canEdit) return;
     setExpenseModalPlace(place);
     setEditingExpense(existingExp || null);
 
@@ -377,7 +383,7 @@ export default function ItineraryClient({
 
   // Save Expense (Insert / Update)
   const handleSaveExpense = async () => {
-    if (!expenseModalPlace) return;
+    if (!canEdit || !expenseModalPlace) return;
     const place = expenseModalPlace;
     const cleanAmount = Number(expenseAmount.replace(/[^0-9]/g, "")) || 0;
     if (cleanAmount <= 0) {
@@ -537,7 +543,7 @@ export default function ItineraryClient({
 
   // Delete Expense
   const handleConfirmDeleteExpense = async () => {
-    if (!expenseToDelete) return;
+    if (!canEdit || !expenseToDelete) return;
     const { expense, placeId } = expenseToDelete;
 
     const currentPlace = days
@@ -580,7 +586,7 @@ export default function ItineraryClient({
 
   // Delete an entire Place / Agenda
   const handleConfirmDeletePlace = async () => {
-    if (!placeToDelete) return;
+    if (!canEdit || !placeToDelete) return;
     const place = placeToDelete;
     setIsDeletingPlace(true);
 
@@ -612,7 +618,7 @@ export default function ItineraryClient({
 
   // Update Place Location from FreeMapLocationPicker
   const handleSavePlaceLocation = async (loc: SelectedLocationResult) => {
-    if (!locationEditPlace) return;
+    if (!canEdit || !locationEditPlace) return;
     const placeId = locationEditPlace.id;
 
     setDays((prevDays) =>
@@ -647,6 +653,7 @@ export default function ItineraryClient({
 
   // Handle adding a new itinerary day
   const handleAddDay = async () => {
+    if (!canEdit) return;
     try {
       const supabase = createClient();
       const newDayNumber = days.length + 1;
@@ -1101,17 +1108,16 @@ export default function ItineraryClient({
                           {p.address ? (
                             <div className="flex items-start gap-1.5 flex-wrap max-w-full">
                               <a
-                                href={
-                                  p.lat && p.lng
-                                    ? `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`
-                                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                                        `${p.name} ${p.address}`
-                                      )}`
-                                }
+                                href={getGoogleMapsDirectionsUrl(
+                                  p.lat,
+                                  p.lng,
+                                  p.address,
+                                  p.name
+                                )}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1.5 text-xs text-brand-700 bg-brand-50/90 hover:bg-brand-100 border border-brand-200 px-2.5 py-1.5 rounded-xl transition active:scale-95 group font-medium max-w-full break-words shadow-2xs"
-                                title="Buka lokasi ini di Google Maps"
+                                title="Buka rute arah di Google Maps"
                               >
                                 <Icons.MapPin
                                   size={13}
@@ -1126,39 +1132,46 @@ export default function ItineraryClient({
                                 />
                               </a>
 
-                              <button
-                                type="button"
-                                onClick={() => setLocationEditPlace(p)}
-                                className="grid h-7 w-7 place-items-center rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition shrink-0 mt-0.5"
-                                title="Ubah titik lokasi di peta"
-                              >
-                                <Icons.PencilSimple size={13} />
-                              </button>
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => setLocationEditPlace(p)}
+                                  className="grid h-7 w-7 place-items-center rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition shrink-0 mt-0.5"
+                                  title="Ubah titik lokasi di peta"
+                                >
+                                  <Icons.PencilSimple size={13} />
+                                </button>
+                              )}
                             </div>
                           ) : (
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <a
-                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                                  `${p.name} ${trip.destination || ""}`
-                                )}`}
+                                href={getGoogleMapsDirectionsUrl(
+                                  p.lat,
+                                  p.lng,
+                                  `${p.name} ${trip.destination || ""}`,
+                                  p.name
+                                )}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-brand-600 hover:text-brand-700 bg-brand-50/70 hover:bg-brand-100/70 px-2.5 py-1 rounded-xl border border-brand-200/70 transition active:scale-95 group"
-                                title="Cari di Google Maps"
+                                title="Buka rute arah di Google Maps"
                               >
                                 <Icons.MapPin size={12} weight="fill" className="text-rose-500" />
                                 <span>Google Maps</span>
                                 <Icons.ArrowSquareOut size={11} weight="bold" className="text-stone-400 group-hover:text-brand-600" />
                               </a>
 
-                              <button
-                                type="button"
-                                onClick={() => setLocationEditPlace(p)}
-                                className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-xl border border-rose-200 transition active:scale-95"
-                              >
-                                <Icons.PencilSimple size={12} />
-                                <span>Set Peta</span>
-                              </button>
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => setLocationEditPlace(p)}
+                                  className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-xl border border-rose-200 transition active:scale-95"
+                                >
+                                  <Icons.PencilSimple size={12} />
+                                  <span>Set Peta</span>
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1252,30 +1265,32 @@ export default function ItineraryClient({
                               {p.notes}
                             </p>
                           </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleStartEditNote(p)}
-                              className="grid h-8 w-8 place-items-center rounded-lg text-stone-500 hover:text-amber-700 hover:bg-amber-100/70 active:scale-95 transition"
-                              title="Edit Catatan"
-                            >
-                              <Icons.PencilSimple size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setNoteToDelete(p)}
-                              className="grid h-8 w-8 place-items-center rounded-lg text-stone-400 hover:text-rose-600 hover:bg-rose-50 active:scale-95 transition"
-                              title="Hapus Catatan"
-                            >
-                              <Icons.Trash size={14} />
-                            </button>
-                          </div>
+                          {canEdit && (
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditNote(p)}
+                                className="grid h-8 w-8 place-items-center rounded-lg text-stone-500 hover:text-amber-700 hover:bg-amber-100/70 active:scale-95 transition"
+                                title="Edit Catatan"
+                              >
+                                <Icons.PencilSimple size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setNoteToDelete(p)}
+                                className="grid h-8 w-8 place-items-center rounded-lg text-stone-400 hover:text-rose-600 hover:bg-rose-50 active:scale-95 transition"
+                                title="Hapus Catatan"
+                              >
+                                <Icons.Trash size={14} />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ) : null}
 
                     {/* ================= QUICK ADD ACTIONS: (+ Tambah Catatan / + Tambah Pengeluaran) ================= */}
-                    {(!p.notes || expensesList.length === 0) && !isEditingNote && (
+                    {canEdit && (!p.notes || expensesList.length === 0) && !isEditingNote && (
                       <div className="mt-3 flex items-center gap-2 flex-wrap">
                         {!p.notes && (
                           <button
@@ -1336,12 +1351,15 @@ export default function ItineraryClient({
                             tasks.map((t) => (
                               <label
                                 key={t.id}
-                                className="flex items-start gap-2 cursor-pointer group"
+                                className={clsx(
+                                  "flex items-start gap-2 group",
+                                  canEdit ? "cursor-pointer" : "cursor-default"
+                                )}
                               >
                                 <input
                                   type="checkbox"
                                   checked={t.done}
-                                  disabled={savingTaskId === t.id}
+                                  disabled={!canEdit || savingTaskId === t.id}
                                   onChange={(e) =>
                                     handleTaskToggle(p, t.id, e.target.checked)
                                   }
@@ -1361,53 +1379,55 @@ export default function ItineraryClient({
                             ))
                           )}
 
-                          {/* Add task inline form */}
-                          {addingTaskForPlaceId === p.id ? (
-                            <div className="mt-2 flex items-center gap-2">
-                              <input
-                                type="text"
-                                value={newTaskTitle}
-                                onChange={(e) => setNewTaskTitle(e.target.value)}
-                                placeholder="Nama tugas..."
-                                className="flex-1 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-[12px] text-stone-800 placeholder:text-stone-400 focus:border-brand-500 focus:outline-none"
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    handleAddTask(p);
-                                  } else if (e.key === "Escape") {
+                          {/* Add task inline form (Host/Editor only) */}
+                          {canEdit && (
+                            addingTaskForPlaceId === p.id ? (
+                              <div className="mt-2 flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={newTaskTitle}
+                                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                                  placeholder="Nama tugas..."
+                                  className="flex-1 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-[12px] text-stone-800 placeholder:text-stone-400 focus:border-brand-500 focus:outline-none"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      handleAddTask(p);
+                                    } else if (e.key === "Escape") {
+                                      setAddingTaskForPlaceId(null);
+                                      setNewTaskTitle("");
+                                    }
+                                  }}
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleAddTask(p)}
+                                  className="rounded-xl bg-brand-600 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm hover:bg-brand-700"
+                                >
+                                  Simpan
+                                </button>
+                                <button
+                                  onClick={() => {
                                     setAddingTaskForPlaceId(null);
                                     setNewTaskTitle("");
-                                  }
-                                }}
-                                autoFocus
-                              />
-                              <button
-                                onClick={() => handleAddTask(p)}
-                                className="rounded-xl bg-brand-600 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm hover:bg-brand-700"
-                              >
-                                Simpan
-                              </button>
+                                  }}
+                                  className="rounded-xl px-2 py-1.5 text-[12px] text-stone-400 hover:text-stone-600"
+                                >
+                                  Batal
+                                </button>
+                              </div>
+                            ) : (
                               <button
                                 onClick={() => {
-                                  setAddingTaskForPlaceId(null);
+                                  setAddingTaskForPlaceId(p.id);
                                   setNewTaskTitle("");
                                 }}
-                                className="rounded-xl px-2 py-1.5 text-[12px] text-stone-400 hover:text-stone-600"
+                                className="text-[12px] text-brand-600 font-medium hover:underline mt-2 flex items-center gap-1"
                               >
-                                Batal
+                                <Icons.Plus size={13} weight="bold" />
+                                <span>Tambah tugas</span>
                               </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setAddingTaskForPlaceId(p.id);
-                                setNewTaskTitle("");
-                              }}
-                              className="text-[12px] text-brand-600 font-medium hover:underline mt-2 flex items-center gap-1"
-                            >
-                              <Icons.Plus size={13} weight="bold" />
-                              Tambah tugas
-                            </button>
+                            )
                           )}
                         </div>
                       )}
