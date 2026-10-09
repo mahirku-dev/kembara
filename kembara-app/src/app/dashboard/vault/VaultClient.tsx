@@ -3,7 +3,8 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { createClient } from "@/utils/supabase/client";
-import type { PackingItem, Trip } from "@/types";
+import type { PackingItem, Subtask, Trip } from "@/types";
+import { canEditTrip, isTripHost } from "@/types";
 import {
   SuitcaseRolling,
   FileText,
@@ -31,6 +32,9 @@ import {
   MagnifyingGlassPlus,
   MagnifyingGlassMinus,
   ArrowsClockwise,
+  CaretDown,
+  CaretRight,
+  ListChecks,
 } from "@phosphor-icons/react";
 import { clsx } from "clsx";
 import { format } from "date-fns";
@@ -130,6 +134,36 @@ export default function VaultClient({
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const [items, setItems] = useState<PackingItem[]>(initialItems);
+
+  const isHost = isTripHost(trip.current_user_role, user?.id, trip.user_id);
+  const canEdit = canEditTrip(trip.current_user_role) || isHost;
+
+  const canEditItem = useCallback(
+    (item: PackingItem) => {
+      if (isHost || canEdit) return true;
+      if (user?.id && item.created_by === user.id) return true;
+      return false;
+    },
+    [isHost, canEdit, user?.id]
+  );
+
+  const canDeleteItem = useCallback(
+    (item: PackingItem) => {
+      if (isHost || canEdit) return true;
+      if (user?.id && item.created_by === user.id) return true;
+      return false;
+    },
+    [isHost, canEdit, user?.id]
+  );
+
+  // Subtask & inline edit states
+  const [openSubtasksByItemId, setOpenSubtasksByItemId] = useState<Record<string, boolean>>({});
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingItemName, setEditingItemName] = useState("");
+  const [addingSubtaskForItemId, setAddingSubtaskForItemId] = useState<string | null>(null);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
+  const [editingSubtaskTitle, setEditingSubtaskTitle] = useState("");
 
   // Mobile mode tab state: "packing" | "docs" | "ai"
   const [mobileTab, setMobileTab] = useState<"packing" | "docs" | "ai">("packing");
@@ -310,6 +344,9 @@ export default function VaultClient({
           item_name: text,
           category: catName,
           is_checked: false,
+          created_by: user?.id || null,
+          created_by_name: user?.user_metadata?.full_name || user?.email?.split("@")[0] || null,
+          subtasks_json: [],
         })
         .select()
         .single();
@@ -325,23 +362,194 @@ export default function VaultClient({
     }
   };
 
-  // 4. Toggle Checkbox
+  // 4. Save Edit Item Name
+  const handleSaveEditItem = async (item: PackingItem) => {
+    const newName = editingItemName.trim();
+    if (!newName || !canEditItem(item)) return;
+
+    setItems((prev) =>
+      prev.map((i) => (i.id === item.id ? { ...i, item_name: newName } : i))
+    );
+    setEditingItemId(null);
+    setEditingItemName("");
+
+    try {
+      const supabase = createClient();
+      await supabase
+        .from("packing_lists")
+        .update({ item_name: newName })
+        .eq("id", item.id);
+      showToast("Item persiapan berhasil diperbarui.");
+    } catch (err) {
+      console.error("Gagal edit item:", err);
+    }
+  };
+
+  // 5. Toggle Checkbox (and cascade to subtasks)
   const handleToggleItem = useCallback(async (item: PackingItem) => {
     const nextChecked = !item.is_checked;
+    const updatedSubtasks = (item.subtasks_json || []).map((st) => ({
+      ...st,
+      done: nextChecked,
+    }));
+
     setItems((prev) =>
-      prev.map((i) => (i.id === item.id ? { ...i, is_checked: nextChecked } : i))
+      prev.map((i) =>
+        i.id === item.id
+          ? { ...i, is_checked: nextChecked, subtasks_json: updatedSubtasks }
+          : i
+      )
     );
 
     try {
       const supabase = createClient();
       await supabase
         .from("packing_lists")
-        .update({ is_checked: nextChecked })
+        .update({ is_checked: nextChecked, subtasks_json: updatedSubtasks })
         .eq("id", item.id);
     } catch (err) {
       console.error("Gagal update checklist:", err);
     }
   }, []);
+
+  // 6. Sub-tasks Handlers
+  const handleAddSubtaskToItem = async (item: PackingItem) => {
+    const title = newSubtaskTitle.trim();
+    if (!title || !canEditItem(item)) return;
+
+    const newSubtask: Subtask = {
+      id: `st_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      title,
+      done: false,
+    };
+
+    const updatedSubtasks = [...(item.subtasks_json || []), newSubtask];
+
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === item.id
+          ? {
+              ...i,
+              is_checked: updatedSubtasks.every((st) => st.done),
+              subtasks_json: updatedSubtasks,
+            }
+          : i
+      )
+    );
+
+    setNewSubtaskTitle("");
+    setAddingSubtaskForItemId(null);
+    setOpenSubtasksByItemId((prev) => ({ ...prev, [item.id]: true }));
+
+    try {
+      const supabase = createClient();
+      await supabase
+        .from("packing_lists")
+        .update({ subtasks_json: updatedSubtasks })
+        .eq("id", item.id);
+      showToast("Sub-tugas berhasil ditambahkan.");
+    } catch (err) {
+      console.error("Gagal menambah sub-tugas:", err);
+    }
+  };
+
+  const handleToggleSubtask = async (item: PackingItem, subtaskId: string, nextDone: boolean) => {
+    const updatedSubtasks = (item.subtasks_json || []).map((st) =>
+      st.id === subtaskId ? { ...st, done: nextDone } : st
+    );
+    const allSubtasksDone =
+      updatedSubtasks.length > 0 && updatedSubtasks.every((st) => st.done);
+
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === item.id
+          ? {
+              ...i,
+              is_checked: allSubtasksDone,
+              subtasks_json: updatedSubtasks,
+            }
+          : i
+      )
+    );
+
+    try {
+      const supabase = createClient();
+      await supabase
+        .from("packing_lists")
+        .update({
+          is_checked: allSubtasksDone,
+          subtasks_json: updatedSubtasks,
+        })
+        .eq("id", item.id);
+    } catch (err) {
+      console.error("Gagal toggle subtask:", err);
+    }
+  };
+
+  const handleSaveEditSubtask = async (item: PackingItem, subtaskId: string) => {
+    const title = editingSubtaskTitle.trim();
+    if (!title || !canEditItem(item)) return;
+
+    const updatedSubtasks = (item.subtasks_json || []).map((st) =>
+      st.id === subtaskId ? { ...st, title } : st
+    );
+
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === item.id ? { ...i, subtasks_json: updatedSubtasks } : i
+      )
+    );
+
+    setEditingSubtaskId(null);
+    setEditingSubtaskTitle("");
+
+    try {
+      const supabase = createClient();
+      await supabase
+        .from("packing_lists")
+        .update({ subtasks_json: updatedSubtasks })
+        .eq("id", item.id);
+      showToast("Sub-tugas berhasil diperbarui.");
+    } catch (err) {
+      console.error("Gagal edit subtask:", err);
+    }
+  };
+
+  const handleDeleteSubtask = async (item: PackingItem, subtaskId: string) => {
+    if (!canDeleteItem(item)) return;
+
+    const updatedSubtasks = (item.subtasks_json || []).filter(
+      (st) => st.id !== subtaskId
+    );
+    const allSubtasksDone =
+      updatedSubtasks.length > 0 ? updatedSubtasks.every((st) => st.done) : item.is_checked;
+
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === item.id
+          ? {
+              ...i,
+              is_checked: allSubtasksDone,
+              subtasks_json: updatedSubtasks,
+            }
+          : i
+      )
+    );
+
+    try {
+      const supabase = createClient();
+      await supabase
+        .from("packing_lists")
+        .update({
+          is_checked: allSubtasksDone,
+          subtasks_json: updatedSubtasks,
+        })
+        .eq("id", item.id);
+      showToast("Sub-tugas berhasil dihapus.");
+    } catch (err) {
+      console.error("Gagal hapus subtask:", err);
+    }
+  };
 
   // 5. Delete item with confirmation
   const handleConfirmDeleteItem = async () => {
@@ -879,37 +1087,274 @@ export default function VaultClient({
                     </div>
 
                     {/* Items List */}
-                    <ul className="space-y-1">
-                      {catItems.map((item) => (
-                        <li key={item.id} className="flex items-center gap-1 -ml-1 group">
-                          <label className="flex min-h-[36px] min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg px-2 hover:bg-white/60 transition">
-                            <input
-                              type="checkbox"
-                              checked={item.is_checked}
-                              onChange={() => handleToggleItem(item)}
-                              className="h-[16px] w-[16px] shrink-0 rounded border-stone-300 accent-brand-600 cursor-pointer"
-                            />
-                            <span
-                              className={clsx(
-                                "text-[12.5px] leading-tight select-none transition",
-                                item.is_checked
-                                  ? "text-stone-400 line-through"
-                                  : "text-stone-700 font-medium"
-                              )}
-                            >
-                              {item.item_name}
-                            </span>
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => setItemToDelete(item)}
-                            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-stone-400 opacity-70 group-hover:opacity-100 hover:bg-white/60 hover:text-rose-600 transition"
-                            title="Hapus item"
+                    <ul className="space-y-2">
+                      {catItems.map((item) => {
+                        const isEditingThisItem = editingItemId === item.id;
+                        const subtasks = item.subtasks_json || [];
+                        const hasSubtasks = subtasks.length > 0;
+                        const isOpenSubtasks = openSubtasksByItemId[item.id] ?? true;
+                        const isAddingSubtask = addingSubtaskForItemId === item.id;
+                        const canEditThis = canEditItem(item);
+                        const canDeleteThis = canDeleteItem(item);
+
+                        return (
+                          <li
+                            key={item.id}
+                            className="rounded-xl bg-white/60 hover:bg-white/90 p-2.5 transition border border-stone-200/50 space-y-2 group"
                           >
-                            <X size={14} />
-                          </button>
-                        </li>
-                      ))}
+                            {/* Main Item Row */}
+                            {isEditingThisItem ? (
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  type="text"
+                                  value={editingItemName}
+                                  onChange={(e) => setEditingItemName(e.target.value)}
+                                  className="h-8 min-w-0 flex-1 rounded-lg border border-brand-300 bg-white px-2.5 text-[12.5px] text-stone-900 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      handleSaveEditItem(item);
+                                    } else if (e.key === "Escape") {
+                                      setEditingItemId(null);
+                                    }
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveEditItem(item)}
+                                  className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-600 text-white hover:bg-brand-700"
+                                  title="Simpan"
+                                >
+                                  <Check size={14} weight="bold" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingItemId(null)}
+                                  className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-stone-100 text-stone-500 hover:bg-stone-200"
+                                  title="Batal"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between gap-2">
+                                <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={item.is_checked}
+                                    onChange={() => handleToggleItem(item)}
+                                    className="h-[16px] w-[16px] shrink-0 rounded border-stone-300 accent-brand-600 cursor-pointer"
+                                  />
+                                  <span
+                                    className={clsx(
+                                      "text-[12.5px] leading-tight select-none transition break-words",
+                                      item.is_checked
+                                        ? "text-stone-400 line-through"
+                                        : "text-stone-800 font-medium"
+                                    )}
+                                  >
+                                    {item.item_name}
+                                  </span>
+                                </label>
+
+                                {/* Action Buttons for Item */}
+                                <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition">
+                                  {canEditThis && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setAddingSubtaskForItemId(
+                                            isAddingSubtask ? null : item.id
+                                          );
+                                          setNewSubtaskTitle("");
+                                        }}
+                                        className="text-[10.5px] font-semibold text-brand-700 hover:text-brand-800 bg-brand-100/70 hover:bg-brand-200/80 px-2 py-0.5 rounded-lg border border-brand-200/60 transition active:scale-95"
+                                        title="Tambah sub-tugas"
+                                      >
+                                        Sub-tugas
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingItemId(item.id);
+                                          setEditingItemName(item.item_name);
+                                        }}
+                                        className="grid h-7 w-7 place-items-center rounded-md text-stone-400 hover:text-brand-600 hover:bg-brand-50 transition"
+                                        title="Edit nama item"
+                                      >
+                                        <PencilSimple size={13} />
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {canDeleteThis && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setItemToDelete(item)}
+                                      className="grid h-7 w-7 place-items-center rounded-md text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                                      title="Hapus item"
+                                    >
+                                      <Trash size={13} />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Subtasks Section */}
+                            {(hasSubtasks || isAddingSubtask) && (
+                              <div className="pl-5 ml-1 border-l-2 border-brand-200/60 space-y-1.5 pt-1">
+                                {subtasks.map((st) => {
+                                  const isEditingThisSubtask = editingSubtaskId === st.id;
+
+                                  return (
+                                    <div
+                                      key={st.id}
+                                      className="flex items-center justify-between gap-1.5 group/st"
+                                    >
+                                      {isEditingThisSubtask ? (
+                                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                          <input
+                                            type="text"
+                                            value={editingSubtaskTitle}
+                                            onChange={(e) =>
+                                              setEditingSubtaskTitle(e.target.value)
+                                            }
+                                            className="h-7 flex-1 text-[11.5px] bg-white px-2 rounded border border-brand-300 focus:outline-none"
+                                            autoFocus
+                                            onKeyDown={(e) => {
+                                              if (e.key === "Enter") {
+                                                e.preventDefault();
+                                                handleSaveEditSubtask(item, st.id);
+                                              } else if (e.key === "Escape") {
+                                                setEditingSubtaskId(null);
+                                              }
+                                            }}
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleSaveEditSubtask(item, st.id)
+                                            }
+                                            className="h-7 px-2 text-[11px] font-semibold text-white bg-brand-600 rounded hover:bg-brand-700"
+                                          >
+                                            Simpan
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => setEditingSubtaskId(null)}
+                                            className="h-7 px-1.5 text-[11px] text-stone-500 hover:text-stone-700"
+                                          >
+                                            Batal
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <label className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
+                                            <input
+                                              type="checkbox"
+                                              checked={st.done}
+                                              onChange={(e) =>
+                                                handleToggleSubtask(
+                                                  item,
+                                                  st.id,
+                                                  e.target.checked
+                                                )
+                                              }
+                                              className="h-3.5 w-3.5 shrink-0 rounded border-stone-300 accent-brand-600 cursor-pointer"
+                                            />
+                                            <span
+                                              className={clsx(
+                                                "text-[11.5px] leading-snug break-words transition",
+                                                st.done
+                                                  ? "text-stone-400 line-through"
+                                                  : "text-stone-600 font-medium"
+                                              )}
+                                            >
+                                              {st.title}
+                                            </span>
+                                          </label>
+
+                                          <div className="flex items-center gap-0.5 opacity-60 group-hover/st:opacity-100 transition">
+                                            {canEditThis && (
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setEditingSubtaskId(st.id);
+                                                  setEditingSubtaskTitle(st.title);
+                                                }}
+                                                className="p-1 text-stone-400 hover:text-brand-600 rounded transition"
+                                                title="Edit sub-tugas"
+                                              >
+                                                <PencilSimple size={11} />
+                                              </button>
+                                            )}
+                                            {canDeleteThis && (
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  handleDeleteSubtask(item, st.id)
+                                                }
+                                                className="p-1 text-stone-400 hover:text-rose-600 rounded transition"
+                                                title="Hapus sub-tugas"
+                                              >
+                                                <Trash size={11} />
+                                              </button>
+                                            )}
+                                          </div>
+                                        </>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+
+                                {/* Inline Add Subtask Input */}
+                                {isAddingSubtask && (
+                                  <div className="flex items-center gap-1.5 pt-1">
+                                    <input
+                                      type="text"
+                                      value={newSubtaskTitle}
+                                      onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                                      placeholder="Nama sub-tugas..."
+                                      className="h-7 flex-1 rounded-md border border-stone-200 bg-white px-2 text-[11px] text-stone-800 placeholder:text-stone-400 focus:border-brand-500 focus:outline-none"
+                                      autoFocus
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          e.preventDefault();
+                                          handleAddSubtaskToItem(item);
+                                        } else if (e.key === "Escape") {
+                                          setAddingSubtaskForItemId(null);
+                                          setNewSubtaskTitle("");
+                                        }
+                                      }}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAddSubtaskToItem(item)}
+                                      disabled={!newSubtaskTitle.trim()}
+                                      className="h-7 px-2 text-[10.5px] font-semibold text-white bg-brand-600 rounded-md hover:bg-brand-700 disabled:opacity-50 transition"
+                                    >
+                                      Simpan
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setAddingSubtaskForItemId(null);
+                                        setNewSubtaskTitle("");
+                                      }}
+                                      className="h-7 px-1.5 text-[10.5px] text-stone-500 hover:text-stone-700"
+                                    >
+                                      Batal
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
 
                       {/* Inline form to add tasklist/item to this specific category */}
                       <li className="mt-2 pt-1 border-t border-brand-100/60">

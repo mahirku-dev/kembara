@@ -119,6 +119,9 @@ export interface PackingItem {
   item_name: string;
   category: string | null;
   is_checked: boolean;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  subtasks_json?: Subtask[];
   created_at: string;
 }
 

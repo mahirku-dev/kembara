@@ -165,6 +165,11 @@ export default function ItineraryClient({
   const [newTaskAssigneeId, setNewTaskAssigneeId] = useState<string>(user?.id || "");
   const [addingSubtaskForTaskId, setAddingSubtaskForTaskId] = useState<string | null>(null);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskTitle, setEditingTaskTitle] = useState("");
+  const [editingTaskAssigneeId, setEditingTaskAssigneeId] = useState<string>("");
+  const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
+  const [editingSubtaskTitle, setEditingSubtaskTitle] = useState("");
 
   // Sync local days state whenever initialDays prop updates from server
   useEffect(() => {
@@ -370,6 +375,17 @@ export default function ItineraryClient({
     [isHost, canEdit, user?.id]
   );
 
+  const canEditTask = useCallback(
+    (t: Task) => {
+      // Host and Editor can edit any task
+      if (isHost || canEdit) return true;
+      // Viewer can edit tasks they created
+      if (user?.id && t.created_by === user.id) return true;
+      return false;
+    },
+    [isHost, canEdit, user?.id]
+  );
+
   const canAddSubtask = useCallback(
     (t: Task) => {
       if (isHost || canEdit) return true;
@@ -381,6 +397,123 @@ export default function ItineraryClient({
       return false;
     },
     [isHost, canEdit, user?.id]
+  );
+
+  // Update a parent task title & assignee
+  const handleSaveEditTask = useCallback(
+    async (place: Place, taskId: string) => {
+      const task = (place.tasks_json || []).find((t) => t.id === taskId);
+      if (!task || !canEditTask(task)) return;
+
+      const title = editingTaskTitle.trim();
+      if (!title) return;
+
+      let assignedTo = task.assigned_to;
+      let assignedName = task.assigned_name;
+      let assignedAvatar = task.assigned_avatar;
+
+      if (isHost) {
+        if (editingTaskAssigneeId === user?.id) {
+          assignedTo = user.id;
+          assignedName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Host";
+          assignedAvatar = user.user_metadata?.avatar_url || null;
+        } else if (editingTaskAssigneeId) {
+          const member = membersList.find(
+            (m) => m.user_id === editingTaskAssigneeId || m.id === editingTaskAssigneeId
+          );
+          if (member) {
+            assignedTo = member.user_id || member.id;
+            assignedName = member.name;
+            assignedAvatar = member.avatar_url;
+          }
+        } else {
+          assignedTo = null;
+          assignedName = null;
+          assignedAvatar = null;
+        }
+      }
+
+      const updatedTasks: Task[] = (place.tasks_json || []).map((t) => {
+        if (t.id !== taskId) return t;
+        return {
+          ...t,
+          title,
+          assigned_to: assignedTo,
+          assigned_name: assignedName,
+          assigned_avatar: assignedAvatar,
+        };
+      });
+
+      setDays((prevDays) =>
+        prevDays.map((d) => ({
+          ...d,
+          places: d.places.map((p) => {
+            if (p.id !== place.id) return p;
+            return { ...p, tasks_json: updatedTasks };
+          }),
+        }))
+      );
+
+      setEditingTaskId(null);
+      setEditingTaskTitle("");
+
+      try {
+        const supabase = createClient();
+        await supabase
+          .from("places")
+          .update({ tasks_json: updatedTasks })
+          .eq("id", place.id);
+        showToast("Tugas berhasil diperbarui.");
+      } catch (err) {
+        console.error("Gagal update task:", err);
+      }
+    },
+    [editingTaskTitle, editingTaskAssigneeId, isHost, membersList, user, canEditTask]
+  );
+
+  // Update a subtask title
+  const handleSaveEditSubtask = useCallback(
+    async (place: Place, taskId: string, subtaskId: string) => {
+      const task = (place.tasks_json || []).find((t) => t.id === taskId);
+      if (!task || !canEditTask(task)) return;
+
+      const title = editingSubtaskTitle.trim();
+      if (!title) return;
+
+      const updatedTasks: Task[] = (place.tasks_json || []).map((t) => {
+        if (t.id !== taskId) return t;
+        const subtasks = (t.subtasks || []).map((st) => {
+          if (st.id !== subtaskId) return st;
+          return { ...st, title };
+        });
+        return { ...t, subtasks };
+      });
+
+      setDays((prevDays) =>
+        prevDays.map((d) => ({
+          ...d,
+          places: d.places.map((p) => {
+            if (p.id !== place.id) return p;
+            return { ...p, tasks_json: updatedTasks };
+          }),
+        }))
+      );
+
+      setEditingSubtaskId(null);
+      setEditingSubtaskTitle("");
+
+      try {
+        const supabase = createClient();
+        await supabase
+          .from("places")
+          .update({ tasks_json: updatedTasks })
+          .eq("id", place.id);
+        showToast("Sub-tugas berhasil diperbarui.");
+      } catch (err) {
+        console.error("Gagal update subtask:", err);
+      }
+    },
+    [editingSubtaskTitle, canEditTask]
   );
 
   // Update a parent task checkbox (and all its subtasks if present)
@@ -1843,142 +1976,273 @@ export default function ItineraryClient({
                           ) : (
                             visibleTasks.map((t) => {
                               const canToggle = canToggleTask(t);
+                              const canEdit = canEditTask(t);
                               const canDelete = canDeleteTask(t);
                               const canSubtask = canAddSubtask(t);
+                              const isEditingThisTask = editingTaskId === t.id;
 
                               return (
                                 <div key={t.id} className="space-y-1.5 pt-1">
                                   {/* Parent Task Row */}
-                                  <div className="flex items-center justify-between gap-2 group">
-                                    <label
-                                      className={clsx(
-                                        "flex items-center gap-2 flex-1 min-w-0 flex-wrap sm:flex-nowrap",
-                                        canToggle ? "cursor-pointer" : "cursor-default"
-                                      )}
-                                    >
+                                  {isEditingThisTask ? (
+                                    <div className="p-2.5 rounded-xl bg-brand-50/70 border border-brand-200 space-y-2">
                                       <input
-                                        type="checkbox"
-                                        checked={t.done}
-                                        disabled={!canToggle || savingTaskId === t.id}
-                                        onChange={(e) =>
-                                          handleTaskToggle(p, t.id, e.target.checked)
-                                        }
-                                        className="rounded border-stone-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50 shrink-0"
+                                        type="text"
+                                        value={editingTaskTitle}
+                                        onChange={(e) => setEditingTaskTitle(e.target.value)}
+                                        placeholder="Judul tugas..."
+                                        className="w-full text-xs font-medium text-stone-900 bg-white px-2.5 py-1.5 rounded-lg border border-brand-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                                        autoFocus
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            e.preventDefault();
+                                            handleSaveEditTask(p, t.id);
+                                          } else if (e.key === "Escape") {
+                                            setEditingTaskId(null);
+                                          }
+                                        }}
                                       />
-                                      <span
+                                      {isHost && (
+                                        <div className="flex items-center gap-2">
+                                          <label className="text-[11px] font-semibold text-stone-600 shrink-0">
+                                            Pelaksana:
+                                          </label>
+                                          <select
+                                            value={editingTaskAssigneeId}
+                                            onChange={(e) => setEditingTaskAssigneeId(e.target.value)}
+                                            className="text-[11px] bg-white border border-brand-200 rounded-lg px-2 py-1 text-stone-800 flex-1 focus:outline-none"
+                                          >
+                                            <option value="">Semua (Tugas Umum)</option>
+                                            <option value={user?.id}>Saya ({user?.user_metadata?.full_name || "Host"})</option>
+                                            {membersList
+                                              .filter((m) => m.user_id !== user?.id && m.id !== user?.id)
+                                              .map((m) => (
+                                                <option key={m.id} value={m.user_id || m.id}>
+                                                  {m.name} ({m.role})
+                                                </option>
+                                              ))}
+                                          </select>
+                                        </div>
+                                      )}
+                                      <div className="flex items-center justify-end gap-1.5">
+                                        <button
+                                          type="button"
+                                          onClick={() => setEditingTaskId(null)}
+                                          className="text-xs px-2.5 py-1 rounded-lg text-stone-600 hover:bg-stone-200/60"
+                                        >
+                                          Batal
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSaveEditTask(p, t.id)}
+                                          disabled={!editingTaskTitle.trim()}
+                                          className="text-xs font-semibold px-3 py-1 rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50"
+                                        >
+                                          Simpan
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-between gap-2 group">
+                                      <label
                                         className={clsx(
-                                          "text-[13px] font-medium leading-snug break-words",
-                                          t.done
-                                            ? "text-stone-400 line-through"
-                                            : "text-stone-800"
+                                          "flex items-center gap-2 flex-1 min-w-0 flex-wrap sm:flex-nowrap",
+                                          canToggle ? "cursor-pointer" : "cursor-default"
                                         )}
                                       >
-                                        {t.title}
-                                      </span>
-
-                                      {/* Assignee / Type Badge */}
-                                      {!t.assigned_to ? (
-                                        <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full shrink-0">
-                                          <Icons.Globe size={11} />
-                                          <span>Umum</span>
-                                        </span>
-                                      ) : t.assigned_to === user?.id ? (
-                                        <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-brand-700 bg-brand-50 border border-brand-200/80 px-2 py-0.5 rounded-full shrink-0">
-                                          <Icons.User size={11} weight="bold" />
-                                          <span>Saya</span>
-                                        </span>
-                                      ) : t.assigned_name ? (
-                                        <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-stone-600 bg-stone-100 border border-stone-200/80 px-2 py-0.5 rounded-full shrink-0">
-                                          <Icons.User size={11} />
-                                          <span className="max-w-[110px] truncate">{t.assigned_name}</span>
-                                        </span>
-                                      ) : null}
-
-                                      {/* Created by info if different */}
-                                      {t.created_by && t.created_by !== t.assigned_to && t.created_by_name && (
-                                        <span className="text-[10px] text-stone-400 italic hidden sm:inline truncate max-w-[100px]" title={`Dibuat oleh ${t.created_by_name}`}>
-                                          (oleh {t.created_by === user?.id ? "Saya" : t.created_by_name})
-                                        </span>
-                                      )}
-                                    </label>
-
-                                    {/* Actions for parent task */}
-                                    <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition">
-                                      {canSubtask && (
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setAddingSubtaskForTaskId(
-                                              addingSubtaskForTaskId === t.id ? null : t.id
-                                            );
-                                            setNewSubtaskTitle("");
-                                          }}
-                                          className="text-[10.5px] font-semibold text-brand-700 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2 py-0.5 rounded-lg border border-brand-200/60 transition active:scale-95"
-                                          title="Tambah sub-tugas"
+                                        <input
+                                          type="checkbox"
+                                          checked={t.done}
+                                          disabled={!canToggle || savingTaskId === t.id}
+                                          onChange={(e) =>
+                                            handleTaskToggle(p, t.id, e.target.checked)
+                                          }
+                                          className="rounded border-stone-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50 shrink-0"
+                                        />
+                                        <span
+                                          className={clsx(
+                                            "text-[13px] font-medium leading-snug break-words",
+                                            t.done
+                                              ? "text-stone-400 line-through"
+                                              : "text-stone-800"
+                                          )}
                                         >
-                                          Sub-tugas
-                                        </button>
-                                      )}
-                                      {canDelete && (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleDeleteTask(p, t.id)}
-                                          className="text-stone-300 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 transition active:scale-95"
-                                          title="Hapus tugas"
-                                        >
-                                          <Icons.Trash size={13} />
-                                        </button>
-                                      )}
+                                          {t.title}
+                                        </span>
+
+                                        {/* Assignee / Type Badge */}
+                                        {!t.assigned_to ? (
+                                          <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full shrink-0">
+                                            <Icons.Globe size={11} />
+                                            <span>Umum</span>
+                                          </span>
+                                        ) : t.assigned_to === user?.id ? (
+                                          <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-brand-700 bg-brand-50 border border-brand-200/80 px-2 py-0.5 rounded-full shrink-0">
+                                            <Icons.User size={11} weight="bold" />
+                                            <span>Saya</span>
+                                          </span>
+                                        ) : t.assigned_name ? (
+                                          <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-stone-600 bg-stone-100 border border-stone-200/80 px-2 py-0.5 rounded-full shrink-0">
+                                            <Icons.User size={11} />
+                                            <span className="max-w-[110px] truncate">{t.assigned_name}</span>
+                                          </span>
+                                        ) : null}
+
+                                        {/* Created by info if different */}
+                                        {t.created_by && t.created_by !== t.assigned_to && t.created_by_name && (
+                                          <span className="text-[10px] text-stone-400 italic hidden sm:inline truncate max-w-[100px]" title={`Dibuat oleh ${t.created_by_name}`}>
+                                            (oleh {t.created_by === user?.id ? "Saya" : t.created_by_name})
+                                          </span>
+                                        )}
+                                      </label>
+
+                                      {/* Actions for parent task */}
+                                      <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition">
+                                        {canSubtask && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setAddingSubtaskForTaskId(
+                                                addingSubtaskForTaskId === t.id ? null : t.id
+                                              );
+                                              setNewSubtaskTitle("");
+                                            }}
+                                            className="text-[10.5px] font-semibold text-brand-700 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2 py-0.5 rounded-lg border border-brand-200/60 transition active:scale-95"
+                                            title="Tambah sub-tugas"
+                                          >
+                                            Sub-tugas
+                                          </button>
+                                        )}
+                                        {canEdit && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setEditingTaskId(t.id);
+                                              setEditingTaskTitle(t.title);
+                                              setEditingTaskAssigneeId(t.assigned_to || "");
+                                            }}
+                                            className="text-stone-400 hover:text-brand-600 p-1 rounded-md hover:bg-brand-50 transition active:scale-95"
+                                            title="Edit tugas"
+                                          >
+                                            <Icons.PencilSimple size={13} />
+                                          </button>
+                                        )}
+                                        {canDelete && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDeleteTask(p, t.id)}
+                                            className="text-stone-300 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 transition active:scale-95"
+                                            title="Hapus tugas"
+                                          >
+                                            <Icons.Trash size={13} />
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
+                                  )}
 
                                   {/* Subtasks List */}
                                   {((t.subtasks && t.subtasks.length > 0) || addingSubtaskForTaskId === t.id) && (
                                     <div className="pl-4 ml-2.5 border-l-2 border-stone-200/80 space-y-1.5 pt-0.5 pb-1">
-                                      {(t.subtasks || []).map((st) => (
-                                        <div
-                                          key={st.id}
-                                          className="flex items-center justify-between gap-2 group/st"
-                                        >
-                                          <label
-                                            className={clsx(
-                                              "flex items-center gap-2 flex-1 min-w-0",
-                                              canToggle ? "cursor-pointer" : "cursor-default"
-                                            )}
-                                          >
-                                            <input
-                                              type="checkbox"
-                                              checked={st.done}
-                                              disabled={!canToggle || savingTaskId === st.id}
-                                              onChange={(e) =>
-                                                handleSubtaskToggle(p, t.id, st.id, e.target.checked)
-                                              }
-                                              className="rounded border-stone-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50 h-3.5 w-3.5 shrink-0"
-                                            />
-                                            <span
-                                              className={clsx(
-                                                "text-[12px] leading-snug break-words",
-                                                st.done
-                                                  ? "text-stone-400 line-through"
-                                                  : "text-stone-600"
-                                              )}
-                                            >
-                                              {st.title}
-                                            </span>
-                                          </label>
+                                      {(t.subtasks || []).map((st) => {
+                                        const isEditingThisSubtask = editingSubtaskId === st.id;
 
-                                          {canDelete && (
-                                            <button
-                                              type="button"
-                                              onClick={() => handleDeleteSubtask(p, t.id, st.id)}
-                                              className="text-stone-300 hover:text-rose-600 p-0.5 rounded transition opacity-50 group-hover/st:opacity-100"
-                                              title="Hapus sub-tugas"
-                                            >
-                                              <Icons.Trash size={12} />
-                                            </button>
-                                          )}
-                                        </div>
-                                      ))}
+                                        return (
+                                          <div
+                                            key={st.id}
+                                            className="flex items-center justify-between gap-2 group/st"
+                                          >
+                                            {isEditingThisSubtask ? (
+                                              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                                <input
+                                                  type="text"
+                                                  value={editingSubtaskTitle}
+                                                  onChange={(e) => setEditingSubtaskTitle(e.target.value)}
+                                                  className="flex-1 text-[11.5px] bg-white px-2 py-0.5 rounded border border-brand-300 focus:outline-none"
+                                                  autoFocus
+                                                  onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                      e.preventDefault();
+                                                      handleSaveEditSubtask(p, t.id, st.id);
+                                                    } else if (e.key === "Escape") {
+                                                      setEditingSubtaskId(null);
+                                                    }
+                                                  }}
+                                                />
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleSaveEditSubtask(p, t.id, st.id)}
+                                                  className="text-[11px] font-semibold text-white bg-brand-600 px-2 py-0.5 rounded"
+                                                >
+                                                  Simpan
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setEditingSubtaskId(null)}
+                                                  className="text-[11px] text-stone-500 hover:text-stone-700 px-1 py-0.5"
+                                                >
+                                                  Batal
+                                                </button>
+                                              </div>
+                                            ) : (
+                                              <>
+                                                <label
+                                                  className={clsx(
+                                                    "flex items-center gap-2 flex-1 min-w-0",
+                                                    canToggle ? "cursor-pointer" : "cursor-default"
+                                                  )}
+                                                >
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={st.done}
+                                                    disabled={!canToggle || savingTaskId === st.id}
+                                                    onChange={(e) =>
+                                                      handleSubtaskToggle(p, t.id, st.id, e.target.checked)
+                                                    }
+                                                    className="rounded border-stone-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50 h-3.5 w-3.5 shrink-0"
+                                                  />
+                                                  <span
+                                                    className={clsx(
+                                                      "text-[12px] leading-snug break-words",
+                                                      st.done
+                                                        ? "text-stone-400 line-through"
+                                                        : "text-stone-600"
+                                                    )}
+                                                  >
+                                                    {st.title}
+                                                  </span>
+                                                </label>
+
+                                                <div className="flex items-center gap-1 opacity-60 group-hover/st:opacity-100 transition">
+                                                  {canEdit && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => {
+                                                        setEditingSubtaskId(st.id);
+                                                        setEditingSubtaskTitle(st.title);
+                                                      }}
+                                                      className="text-stone-400 hover:text-brand-600 p-0.5 rounded transition"
+                                                      title="Edit sub-tugas"
+                                                    >
+                                                      <Icons.PencilSimple size={12} />
+                                                    </button>
+                                                  )}
+                                                  {canDelete && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleDeleteSubtask(p, t.id, st.id)}
+                                                      className="text-stone-300 hover:text-rose-600 p-0.5 rounded transition"
+                                                      title="Hapus sub-tugas"
+                                                    >
+                                                      <Icons.Trash size={12} />
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              </>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
 
                                       {/* Inline input to add a subtask */}
                                       {canSubtask && addingSubtaskForTaskId === t.id && (
