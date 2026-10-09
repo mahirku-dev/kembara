@@ -35,6 +35,7 @@ import {
 import { clsx } from "clsx";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import { useRouter } from "next/navigation";
 import AiExtractItineraryModal from "@/components/AiExtractItineraryModal";
 
 export interface VaultDoc {
@@ -127,6 +128,7 @@ export default function VaultClient({
   user,
 }: Props) {
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
   const [items, setItems] = useState<PackingItem[]>(initialItems);
 
   // Mobile mode tab state: "packing" | "docs" | "ai"
@@ -1886,6 +1888,7 @@ export default function VaultClient({
         onClose={() => setIsAiExtractModalOpen(false)}
         onImportSuccess={() => {
           showToast("Jadwal itinerary berhasil diimpor!");
+          router.refresh();
         }}
       />
     </div>

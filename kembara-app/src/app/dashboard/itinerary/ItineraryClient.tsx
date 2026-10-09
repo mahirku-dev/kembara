@@ -165,6 +165,65 @@ export default function ItineraryClient({
   const [addingSubtaskForTaskId, setAddingSubtaskForTaskId] = useState<string | null>(null);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
 
+  // Sync local days state whenever initialDays prop updates from server
+  useEffect(() => {
+    if (initialDays) {
+      setDays(initialDays);
+    }
+  }, [initialDays]);
+
+  // Direct client refresh helper to fetch latest days, places & expenses immediately
+  const refreshItinerary = useCallback(async () => {
+    try {
+      const supabase = createClient();
+      const [{ data: fetchedDays }, { data: allTripExpenses }] = await Promise.all([
+        supabase
+          .from("itinerary_days")
+          .select("*, places(*)")
+          .eq("trip_id", trip.id)
+          .order("day_number", { ascending: true })
+          .returns<DayWithPlaces[]>(),
+        supabase
+          .from("expenses")
+          .select("*")
+          .eq("trip_id", trip.id)
+          .order("created_at", { ascending: true })
+          .returns<Expense[]>(),
+      ]);
+
+      if (fetchedDays) {
+        const orderedDays = (fetchedDays ?? []).map((d) => ({
+          ...d,
+          places: (d.places ?? [])
+            .sort((a, b) => a.sort_order - b.sort_order)
+            .map((p) => {
+              const placeExpenses = (allTripExpenses ?? []).filter(
+                (e) =>
+                  e.place_id === p.id ||
+                  (!e.place_id &&
+                    e.description &&
+                    e.description.toLowerCase().includes(p.name.toLowerCase()))
+              );
+              const totalCostFromExpenses = placeExpenses.reduce(
+                (sum, exp) => sum + Number(exp.amount || 0),
+                0
+              );
+              return {
+                ...p,
+                cost: totalCostFromExpenses > 0 ? totalCostFromExpenses : p.cost,
+                expenses: placeExpenses,
+              };
+            }),
+        }));
+        setDays(orderedDays);
+      }
+    } catch (err) {
+      console.error("Error refreshing itinerary:", err);
+    } finally {
+      router.refresh();
+    }
+  }, [trip.id, router]);
+
   // Sync / fetch trip members
   useEffect(() => {
     if (members && members.length > 0) {
@@ -1216,7 +1275,7 @@ export default function ItineraryClient({
           onClose={() => setIsAiExtractModalOpen(false)}
           onImportSuccess={() => {
             showToast("Itinerary berhasil diimpor!");
-            router.refresh();
+            refreshItinerary();
           }}
         />
       </div>
@@ -2629,7 +2688,7 @@ export default function ItineraryClient({
         onClose={() => setIsAiExtractModalOpen(false)}
         onImportSuccess={() => {
           showToast("Itinerary berhasil diimpor!");
-          router.refresh();
+          refreshItinerary();
         }}
       />
     </div>
