@@ -8,24 +8,18 @@ import {
   X,
   Clock,
   Tag,
-  NotePencil,
   CircleNotch,
   MapPin,
   Compass,
-  CurrencyDollar,
-  Trash,
   Crosshair,
   MagnifyingGlass,
   Check,
   Globe,
-  PencilSimple,
+  Image as ImageIcon,
 } from "@phosphor-icons/react";
-import type { Expense, Place, Task } from "@/types";
+import type { Place } from "@/types";
 import {
   detectCurrencyFromLocation,
-  formatMoney,
-  AVAILABLE_CURRENCIES,
-  EXPENSE_CATEGORIES,
   POPULAR_LANDMARKS,
   POPULAR_TIMEZONES,
   detectTimezoneFromLocation,
@@ -44,14 +38,6 @@ interface AddPlaceModalProps {
   className?: string;
   trigger?: React.ReactNode;
   onPlaceAdded: (place: Place) => void;
-}
-
-interface ExpenseDraftItem {
-  id: string;
-  description: string;
-  amount: string;
-  category: string;
-  currency: string;
 }
 
 interface SearchPlaceResult {
@@ -91,8 +77,6 @@ export default function AddPlaceModal({
   const [endTime, setEndTime] = useState("10:00");
   const [timezone, setTimezone] = useState<string>("KSA");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
-  const [tasksText, setTasksText] = useState("");
-  const [notesText, setNotesText] = useState("");
 
   // Location Fields
   const [locationName, setLocationName] = useState("");
@@ -114,9 +98,6 @@ export default function AddPlaceModal({
   // GPS state
   const [detectingGps, setDetectingGps] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
-
-  // Multiple Expense Items State
-  const [expenseItems, setExpenseItems] = useState<ExpenseDraftItem[]>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -145,13 +126,6 @@ export default function AddPlaceModal({
     if (!name.trim()) {
       setName(loc.name);
     }
-
-    setExpenseItems((prev) =>
-      prev.map((item) => ({
-        ...item,
-        currency: loc.defaultCurrency,
-      }))
-    );
   };
 
   // Autocomplete live search handler
@@ -159,7 +133,7 @@ export default function AddPlaceModal({
     setLocationQuery(query);
     if (searchTimer) clearTimeout(searchTimer);
 
-    if (!query.trim() || query.length < 2) {
+    if (!query.trim() || query.trim().length < 3) {
       setSearchResults([]);
       setSearchingLocation(false);
       return;
@@ -168,57 +142,61 @@ export default function AddPlaceModal({
     setSearchingLocation(true);
     const timer = setTimeout(async () => {
       try {
+        const encoded = encodeURIComponent(query.trim());
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-            query
-          )}&addressdetails=1&limit=5`,
-          { headers: { "Accept-Language": "id,en" } }
+          `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&addressdetails=1&limit=6`,
+          {
+            headers: {
+              "Accept-Language": "id,en,ar",
+              "User-Agent": "Kembara-App-Search/1.0",
+            },
+          }
         );
-        if (!res.ok) return;
-        const results: SearchPlaceResult[] = await res.json();
-        setSearchResults(results);
+        if (res.ok) {
+          const data: SearchPlaceResult[] = await res.json();
+          setSearchResults(data);
+        } else {
+          setSearchResults([]);
+        }
       } catch (err) {
-        console.error("Nominatim search error:", err);
+        console.error("Location search error:", err);
+        setSearchResults([]);
       } finally {
         setSearchingLocation(false);
       }
-    }, 380);
+    }, 400);
 
     setSearchTimer(timer);
   };
 
-  // Select search autocomplete item
-  const handleSelectAutocomplete = (item: SearchPlaceResult) => {
-    const itemLat = parseFloat(item.lat);
-    const itemLng = parseFloat(item.lon);
-    const placeTitle = item.name || item.display_name.split(",")[0] || "Lokasi Agenda";
-    const fullAddr = item.display_name;
-    const currency = detectCurrencyFromLocation(
-      itemLat,
-      itemLng,
-      fullAddr,
-      item.address?.country_code
-    );
+  // User clicked a search result
+  const handleSelectSearchResult = (result: SearchPlaceResult) => {
+    const parsedLat = parseFloat(result.lat);
+    const parsedLng = parseFloat(result.lon);
+    const placeTitle =
+      result.name ||
+      result.display_name.split(",")[0].trim() ||
+      "Lokasi Terpilih";
 
-    setAddress(fullAddr);
+    setLat(parsedLat);
+    setLng(parsedLng);
+    setAddress(result.display_name);
     setLocationName(placeTitle);
-    setLat(itemLat);
-    setLng(itemLng);
-    setDefaultCurrency(currency);
     setLocationQuery(placeTitle);
-    setTimezone(detectTimezoneFromLocation(itemLat, itemLng, fullAddr, placeTitle));
     setSearchResults([]);
+
+    const currency = detectCurrencyFromLocation(
+      parsedLat,
+      parsedLng,
+      result.display_name,
+      result.address?.country_code
+    );
+    setDefaultCurrency(currency);
+    setTimezone(detectTimezoneFromLocation(parsedLat, parsedLng, result.display_name, placeTitle));
 
     if (!name.trim()) {
       setName(placeTitle);
     }
-
-    setExpenseItems((prev) =>
-      prev.map((exp) => ({
-        ...exp,
-        currency,
-      }))
-    );
   };
 
   // GPS Geolocation trigger
@@ -266,13 +244,6 @@ export default function AddPlaceModal({
             if (!name.trim()) {
               setName(placeTitle);
             }
-
-            setExpenseItems((prev) =>
-              prev.map((exp) => ({
-                ...exp,
-                currency,
-              }))
-            );
           }
         } catch (err) {
           console.error("Reverse geocoding error:", err);
@@ -304,12 +275,6 @@ export default function AddPlaceModal({
     const detected = detectCurrencyFromLocation(null, null, text);
     setDefaultCurrency(detected);
     setTimezone(detectTimezoneFromLocation(null, null, text));
-    setExpenseItems((prev) =>
-      prev.map((exp) => ({
-        ...exp,
-        currency: detected,
-      }))
-    );
   };
 
   // Preset quick picker
@@ -326,40 +291,6 @@ export default function AddPlaceModal({
     if (!name.trim()) {
       setName(preset.name);
     }
-
-    setExpenseItems((prev) =>
-      prev.map((exp) => ({
-        ...exp,
-        currency: preset.defaultCurrency,
-      }))
-    );
-  };
-
-  const handleAddExpenseItem = () => {
-    setExpenseItems((prev) => [
-      ...prev,
-      {
-        id: `exp_draft_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        description: "",
-        amount: "",
-        category: "food",
-        currency: defaultCurrency,
-      },
-    ]);
-  };
-
-  const handleRemoveExpenseItem = (id: string) => {
-    setExpenseItems((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const handleUpdateExpenseItem = (
-    id: string,
-    field: keyof ExpenseDraftItem,
-    value: string
-  ) => {
-    setExpenseItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
-    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -412,27 +343,6 @@ export default function AddPlaceModal({
         throw new Error("ID Hari Itinerary tidak ditemukan.");
       }
 
-      // Convert tasksText into Task[]
-      const tasksJson = tasksText
-        .split("\n")
-        .map((t) => t.trim())
-        .filter(Boolean)
-        .map((t, idx) => ({
-          id: `t_${Date.now()}_${idx}`,
-          title: t,
-          done: false,
-        }));
-
-      // Filter valid expense items
-      const validExpenses = expenseItems
-        .map((item) => ({
-          ...item,
-          numAmount: Number(item.amount.replace(/[^0-9]/g, "")) || 0,
-        }))
-        .filter((item) => item.numAmount > 0);
-
-      const totalCost = validExpenses.reduce((sum, item) => sum + item.numAmount, 0);
-
       const insertPayload: Record<string, any> = {
         day_id: activeDayId,
         name: name.trim(),
@@ -443,9 +353,9 @@ export default function AddPlaceModal({
         start_time: startTime ? formatTimeDisplay(startTime) : null,
         end_time: endTime ? formatTimeDisplay(endTime) : null,
         thumbnail_url: thumbnailUrl.trim() || null,
-        notes: notesText.trim() || null,
-        cost: totalCost,
-        tasks_json: tasksJson,
+        notes: null,
+        cost: 0,
+        tasks_json: [],
         sort_order: 100,
       };
 
@@ -467,52 +377,7 @@ export default function AddPlaceModal({
         throw new Error(insertErr?.message || "Gagal menambahkan agenda.");
       }
 
-      const createdExpenses: Expense[] = [];
-
-      // If there are valid expenses and tripId is present, insert into expenses table
-      if (validExpenses.length > 0 && tripId) {
-        const expenseInserts = validExpenses.map((exp) => ({
-          trip_id: tripId,
-          place_id: newPlace.id,
-          description: exp.description.trim() || "Pengeluaran Agenda",
-          amount: exp.numAmount,
-          category: exp.category,
-          currency: exp.currency || defaultCurrency,
-        }));
-
-        const { data: expData, error: expErr } = await supabase
-          .from("expenses")
-          .insert(expenseInserts)
-          .select();
-
-        if (expErr) {
-          console.warn("Insert with place_id failed, falling back without place_id:", expErr.message);
-          const fallbackInserts = validExpenses.map((exp) => ({
-            trip_id: tripId,
-            description: exp.description.trim() || "Pengeluaran Agenda",
-            amount: exp.numAmount,
-            category: exp.category,
-            currency: exp.currency || defaultCurrency,
-          }));
-          const { data: fallbackData } = await supabase
-            .from("expenses")
-            .insert(fallbackInserts)
-            .select();
-
-          if (fallbackData) {
-            createdExpenses.push(...(fallbackData as Expense[]));
-          }
-        } else if (expData) {
-          createdExpenses.push(...(expData as Expense[]));
-        }
-      }
-
-      const fullPlace: Place = {
-        ...(newPlace as Place),
-        expenses: createdExpenses.length > 0 ? createdExpenses : undefined,
-      };
-
-      onPlaceAdded(fullPlace);
+      onPlaceAdded(newPlace as Place);
       setIsOpen(false);
       setName("");
       setAddress("");
@@ -520,10 +385,7 @@ export default function AddPlaceModal({
       setLng(null);
       setLocationName("");
       setLocationQuery("");
-      setExpenseItems([]);
       setThumbnailUrl("");
-      setTasksText("");
-      setNotesText("");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Terjadi kesalahan.";
       setError(msg);
@@ -545,7 +407,7 @@ export default function AddPlaceModal({
               Tambah Agenda — Hari ke-{dayNumber}
             </h3>
             <p className="text-xs text-stone-500">
-              Rencanakan destinasi, jadwal waktu, dan catatan pengeluaran
+              Rencanakan destinasi, jadwal waktu, dan kategori agenda
             </p>
           </div>
           <button
@@ -638,21 +500,21 @@ export default function AddPlaceModal({
 
                   {/* Autocomplete Dropdown List */}
                   {searchResults.length > 0 && (
-                    <div className="rounded-2xl border border-brand-200 bg-white p-1.5 shadow-lg space-y-1 max-h-48 overflow-y-auto hide-scroll">
-                      {searchResults.map((item) => (
+                    <div className="rounded-2xl border border-stone-200 bg-white shadow-lg overflow-hidden divide-y divide-stone-100 max-h-48 overflow-y-auto">
+                      {searchResults.map((res) => (
                         <button
-                          key={item.place_id}
+                          key={res.place_id}
                           type="button"
-                          onClick={() => handleSelectAutocomplete(item)}
-                          className="w-full text-left rounded-xl p-2 hover:bg-brand-50 transition flex items-start gap-2"
+                          onClick={() => handleSelectSearchResult(res)}
+                          className="w-full text-left p-2.5 hover:bg-brand-50/70 transition flex items-start gap-2"
                         >
-                          <MapPin size={14} weight="fill" className="text-brand-600 shrink-0 mt-0.5" />
+                          <MapPin size={14} className="text-brand-600 shrink-0 mt-0.5" />
                           <div className="min-w-0 flex-1">
                             <p className="text-xs font-semibold text-stone-900 truncate">
-                              {item.name || item.display_name.split(",")[0]}
+                              {res.name || res.display_name.split(",")[0]}
                             </p>
-                            <p className="text-[10.5px] text-stone-400 line-clamp-1">
-                              {item.display_name}
+                            <p className="text-[10.5px] text-stone-500 truncate">
+                              {res.display_name}
                             </p>
                           </div>
                         </button>
@@ -660,13 +522,13 @@ export default function AddPlaceModal({
                     </div>
                   )}
 
-                  {/* Action Buttons: GPS & Open Interactive Map */}
-                  <div className="flex items-center gap-2 pt-0.5">
+                  {/* Quick Action Buttons */}
+                  <div className="flex items-center gap-2 pt-1">
                     <button
                       type="button"
                       disabled={detectingGps}
                       onClick={handleUseCurrentLocation}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-white hover:bg-stone-100 border border-stone-200 px-2.5 py-1.5 text-[11px] font-semibold text-stone-700 transition active:scale-95 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-white hover:bg-stone-100 border border-stone-200 px-2.5 py-1.5 text-[11px] font-semibold text-stone-700 transition"
                     >
                       {detectingGps ? (
                         <>
@@ -676,7 +538,7 @@ export default function AddPlaceModal({
                       ) : (
                         <>
                           <Crosshair size={13} weight="bold" className="text-brand-600" />
-                          <span>Gunakan Lokasi Saya</span>
+                          <span>Deteksi GPS</span>
                         </>
                       )}
                     </button>
@@ -728,8 +590,37 @@ export default function AddPlaceModal({
                       value={address}
                       onChange={(e) => handleManualAddressChange(e.target.value)}
                       placeholder="Contoh: Hotel Pullman Zamzam Makkah, Al Haram"
-                      className="w-full rounded-2xl border border-stone-200 bg-white px-3.5 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                      className="w-full rounded-2xl border border-stone-200 bg-white px-3 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-brand-500 focus:outline-none"
                     />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-stone-600 mb-1">
+                        Latitude (Opsional)
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={lat ?? ""}
+                        onChange={(e) => setLat(parseFloat(e.target.value) || null)}
+                        placeholder="21.4225"
+                        className="w-full rounded-2xl border border-stone-200 bg-white px-3 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-brand-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-stone-600 mb-1">
+                        Longitude (Opsional)
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={lng ?? ""}
+                        onChange={(e) => setLng(parseFloat(e.target.value) || null)}
+                        placeholder="39.8262"
+                        className="w-full rounded-2xl border border-stone-200 bg-white px-3 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-brand-500 focus:outline-none"
+                      />
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-2 pt-1">
@@ -884,165 +775,20 @@ export default function AddPlaceModal({
               </div>
             </div>
 
-            {/* ================= MULTIPLE EXPENSES SECTION ================= */}
-            <div className="rounded-2xl border border-stone-200 bg-stone-50/50 p-3.5 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
-                    <CurrencyDollar size={16} className="text-emerald-600" />
-                    Catatan Pengeluaran Agenda (Opsional)
-                  </h4>
-                  <p className="text-[11px] text-stone-500">
-                    Otomatis dihitung dan terhubung ke halaman Budget
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleAddExpenseItem}
-                  className="inline-flex items-center gap-1 rounded-xl bg-brand-50 hover:bg-brand-100 text-brand-700 px-2.5 py-1 text-xs font-semibold transition active:scale-95"
-                >
-                  <Plus size={13} weight="bold" />
-                  + Tambah
-                </button>
-              </div>
-
-              {expenseItems.length === 0 ? (
-                <div className="text-center py-2">
-                  <p className="text-[11.5px] text-stone-400 italic">
-                    Belum ada pengeluaran dicatat untuk agenda ini.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {expenseItems.map((item, idx) => (
-                    <div
-                      key={item.id}
-                      className="rounded-2xl bg-white border border-stone-200 p-3 shadow-xs space-y-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-stone-500">
-                          Pengeluaran #{idx + 1}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveExpenseItem(item.id)}
-                          className="text-stone-400 hover:text-rose-600 p-1 rounded-lg transition"
-                          title="Hapus baris pengeluaran"
-                        >
-                          <Trash size={14} />
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {/* Expense Description */}
-                        <div>
-                          <label className="block text-[10.5px] font-medium text-stone-500 mb-0.5">
-                            Nama Pengeluaran
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Contoh: Tiket Masuk, Makan Siang"
-                            value={item.description}
-                            onChange={(e) =>
-                              handleUpdateExpenseItem(item.id, "description", e.target.value)
-                            }
-                            className="w-full rounded-xl border border-stone-200 px-2.5 py-1.5 text-xs text-stone-900 focus:border-brand-500 focus:outline-none"
-                          />
-                        </div>
-
-                        {/* Category */}
-                        <div>
-                          <label className="block text-[10.5px] font-medium text-stone-500 mb-0.5">
-                            Kategori
-                          </label>
-                          <select
-                            value={item.category}
-                            onChange={(e) =>
-                              handleUpdateExpenseItem(item.id, "category", e.target.value)
-                            }
-                            className="w-full rounded-xl border border-stone-200 px-2.5 py-1.5 text-xs text-stone-900 focus:border-brand-500 focus:outline-none"
-                          >
-                            {EXPENSE_CATEGORIES.map((cat) => (
-                              <option key={cat.id} value={cat.id}>
-                                {cat.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        {/* Currency */}
-                        <div>
-                          <label className="block text-[10.5px] font-medium text-stone-500 mb-0.5">
-                            Mata Uang
-                          </label>
-                          <select
-                            value={item.currency}
-                            onChange={(e) =>
-                              handleUpdateExpenseItem(item.id, "currency", e.target.value)
-                            }
-                            className="w-full rounded-xl border border-stone-200 px-2.5 py-1.5 text-xs font-semibold text-stone-900 focus:border-brand-500 focus:outline-none"
-                          >
-                            {AVAILABLE_CURRENCIES.map((cur) => (
-                              <option key={cur.code} value={cur.code}>
-                                {cur.code} ({cur.symbol})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Amount */}
-                        <div>
-                          <label className="block text-[10.5px] font-medium text-stone-500 mb-0.5">
-                            Nominal ({item.currency})
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder="0"
-                            value={item.amount}
-                            onChange={(e) =>
-                              handleUpdateExpenseItem(item.id, "amount", e.target.value)
-                            }
-                            className="w-full rounded-xl border border-stone-200 px-2.5 py-1.5 text-xs font-semibold text-stone-900 focus:border-brand-500 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Tasks / To-Do List */}
+            {/* Thumbnail URL (Opsional) */}
             <div>
               <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Target Aktivitas / Checklist (1 baris per aktivitas)
-              </label>
-              <textarea
-                rows={2}
-                placeholder={"Contoh:\nShalat Tahiyatul Masjid\nAmbil air zamzam"}
-                value={tasksText}
-                onChange={(e) => setTasksText(e.target.value)}
-                className="w-full rounded-2xl border border-stone-200 bg-white/80 p-3 text-xs text-stone-900 placeholder:text-stone-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-              />
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                Catatan Khusus (Tips / Lokasi Pintu Masuk)
+                Foto / Banner URL (Opsional)
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-2.5 text-stone-400 pointer-events-none">
-                  <NotePencil size={16} />
+                  <ImageIcon size={16} />
                 </span>
-                <textarea
-                  rows={2}
-                  placeholder="Misal: Masuk melalui Pintu King Fahd No. 79..."
-                  value={notesText}
-                  onChange={(e) => setNotesText(e.target.value)}
+                <input
+                  type="url"
+                  value={thumbnailUrl}
+                  onChange={(e) => setThumbnailUrl(e.target.value)}
+                  placeholder="https://images.unsplash.com/..."
                   className="w-full rounded-2xl border border-stone-200 bg-white/80 pl-9 pr-3 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
                 />
               </div>
