@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   CaretDown,
@@ -39,12 +40,17 @@ export default function TripSwitcher({
   showCreateButton = true,
   currentUserId,
 }: TripSwitcherProps) {
+  const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [deletingTrip, setDeletingTrip] = useState<Trip | null>(null);
   const [managingMembersTrip, setManagingMembersTrip] = useState<Trip | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -162,11 +168,13 @@ export default function TripSwitcher({
       </button>
 
       {/* Bottom Sheet on Mobile, Modal on Desktop */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-[100000] flex items-end sm:items-center justify-center bg-stone-950/65 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-200"
-          onClick={() => setIsOpen(false)}
-        >
+      {mounted &&
+        isOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[100000] flex items-end sm:items-center justify-center bg-stone-950/65 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-200"
+            onClick={() => setIsOpen(false)}
+          >
           <div
             role="dialog"
             aria-modal="true"
@@ -361,7 +369,8 @@ export default function TripSwitcher({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal for Creating New Trip */}
