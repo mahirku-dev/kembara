@@ -526,21 +526,33 @@ export default function AiExtractItineraryModal({
 
       const dayMap: Record<number, string> = {};
       (existingDays || []).forEach((d) => {
-        dayMap[d.day_number] = d.id;
+        dayMap[Number(d.day_number)] = d.id;
       });
 
-      // 2. Identify and create any missing days
+      // 2. Identify all required day numbers (normalized to >= 1 integers)
       const requiredDayNumbers = Array.from(
-        new Set(selected.map((s) => s.dayNumber))
+        new Set(
+          selected.map((s) => {
+            const parsed = parseInt(String(s.dayNumber), 10);
+            return isNaN(parsed) || parsed < 1 ? 1 : parsed;
+          })
+        )
       ).sort((a, b) => a - b);
 
+      if (requiredDayNumbers.length === 0) {
+        requiredDayNumbers.push(1);
+      }
+
+      // 3. Create missing days if needed
       for (const dayNum of requiredDayNumbers) {
         if (!dayMap[dayNum]) {
           let dayDate: string | null = null;
           // Check if extracted item has date
-          const itemWithDate = selected.find(
-            (s) => s.dayNumber === dayNum && s.date
-          );
+          const itemWithDate = selected.find((s) => {
+            const sNum = parseInt(String(s.dayNumber), 10);
+            return (isNaN(sNum) || sNum < 1 ? 1 : sNum) === dayNum && s.date;
+          });
+
           if (itemWithDate?.date) {
             dayDate = itemWithDate.date;
           } else if (trip.start_date) {
@@ -562,30 +574,57 @@ export default function AiExtractItineraryModal({
             .single();
 
           if (createDayErr || !newDay) {
-            throw new Error(
-              createDayErr?.message || `Gagal membuat Hari ${dayNum}`
-            );
-          }
+            // Concurrent creation fallback check
+            const { data: refetched } = await supabase
+              .from("itinerary_days")
+              .select("id")
+              .eq("trip_id", trip.id)
+              .eq("day_number", dayNum)
+              .maybeSingle();
 
-          dayMap[dayNum] = newDay.id;
+            if (refetched?.id) {
+              dayMap[dayNum] = refetched.id;
+            } else {
+              throw new Error(
+                createDayErr?.message || `Gagal membuat Hari ${dayNum}`
+              );
+            }
+          } else {
+            dayMap[dayNum] = newDay.id;
+          }
         }
       }
 
-      // 3. Batch insert places with extracted city/coords
+      // Ensure a fallback day exists
+      const fallbackDayId = dayMap[1] || Object.values(dayMap)[0];
+      if (!fallbackDayId) {
+        throw new Error("Gagal menginisialisasi hari itinerary untuk trip ini.");
+      }
+
+      // 4. Batch insert places with extracted data and verified day_id
       const placesToInsert = selected.map((item, idx) => {
-        const cleanName = item.name.trim();
+        const rawDayNum = parseInt(String(item.dayNumber), 10);
+        const dayNum = isNaN(rawDayNum) || rawDayNum < 1 ? 1 : rawDayNum;
+        const targetDayId = dayMap[dayNum] || fallbackDayId;
+
+        if (!targetDayId) {
+          throw new Error(`ID Hari tidak valid untuk agenda "${item.name}".`);
+        }
+
+        const cleanName = (item.name || "").trim() || `Agenda ${idx + 1}`;
         let cleanNotes = item.notes?.trim() || null;
         if (
           cleanNotes &&
           (cleanNotes.toLowerCase() === cleanName.toLowerCase() ||
             cleanNotes === "-" ||
-            cleanNotes.toLowerCase() === "null")
+            cleanNotes.toLowerCase() === "null" ||
+            cleanNotes.toLowerCase() === "none")
         ) {
           cleanNotes = null;
         }
 
         return {
-          day_id: dayMap[item.dayNumber],
+          day_id: targetDayId,
           name: cleanName,
           address: item.address?.trim() || null,
           lat: item.lat || null,
@@ -593,10 +632,11 @@ export default function AiExtractItineraryModal({
           start_time: item.startTime ? formatTimeDisplay(item.startTime) : null,
           end_time: item.endTime ? formatTimeDisplay(item.endTime) : null,
           category: item.category || "explore",
-          cost: item.cost || 0,
+          cost: Number(item.cost) || 0,
           notes: cleanNotes,
           sort_order: idx + 1,
           tasks_json: [],
+          thumbnail_url: null,
         };
       });
 
@@ -604,7 +644,17 @@ export default function AiExtractItineraryModal({
         .from("places")
         .insert(placesToInsert);
 
-      if (insertPlacesErr) throw insertPlacesErr;
+      if (insertPlacesErr) {
+        if (
+          insertPlacesErr.message?.includes("row-level security") ||
+          insertPlacesErr.code === "42501"
+        ) {
+          throw new Error(
+            "Anda tidak memiliki izin (Host/Editor) untuk menambahkan agenda pada perjalanan ini."
+          );
+        }
+        throw insertPlacesErr;
+      }
 
       setSuccessToast(
         `Berhasil mengimport ${selected.length} agenda ke Itinerary!`
