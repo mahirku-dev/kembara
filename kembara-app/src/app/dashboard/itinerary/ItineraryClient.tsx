@@ -1650,7 +1650,7 @@ export default function ItineraryClient({
                             className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-600 hover:text-brand-600 bg-stone-50 hover:bg-brand-50 border border-stone-200/70 hover:border-brand-200 px-3 py-1.5 rounded-xl transition active:scale-95"
                           >
                             <Icons.NotePencil size={13} className="text-brand-600" />
-                            <span>+ Catatan</span>
+                            <span>Tambah Catatan</span>
                           </button>
                         )}
                         {expensesList.length === 0 && (
@@ -1660,7 +1660,7 @@ export default function ItineraryClient({
                             className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-600 hover:text-emerald-700 bg-stone-50 hover:bg-emerald-50 border border-stone-200/70 hover:border-emerald-200 px-3 py-1.5 rounded-xl transition active:scale-95"
                           >
                             <Icons.Wallet size={13} className="text-emerald-600" />
-                            <span>+ Pengeluaran</span>
+                            <span>Tambah Pengeluaran</span>
                           </button>
                         )}
                       </div>
@@ -1769,7 +1769,7 @@ export default function ItineraryClient({
                                           className="text-[10.5px] font-semibold text-brand-700 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2 py-0.5 rounded-lg border border-brand-200/60 transition active:scale-95"
                                           title="Tambah sub-tugas"
                                         >
-                                          + Sub-tugas
+                                          Sub-tugas
                                         </button>
                                       )}
                                       {canDelete && (
@@ -1987,18 +1987,6 @@ export default function ItineraryClient({
           </div>
         )}
       </div>
-
-      {/* Floating Action Button (FAB) for quick 1-tap addition */}
-      {canEdit && (
-        <AddPlaceModal
-          dayId={day.id}
-          dayNumber={selectedDayIdx + 1}
-          tripId={trip.id}
-          buttonVariant="fab"
-          buttonText="Tambah Agenda"
-          onPlaceAdded={handlePlaceAdded}
-        />
-      )}
 
       {/* ================= POP-UP MODAL: DETAIL PENGELUARAN AGENDA ================= */}
       {mounted &&

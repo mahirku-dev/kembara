@@ -939,7 +939,7 @@ export default function EditPlaceModal({
                             className="text-[10px] font-semibold text-brand-700 hover:text-brand-800 bg-white hover:bg-brand-50 px-2 py-0.5 rounded-lg border border-stone-200 transition active:scale-95"
                             title="Tambah sub-tugas"
                           >
-                            + Sub-tugas
+                            Sub-tugas
                           </button>
                           <button
                             type="button"

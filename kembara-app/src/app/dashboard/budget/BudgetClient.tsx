@@ -1146,7 +1146,7 @@ export default function BudgetClient({
                 className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 text-white px-3.5 py-1.5 text-xs font-bold shadow-cta hover:bg-brand-700 transition"
               >
                 <Plus size={14} weight="bold" />
-                + Catat Penukaran
+                Catat Penukaran
               </button>
             </div>
 
