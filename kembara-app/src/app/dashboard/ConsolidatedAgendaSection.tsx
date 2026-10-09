@@ -20,6 +20,7 @@ import {
   formatTimeRange,
   detectTimezoneFromLocation,
   getGoogleMapsDirectionsUrl,
+  sortPlacesByTime,
 } from "@/lib/geo";
 import AddPlaceModal from "./itinerary/AddPlaceModal";
 import type { UpcomingPlace } from "./UpcomingAgendaCard";
@@ -93,7 +94,7 @@ export default function ConsolidatedAgendaSection({
           </div>
 
           <div className="space-y-2">
-            {todayPlaces.map((place) => (
+            {sortPlacesByTime(todayPlaces).map((place) => (
               <div
                 key={place.id}
                 className="flex items-start justify-between gap-3 rounded-2xl bg-white/90 border border-stone-200/80 p-3.5 shadow-xs hover:border-brand-300 transition"

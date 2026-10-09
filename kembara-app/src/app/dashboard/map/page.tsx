@@ -5,6 +5,7 @@ import type { ItineraryDay, Place, Trip } from "@/types";
 import TripSwitcher from "@/components/TripSwitcher";
 import MapClient, { type AgendaPlace } from "./MapClient";
 import { fetchUserTrips } from "@/lib/serverTrips";
+import { sortPlacesByTime } from "@/lib/geo";
 
 import UserProfileMenu from "@/components/UserProfileMenu";
 
@@ -40,7 +41,7 @@ export default async function MapPage({
 
     if (days && days.length > 0) {
       agendaPlaces = days.flatMap((d) =>
-        (d.places || []).map((p) => ({
+        sortPlacesByTime(d.places || []).map((p) => ({
           ...p,
           day_number: d.day_number,
           day_date: d.date,

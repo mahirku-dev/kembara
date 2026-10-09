@@ -35,6 +35,8 @@ import {
   POPULAR_LANDMARKS,
   extractCityName,
   formatTimeDisplay,
+  comparePlacesByTime,
+  sortPlacesByTime,
   type LandmarkPreset,
 } from "@/lib/geo";
 import FreeMapLocationPicker, {
@@ -410,9 +412,9 @@ export default function AiExtractItineraryModal({
         throw new Error(data.error || "Gagal mengekstrak itinerary.");
       }
 
-      // Populate initial city extraction and selection
-      const itemsWithSelection: ItemWithLocationState[] = (data.items || []).map(
-        (item: ExtractedAgendaItem) => {
+      // Populate initial city extraction and selection, sorted by Day and Time
+      const itemsWithSelection: ItemWithLocationState[] = (data.items || [])
+        .map((item: ExtractedAgendaItem) => {
           const cleanName = (item.name || "").trim();
           let cleanNotes = item.notes?.trim() || null;
           if (
@@ -434,8 +436,13 @@ export default function AiExtractItineraryModal({
             lat: item.lat || null,
             lng: item.lng || null,
           };
-        }
-      );
+        })
+        .sort((a: ItemWithLocationState, b: ItemWithLocationState) => {
+          const dayA = Math.max(1, parseInt(String(a.dayNumber || 1), 10));
+          const dayB = Math.max(1, parseInt(String(b.dayNumber || 1), 10));
+          if (dayA !== dayB) return dayA - dayB;
+          return comparePlacesByTime(a, b);
+        });
 
       setExtractedItems(itemsWithSelection);
     } catch (err: any) {
@@ -601,8 +608,16 @@ export default function AiExtractItineraryModal({
         throw new Error("Gagal menginisialisasi hari itinerary untuk trip ini.");
       }
 
-      // 4. Batch insert places with extracted data and verified day_id
-      const placesToInsert = selected.map((item, idx) => {
+      // 4. Sort selected items by day and time before batch insert
+      const sortedSelected = [...selected].sort((a, b) => {
+        const dayA = Math.max(1, parseInt(String(a.dayNumber || 1), 10));
+        const dayB = Math.max(1, parseInt(String(b.dayNumber || 1), 10));
+        if (dayA !== dayB) return dayA - dayB;
+        return comparePlacesByTime(a, b);
+      });
+
+      // 5. Batch insert places with extracted data and verified day_id
+      const placesToInsert = sortedSelected.map((item, idx) => {
         const rawDayNum = parseInt(String(item.dayNumber), 10);
         const dayNum = isNaN(rawDayNum) || rawDayNum < 1 ? 1 : rawDayNum;
         const targetDayId = dayMap[dayNum] || fallbackDayId;

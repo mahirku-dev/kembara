@@ -17,7 +17,7 @@ import {
 } from "@phosphor-icons/react";
 import { format, parseISO } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { formatMoney } from "@/lib/geo";
+import { formatMoney, sortPlacesByTime } from "@/lib/geo";
 
 export interface TodayPlace extends Place {
   day_number: number;
@@ -106,7 +106,7 @@ export default function TodayTripSummaryCard({
 
           {/* Today's Places List */}
           <div className="space-y-2">
-            {places.map((place, idx) => (
+            {sortPlacesByTime(places).map((place, idx) => (
               <div
                 key={place.id || idx}
                 className="group flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3.5 rounded-2xl bg-white/90 border border-stone-200/70 hover:border-brand-300 transition shadow-sm"

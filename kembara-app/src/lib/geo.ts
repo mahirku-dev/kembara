@@ -917,3 +917,87 @@ export function getGoogleMapsDirectionsUrl(
   return "https://www.google.com/maps";
 }
 
+/**
+ * Convert a time string (e.g., "08:00", "14:30:00", "08.00") into total minutes from midnight.
+ * Returns null if invalid or undefined.
+ */
+export function parseTimeToMinutes(timeStr?: string | null): number | null {
+  if (!timeStr || typeof timeStr !== "string") return null;
+  const clean = timeStr.trim().replace(".", ":");
+  const match = clean.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  const hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return null;
+  }
+  return hours * 60 + minutes;
+}
+
+/**
+ * Compare two agenda items chronologically based on their start time, end time, and sort order.
+ * - Items with specific start times are sorted earliest to latest.
+ * - Items without specific start times (All-day / Sepanjang hari) appear at the top of the day.
+ * - Items with identical start times are sorted by end time, then sort_order.
+ */
+export function comparePlacesByTime(
+  a: {
+    start_time?: string | null;
+    startTime?: string | null;
+    end_time?: string | null;
+    endTime?: string | null;
+    sort_order?: number | null;
+    name?: string | null;
+  },
+  b: {
+    start_time?: string | null;
+    startTime?: string | null;
+    end_time?: string | null;
+    endTime?: string | null;
+    sort_order?: number | null;
+    name?: string | null;
+  }
+): number {
+  const timeA = a.start_time ?? a.startTime ?? null;
+  const timeB = b.start_time ?? b.startTime ?? null;
+
+  const minA = parseTimeToMinutes(timeA);
+  const minB = parseTimeToMinutes(timeB);
+
+  // Both have valid start times -> sort chronologically
+  if (minA !== null && minB !== null) {
+    if (minA !== minB) return minA - minB;
+
+    const endA = parseTimeToMinutes(a.end_time ?? a.endTime ?? null);
+    const endB = parseTimeToMinutes(b.end_time ?? b.endTime ?? null);
+    if (endA !== null && endB !== null && endA !== endB) {
+      return endA - endB;
+    }
+    return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+  }
+
+  // All Day / no start time items are placed first at the top of the day
+  if (minA === null && minB !== null) return -1;
+  if (minA !== null && minB === null) return 1;
+
+  // Both are all-day -> fallback to sort_order
+  return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+}
+
+/**
+ * Sorts an array of agenda places chronologically by time.
+ */
+export function sortPlacesByTime<
+  T extends {
+    start_time?: string | null;
+    startTime?: string | null;
+    end_time?: string | null;
+    endTime?: string | null;
+    sort_order?: number | null;
+    name?: string | null;
+  }
+>(places: T[]): T[] {
+  if (!places || places.length <= 1) return places || [];
+  return [...places].sort(comparePlacesByTime);
+}
+

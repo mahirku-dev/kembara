@@ -20,6 +20,7 @@ import {
   formatTimeDisplay,
   formatTimeRange,
   getGoogleMapsDirectionsUrl,
+  sortPlacesByTime,
 } from "@/lib/geo";
 import { useRouter } from "next/navigation";
 import AddPlaceModal from "./AddPlaceModal";
@@ -194,9 +195,7 @@ export default function ItineraryClient({
       if (fetchedDays) {
         const orderedDays = (fetchedDays ?? []).map((d) => ({
           ...d,
-          places: (d.places ?? [])
-            .sort((a, b) => a.sort_order - b.sort_order)
-            .map((p) => {
+          places: sortPlacesByTime(d.places ?? []).map((p) => {
               const placeExpenses = (allTripExpenses ?? []).filter(
                 (e) =>
                   e.place_id === p.id ||
@@ -1146,7 +1145,7 @@ export default function ItineraryClient({
           if (d.id !== newPlace.day_id) return d;
           return {
             ...d,
-            places: [...d.places, newPlace],
+            places: sortPlacesByTime([...d.places, newPlace]),
           };
         })
       );
@@ -1169,11 +1168,12 @@ export default function ItineraryClient({
             }
             if (d.id === updatedPlace.day_id) {
               const exists = d.places.some((p) => p.id === updatedPlace.id);
+              const nextPlaces = exists
+                ? d.places.map((p) => (p.id === updatedPlace.id ? updatedPlace : p))
+                : [...d.places, updatedPlace];
               return {
                 ...d,
-                places: exists
-                  ? d.places.map((p) => (p.id === updatedPlace.id ? updatedPlace : p))
-                  : [...d.places, updatedPlace],
+                places: sortPlacesByTime(nextPlaces),
               };
             }
             return d;
@@ -1185,7 +1185,9 @@ export default function ItineraryClient({
           if (d.id !== updatedPlace.day_id) return d;
           return {
             ...d,
-            places: d.places.map((p) => (p.id === updatedPlace.id ? updatedPlace : p)),
+            places: sortPlacesByTime(
+              d.places.map((p) => (p.id === updatedPlace.id ? updatedPlace : p))
+            ),
           };
         });
       });
@@ -1490,7 +1492,7 @@ export default function ItineraryClient({
           </div>
         ) : (
           <div className="relative border-l-2 border-stone-100 ml-4 space-y-8 pb-10">
-            {day.places.map((p) => {
+            {sortPlacesByTime(day.places).map((p) => {
               const cat = CATS[p.category ?? ""] ?? {
                 label: "Lainnya",
                 iconName: "MapPin",

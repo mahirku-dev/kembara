@@ -4,6 +4,7 @@ import type { Expense, ItineraryDay, Place, Trip, TripMember } from "@/types";
 import ItineraryClient from "./ItineraryClient";
 import CreateTripModal from "../CreateTripModal";
 import { fetchUserTrips } from "@/lib/serverTrips";
+import { sortPlacesByTime } from "@/lib/geo";
 
 import { ListBullets } from "@phosphor-icons/react/dist/ssr";
 import TripSwitcher from "@/components/TripSwitcher";
@@ -96,12 +97,10 @@ export default async function ItineraryPage({
       .returns<TripMember[]>(),
   ]);
 
-  // Attach matching expenses to each place (by place_id or description matching)
+  // Attach matching expenses to each place and sort chronologically by time
   const orderedDays = (days ?? []).map((d) => ({
     ...d,
-    places: (d.places ?? [])
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map((p) => {
+    places: sortPlacesByTime(d.places ?? []).map((p) => {
         const placeExpenses = (allTripExpenses ?? []).filter(
           (e) =>
             e.place_id === p.id ||

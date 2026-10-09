@@ -11,6 +11,7 @@ import TripPlanningCard from "./TripPlanningCard";
 import ConsolidatedAgendaSection from "./ConsolidatedAgendaSection";
 import UmrahInspirationCard from "./UmrahInspirationCard";
 import { fetchUserTrips } from "@/lib/serverTrips";
+import { comparePlacesByTime, sortPlacesByTime } from "@/lib/geo";
 import type { UpcomingPlace } from "./UpcomingAgendaCard";
 import type { TodayPlace } from "./TodayTripSummaryCard";
 
@@ -70,22 +71,18 @@ export default async function DashboardPage({
 
       if (matchedTodayDay) {
         todayDayNumber = matchedTodayDay.day_number;
-        todayPlaces = (matchedTodayDay.places || [])
-          .map((p) => ({
+        todayPlaces = sortPlacesByTime(
+          (matchedTodayDay.places || []).map((p) => ({
             ...p,
             day_number: matchedTodayDay.day_number,
             day_date: matchedTodayDay.date,
           }))
-          .sort((a, b) => {
-            if (a.start_time && b.start_time)
-              return a.start_time.localeCompare(b.start_time);
-            return (a.sort_order || 0) - (b.sort_order || 0);
-          });
+        );
       }
 
       // Resolve Next Upcoming Agenda
       const allPlaces: UpcomingPlace[] = days.flatMap((d) =>
-        (d.places || []).map((p) => ({
+        sortPlacesByTime(d.places || []).map((p) => ({
           ...p,
           day_number: d.day_number,
           day_date: d.date,
@@ -118,10 +115,8 @@ export default async function DashboardPage({
         nextAgenda = upcomingWithDateTime[0].place;
       } else if (allPlaces.length > 0) {
         allPlaces.sort((a, b) => {
-          if (a.day_number !== b.day_number) return a.day_number - b.day_number;
-          if (a.start_time && b.start_time)
-            return a.start_time.localeCompare(b.start_time);
-          return (a.sort_order || 0) - (b.sort_order || 0);
+          if (a.day_number !== b.day_number) return (a.day_number || 1) - (b.day_number || 1);
+          return comparePlacesByTime(a, b);
         });
         nextAgenda = allPlaces[0];
       }
