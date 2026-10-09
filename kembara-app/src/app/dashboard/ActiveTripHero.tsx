@@ -8,11 +8,9 @@ import {
   CalendarBlank,
   CurrencyDollar,
   PencilSimple,
-  Camera,
   SuitcaseRolling,
   Users,
   Crown,
-  DotsThreeVertical,
 } from "@phosphor-icons/react";
 import TripCountdown from "./TripCountdown";
 import type { UpcomingPlace } from "./UpcomingAgendaCard";
@@ -172,50 +170,25 @@ export default function ActiveTripHero({
             </div>
           </div>
 
-          {/* Right Column: Travel Photo Showcase (Secondary Action) */}
+          {/* Right Column: Travel Photo Showcase */}
           <div className="shrink-0 w-full md:w-56 lg:w-64">
-            <div
-              onClick={() => {
-                if (canEdit) setIsEditModalOpen(true);
-                else handleOpenMembers();
-              }}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  if (canEdit) setIsEditModalOpen(true);
-                  else handleOpenMembers();
-                }
-              }}
-              aria-label={canEdit ? "Ubah foto sampul perjalanan" : "Lihat info perjalanan"}
-              className="group relative h-28 sm:h-36 md:h-40 w-full rounded-2xl overflow-hidden bg-white/5 border border-white/20 shadow-lg transition-all duration-300 hover:border-emerald-400/50 hover:shadow-emerald-950/40 hover:scale-[1.01] cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-400"
-            >
+            <div className="relative h-28 sm:h-36 md:h-40 w-full rounded-2xl overflow-hidden bg-white/5 border border-white/20 shadow-lg">
               {trip.cover_url ? (
                 <>
                   <img
                     src={trip.cover_url}
                     alt={`Sampul ${trip.title}`}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="h-full w-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-
-                  {/* Secondary Subtle Photo Action in Corner */}
-                  {canEdit && (
-                    <div className="absolute bottom-2 right-2">
-                      <span className="inline-flex items-center gap-1 rounded-lg bg-black/60 px-2 py-1 text-[10px] font-semibold text-stone-200 backdrop-blur-md border border-white/10 group-hover:bg-emerald-600 group-hover:text-white transition">
-                        <Camera size={11} weight="bold" />
-                        <span>Ganti Foto</span>
-                      </span>
-                    </div>
-                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
                 </>
               ) : (
-                <div className="h-full w-full flex flex-col items-center justify-center p-3 text-center bg-gradient-to-br from-white/10 to-white/5 hover:from-white/15 transition">
-                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 text-emerald-300 border border-white/15 mb-1.5 group-hover:scale-105 transition">
-                    <Camera size={20} weight="duotone" />
+                <div className="h-full w-full flex flex-col items-center justify-center p-3 text-center bg-gradient-to-br from-white/10 to-white/5">
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 text-emerald-300 border border-white/15 mb-1.5">
+                    <SuitcaseRolling size={20} weight="duotone" />
                   </span>
-                  <p className="text-xs font-bold text-white">
-                    {canEdit ? "Tambah Foto Sampul" : "Foto Belum Diatur"}
+                  <p className="text-xs font-medium text-stone-300">
+                    {trip.destination || trip.title}
                   </p>
                 </div>
               )}
