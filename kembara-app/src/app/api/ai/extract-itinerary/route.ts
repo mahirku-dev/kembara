@@ -75,12 +75,20 @@ function heuristicParseItinerary(
     }
 
     // Clean name from timestamps, bullets, and numbering
-    let cleanName = line
-      .replace(/^[\d+.)\-*•\s]+/, "")
-      .replace(/\d{1,2}[:.]\d{2}\s*(?:-|–|s\/d|to)\s*\d{1,2}[:.]\d{2}/gi, "")
-      .replace(/(?:pukul|jam)\s*\d{1,2}[:.]\d{2}/gi, "")
-      .replace(/^\s*[-:–|]\s*/, "")
-      .trim();
+    // 1. Remove list numbering or bullet prefix (e.g. "1. ", "1) ", "• ", "- ", "* ", "[1] ")
+    let cleanName = line.replace(/^(\d+[\.\)]\s*|[•\-*–—>#]\s*|\[\d+\]\s*)/, "");
+
+    // 2. Remove day prefix if inline (e.g. "Hari 1 - ", "Day 2: ")
+    cleanName = cleanName.replace(/^(?:hari|day)\s*(?:ke\s*)?\d+\s*[:\-–—|]\s*/i, "");
+
+    // 3. Remove time range timestamps (e.g. "10:00 - 15:55", "08.00 – 10.30")
+    cleanName = cleanName.replace(/\d{1,2}[:.]\d{2}\s*(?:-|–|—|s\/d|to)\s*\d{1,2}[:.]\d{2}(?:\s*(?:wib|wita|wit|ast|gmt[+-]\d+))?/gi, "");
+
+    // 4. Remove single timestamps (e.g. "pukul 14:00", "08:00 WIB", "jam 10.30")
+    cleanName = cleanName.replace(/(?:pukul|jam|waktu|pkl|at)?\s*\d{1,2}[:.]\d{2}(?:\s*(?:wib|wita|wit|ast|gmt[+-]\d+))?/gi, "");
+
+    // 5. Remove leading/trailing separator symbols (colons, dashes, pipes, bullets, spaces)
+    cleanName = cleanName.replace(/^[\s\-:–—|•*#]+/, "").replace(/[\s\-:–—|•*#]+$/, "").trim();
 
     if (!cleanName || cleanName.length < 2) continue;
 
@@ -358,6 +366,7 @@ Respond ONLY with a valid JSON array, with NO extra markdown text, NO backticks.
                     "bus",
                     "transit",
                     "car",
+                    "taxi",
                     "other",
                   ].includes(p.category)
                     ? p.category
