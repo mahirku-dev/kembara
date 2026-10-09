@@ -154,7 +154,7 @@ export default function TripSwitcher({
               </span>
             )}
           </div>
-          <span className="text-xs font-bold text-stone-900 truncate max-w-[130px] sm:max-w-[200px] leading-tight">
+          <span className="text-xs sm:text-[13px] font-bold text-stone-900 truncate max-w-[170px] sm:max-w-[260px] leading-tight">
             {activeTrip ? activeTrip.title : "Pilih Perjalanan"}
           </span>
         </div>

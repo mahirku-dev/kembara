@@ -1,18 +1,18 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import type { ItineraryDay, PackingItem, Place, Trip } from "@/types";
-import { House } from "@phosphor-icons/react/dist/ssr";
 import { format, parseISO } from "date-fns";
 import CreateTripModal from "./CreateTripModal";
 import TripSwitcher from "@/components/TripSwitcher";
 import UserProfileMenu from "@/components/UserProfileMenu";
-import ActiveTripHero from "./ActiveTripHero";
-import QuickInfoSummary from "./QuickInfoSummary";
+import DepartureCountdownCard from "./DepartureCountdownCard";
 import PreparationProgressCard from "./PreparationProgressCard";
-import { fetchUserTrips } from "@/lib/serverTrips";
-import UpcomingAgendaCard, { type UpcomingPlace } from "./UpcomingAgendaCard";
-import TodayTripSummaryCard, { type TodayPlace } from "./TodayTripSummaryCard";
+import TripPlanningCard from "./TripPlanningCard";
+import ConsolidatedAgendaSection from "./ConsolidatedAgendaSection";
 import UmrahInspirationCard from "./UmrahInspirationCard";
+import { fetchUserTrips } from "@/lib/serverTrips";
+import type { UpcomingPlace } from "./UpcomingAgendaCard";
+import type { TodayPlace } from "./TodayTripSummaryCard";
 
 interface DayWithPlaces extends ItineraryDay {
   places: Place[];
@@ -37,31 +37,11 @@ export default async function DashboardPage({
   let nextAgenda: UpcomingPlace | null = null;
   let todayPlaces: TodayPlace[] = [];
   let todayDayNumber: number | null = null;
-  let tripStatus: "future" | "ongoing" | "past" | "no_date" = "no_date";
-  let placesCount = 0;
-  let membersCount = 1;
   let packingItems: PackingItem[] = [];
   const now = new Date();
   const todayStr = format(now, "yyyy-MM-dd");
 
   if (activeTrip) {
-    if (activeTrip.start_date) {
-      const s = new Date(activeTrip.start_date);
-      s.setHours(0, 0, 0, 0);
-      const e = activeTrip.end_date
-        ? new Date(activeTrip.end_date)
-        : new Date(activeTrip.start_date);
-      e.setHours(23, 59, 59, 999);
-
-      if (now.getTime() < s.getTime()) {
-        tripStatus = "future";
-      } else if (now.getTime() <= e.getTime()) {
-        tripStatus = "ongoing";
-      } else {
-        tripStatus = "past";
-      }
-    }
-
     // 1. Fetch Days and Places
     const { data: days } = await supabase
       .from("itinerary_days")
@@ -111,7 +91,6 @@ export default async function DashboardPage({
           day_date: d.date,
         }))
       );
-      placesCount = allPlaces.length;
 
       const upcomingWithDateTime = allPlaces
         .map((p) => {
@@ -148,14 +127,7 @@ export default async function DashboardPage({
       }
     }
 
-    // 2. Fetch Members Count
-    const { count: mCount } = await supabase
-      .from("trip_members")
-      .select("*", { count: "exact", head: true })
-      .eq("trip_id", activeTrip.id);
-    membersCount = mCount && mCount > 0 ? mCount : 1;
-
-    // 3. Fetch Packing List Items from Vault
+    // 2. Fetch Packing List Items from Vault
     const { data: packItems } = await supabase
       .from("packing_lists")
       .select("*")
@@ -165,47 +137,62 @@ export default async function DashboardPage({
     packingItems = packItems ?? [];
   }
 
-  const dashboardSubtitle = activeTrip
-    ? "Ringkasan persiapan & rencana perjalanan"
-    : "Rencanakan perjalanan atau kegiatan Anda";
-
   return (
     <div className="flex flex-col h-full overflow-y-auto pb-28 lg:pb-10 hide-scroll">
-      {/* Dynamic Header */}
-      <header className="sticky top-0 z-[1100] bg-white/60 backdrop-blur-xl border-b border-white/60 px-4 py-3 sm:px-6 lg:px-10 shrink-0">
-        <div className="flex items-center justify-between gap-2.5 sm:gap-4">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-600 border border-brand-200/50 shadow-sm shrink-0">
-              <House size={20} weight="fill" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-lg sm:text-[20px] font-bold text-brand-700 leading-tight truncate">
-                Beranda
-              </h2>
-              <p className="text-[11px] sm:text-[12px] text-stone-500 mt-0.5 truncate">
-                {dashboardSubtitle}
-              </p>
-            </div>
+      {/* Compact Mobile-First Trip Header */}
+      <header className="sticky top-0 z-[1100] bg-white/70 backdrop-blur-xl border-b border-white/70 px-4 py-2.5 sm:px-6 lg:px-10 shrink-0">
+        <div className="flex items-center justify-between gap-3">
+          {/* Trip Selector as Primary Header Focus */}
+          <div className="min-w-0 flex-1">
+            {trips.length > 0 ? (
+              <TripSwitcher
+                trips={trips}
+                activeTrip={activeTrip}
+                currentUserId={user.id}
+                className="w-full sm:w-auto"
+              />
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-base font-bold text-brand-700">Kembara</span>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {trips.length > 0 && (
-              <TripSwitcher trips={trips} activeTrip={activeTrip} currentUserId={user.id} />
-            )}
+          {/* User Profile Menu (Red Suitcase Button) */}
+          <div className="shrink-0 flex items-center">
             <UserProfileMenu user={user} />
           </div>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <div className="px-4 sm:px-6 lg:px-10 pt-5 sm:pt-6 space-y-5 sm:space-y-6">
-        {/* 1. Active Trip Hero Card (Overview, Dates, Status, Countdown, Photo) */}
+      <div className="px-4 sm:px-6 lg:px-10 pt-4 sm:pt-6 space-y-4 sm:space-y-5">
         {activeTrip ? (
-          <ActiveTripHero
-            trip={activeTrip}
-            nextAgenda={nextAgenda}
-            currentUserId={user.id}
-          />
+          <>
+            {/* 1. Departure Countdown Hero Card */}
+            <DepartureCountdownCard trip={activeTrip} />
+
+            {/* 2. Preparation Checklist Card */}
+            <PreparationProgressCard
+              trip={activeTrip}
+              initialPackingItems={packingItems}
+            />
+
+            {/* 3. Compact Trip Planning Card */}
+            <TripPlanningCard trip={activeTrip} currentUserId={user.id} />
+
+            {/* 4. Consolidated "Agenda & Aktivitas" Section */}
+            <ConsolidatedAgendaSection
+              trip={activeTrip}
+              todayPlaces={todayPlaces}
+              todayDayNumber={todayDayNumber}
+              nextAgenda={nextAgenda}
+              currentUserId={user.id}
+            />
+
+            {/* 5. Compact "Inspirasi Umrah" Card */}
+            <UmrahInspirationCard trip={activeTrip} />
+          </>
         ) : (
           /* Empty State — No trips yet */
           <div className="rounded-3xl border border-dashed border-brand-200 bg-brand-50/30 p-8 text-center space-y-3 max-w-md mx-auto my-12">
@@ -220,44 +207,6 @@ export default async function DashboardPage({
             </div>
           </div>
         )}
-
-        {/* 2. Quick Info Summary Grid (Anggota, Agenda, Dokumen) */}
-        {activeTrip && (
-          <QuickInfoSummary
-            trip={activeTrip}
-            membersCount={membersCount}
-            placesCount={placesCount}
-            docsCount={3}
-            currentUserId={user.id}
-          />
-        )}
-
-        {/* 3. Next Action / Next Agenda Card */}
-        {activeTrip && (
-          <UpcomingAgendaCard trip={activeTrip} place={nextAgenda} />
-        )}
-
-        {/* 4. Preparation Progress Card (Real Vault Checklist) */}
-        {activeTrip && (
-          <PreparationProgressCard
-            trip={activeTrip}
-            initialPackingItems={packingItems}
-          />
-        )}
-
-        {/* 5. Ringkasan Trip Hari Ini (When active today) */}
-        {activeTrip && todayPlaces.length > 0 && (
-          <TodayTripSummaryCard
-            trip={activeTrip}
-            todayDayNumber={todayDayNumber}
-            todayDateStr={todayStr}
-            places={todayPlaces}
-            tripStatus={tripStatus}
-          />
-        )}
-
-        {/* 6. Umrah Spiritual Inspiration Card (Only shown for Umrah trips) */}
-        {activeTrip && <UmrahInspirationCard trip={activeTrip} />}
       </div>
     </div>
   );

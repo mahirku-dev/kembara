@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Trip } from "@/types";
-import { BookOpen, Quotes, ArrowsClockwise, Sparkle } from "@phosphor-icons/react";
+import { BookOpen, CaretRight, ArrowsClockwise } from "@phosphor-icons/react";
 
 export interface InspirationItem {
   id: string;
@@ -38,42 +38,39 @@ export const UMRAH_INSPIRATIONS: InspirationItem[] = [
     id: "guest_of_allah",
     category: "Tamu Allah yang Mustajab",
     arabic: "الْغَازِي فِي سَبِيلِ اللَّهِ وَالْحَاجُّ وَالْمُعْتَمِرُ وَفْدُ اللَّهِ دَعَاهُمْ فَأَجَابُوهُ وَسَأَلُوهُ فَأَعْطَاهُمْ",
-    translation: "Orang yang berperang di jalan Allah, orang yang berhaji, dan orang yang berumrah adalah tamu-tamu Allah. Allah memanggil mereka lalu mereka menyambut-Nya, dan mereka meminta kepada-Nya lalu Allah mengabulkannya.",
+    translation: "Orang yang berhaji dan berumrah adalah tamu-tamu Allah. Allah memanggil mereka lalu mereka menyambut-Nya, dan mereka berdoa kepada-Nya lalu Allah mengabulkannya.",
     source: "HR. Ibnu Majah No. 2893",
   },
   {
     id: "remove_poverty",
     category: "Keberkahan Rezeki",
     arabic: "تَابِعُوا بَيْنَ الحَجِّ وَالعُمْرَةِ فَإِنَّهُمَا يَنْفِيَانِ الفَقْرَ وَالذُّنُوبَ كَمَا يَنْفِي الكِيرُ خَبَثَ الحَدِيدِ",
-    translation: "Lanjutkanlah antara haji dan umrah, karena keduanya menghilangkan kefakiran dan dosa-dosa sebagaimana ubupan api menghilangkan karat besi.",
-    source: "HR. Tirmidzi No. 810 & An-Nasa'i No. 2631",
+    translation: "Lanjutkanlah antara haji dan umrah, karena keduanya menghilangkan kefakiran dan dosa-dosa sebagaimana ubupan api membersihkan karat besi.",
+    source: "HR. Tirmidzi No. 810",
   },
   {
     id: "zamzam_blessing",
     category: "Keberkahan Air Zamzam",
     arabic: "مَاءُ زَمْزَمَ لِمَا شُرِبَ لَهُ",
     translation: "Air Zamzam itu berkhasiat sesuai dengan niat orang yang meminumnya.",
-    source: "HR. Ibnu Majah No. 3062 & Ahmad No. 14849",
+    source: "HR. Ibnu Majah No. 3062",
   },
   {
     id: "raudhah_garden",
     category: "Taman Surga Raudhah",
     arabic: "مَا بَيْنَ بَيْتِي وَمِنْبَرِي رَوْضَةٌ مِنْ رِيَاضِ الْجَنَّةِ",
-    translation: "Tempat yang berada di antara rumahku dan mimbarku adalah salah satu taman (Raudhah) dari taman-taman surga.",
-    source: "HR. Bukhari No. 1195 & Muslim No. 1391",
+    translation: "Tempat yang berada di antara rumahku dan mimbarku adalah salah satu taman dari taman-taman surga.",
+    source: "HR. Bukhari No. 1195",
   },
   {
     id: "talbiyah_call",
     category: "Kalimat Talbiyah",
     arabic: "لَبَّيْكَ اللَّهُمَّ لَبَّيْكَ، لَبَّيْكَ لاَ شَرِيكَ لَكَ لَبَّيْكَ، إِنَّ الْحَمْدَ وَالنِّعْمَةَ لَكَ وَالْمُلْكَ، لاَ شَرِيكَ لَكَ",
-    translation: "Aku penuhi panggilan-Mu ya Allah, aku penuhi panggilan-Mu. Tiada sekutu bagi-Mu, aku penuhi panggilan-Mu. Sesungguhnya segala puji, nikmat, dan kekuasaan adalah milik-Mu, tiada sekutu bagi-Mu.",
-    source: "Lafadz Talbiyah Rasulullah ﷺ (HR. Bukhari & Muslim)",
+    translation: "Aku penuhi panggilan-Mu ya Allah. Tiada sekutu bagi-Mu. Sesungguhnya segala puji, nikmat, dan kekuasaan adalah milik-Mu.",
+    source: "Lafadz Talbiyah (HR. Bukhari & Muslim)",
   },
 ];
 
-/**
- * Checks whether a trip is an Umrah / Hajj / Holy Land spiritual journey.
- */
 export function isUmrahTrip(trip?: Trip | null): boolean {
   if (!trip) return false;
   const combined = `${trip.title || ""} ${trip.destination || ""}`.toLowerCase();
@@ -105,9 +102,7 @@ interface UmrahInspirationCardProps {
 
 export default function UmrahInspirationCard({ trip }: UmrahInspirationCardProps) {
   const [index, setIndex] = useState(0);
-  const [isRotating, setIsRotating] = useState(false);
 
-  // Only render if this trip is an Umrah / Holy Land spiritual trip
   if (!trip || !isUmrahTrip(trip)) {
     return null;
   }
@@ -115,11 +110,7 @@ export default function UmrahInspirationCard({ trip }: UmrahInspirationCardProps
   const current = UMRAH_INSPIRATIONS[index];
 
   const handleNext = () => {
-    setIsRotating(true);
     setIndex((prev) => (prev + 1) % UMRAH_INSPIRATIONS.length);
-    setTimeout(() => {
-      setIsRotating(false);
-    }, 300);
   };
 
   return (
@@ -133,70 +124,57 @@ export default function UmrahInspirationCard({ trip }: UmrahInspirationCardProps
           handleNext();
         }
       }}
-      title="Klik untuk melihat inspirasi / hadits lainnya"
-      className="group relative rounded-3xl bg-gradient-to-br from-[#183a20] via-[#1e4828] to-[#2c6136] p-6 lg:p-8 shadow-xl overflow-hidden text-white border border-[#3b7b46]/30 transition-all duration-300 hover:shadow-2xl hover:border-emerald-400/40 cursor-pointer active:scale-[0.99] select-none"
+      title="Klik untuk melihat inspirasi berikutnya"
+      className="group relative rounded-3xl bg-white/70 hover:bg-white/90 backdrop-blur-xl border border-white/80 p-4 sm:p-5 shadow-panel transition-all active:scale-[0.99] cursor-pointer select-none space-y-2.5"
     >
-      {/* Ambient background glows */}
-      <div className="absolute -top-16 -right-16 w-48 h-48 bg-white/10 rounded-full blur-3xl transition duration-500 group-hover:bg-white/20 pointer-events-none" />
-      <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-emerald-400/20 rounded-full blur-2xl transition duration-500 group-hover:bg-emerald-400/30 pointer-events-none" />
-      <div className="absolute top-4 right-5 text-white/10 pointer-events-none">
-        <Quotes size={64} weight="fill" aria-hidden />
+      {/* Top Header Row */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="grid h-9 w-9 place-items-center rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200/50 shadow-xs shrink-0 group-hover:scale-105 transition">
+            <BookOpen size={18} weight="fill" />
+          </span>
+          <div className="min-w-0">
+            <h4 className="text-[13px] font-bold text-stone-800 leading-tight truncate">
+              Inspirasi Umrah
+            </h4>
+            <p className="text-[11px] text-emerald-700 font-medium truncate">
+              {current.category}
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleNext();
+          }}
+          className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/60 px-2.5 py-1 text-[11px] font-bold shadow-xs hover:bg-emerald-100 transition shrink-0"
+          title="Ganti Inspirasi"
+        >
+          <span>
+            {index + 1}/{UMRAH_INSPIRATIONS.length}
+          </span>
+          <CaretRight size={12} weight="bold" />
+        </button>
       </div>
 
-      <div className="relative z-10 flex flex-col gap-4">
-        {/* Top Header Badge & Switcher hint */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-emerald-200">
-            <BookOpen size={20} weight="light" aria-hidden />
-            <span className="text-[11px] font-bold tracking-widest uppercase opacity-90">
-              Inspirasi Umrah
-            </span>
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-900/60 border border-emerald-400/30 text-emerald-300">
-              {current.category}
-            </span>
-          </div>
+      {/* Arabic Text */}
+      <p
+        className="text-right text-[15px] sm:text-[17px] leading-relaxed text-stone-900 font-arabic pt-1"
+        dir="rtl"
+        style={{ fontFamily: "var(--font-amiri, serif)" }}
+      >
+        {current.arabic}
+      </p>
 
-          <div className="flex items-center gap-1.5 text-xs text-emerald-300/80 group-hover:text-emerald-200 transition bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded-xl backdrop-blur-md">
-            <ArrowsClockwise
-              size={14}
-              weight="bold"
-              className={`transition-transform duration-300 ${
-                isRotating ? "rotate-180 text-emerald-300" : "group-hover:rotate-45"
-              }`}
-            />
-            <span className="text-[10.5px] font-semibold">
-              {index + 1}/{UMRAH_INSPIRATIONS.length}
-            </span>
-          </div>
-        </div>
-
-        {/* Arabic Text */}
-        <p
-          key={`arabic-${current.id}`}
-          className="text-right text-[20px] md:text-[23px] leading-loose text-white/95 mt-1 font-arabic animate-in fade-in zoom-in-95 duration-200"
-          dir="rtl"
-          style={{ fontFamily: "var(--font-amiri)" }}
-        >
-          {current.arabic}
+      {/* Translation & Source */}
+      <div className="pt-1 text-[11.5px] sm:text-xs text-stone-600 leading-relaxed space-y-1">
+        <p className="italic line-clamp-2">&ldquo;{current.translation}&rdquo;</p>
+        <p className="text-[10.5px] font-semibold text-emerald-700">
+          &mdash; {current.source}
         </p>
-
-        {/* Translation & Reference */}
-        <div
-          key={`trans-${current.id}`}
-          className="flex flex-col gap-2 text-[13.5px] md:text-[14.5px] text-emerald-50 font-light leading-relaxed pr-6 animate-in fade-in slide-in-from-bottom-1 duration-200"
-        >
-          <p className="leading-relaxed">&ldquo;{current.translation}&rdquo;</p>
-          <div className="flex items-center justify-between mt-1">
-            <p className="text-[11.5px] font-medium text-emerald-300">
-              &mdash; {current.source}
-            </p>
-            <span className="text-[10.5px] text-emerald-400/70 italic group-hover:text-emerald-300 transition">
-              Klik kartu untuk ganti inspirasi &rarr;
-            </span>
-          </div>
-        </div>
       </div>
     </div>
   );
 }
-
