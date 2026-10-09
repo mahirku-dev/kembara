@@ -523,7 +523,7 @@ export default function EditPlaceModal({
                 >
                   {POPULAR_TIMEZONES.map((tz) => (
                     <option key={tz.code} value={tz.code}>
-                      {tz.code} ({tz.label})
+                      {tz.code} - {tz.label} ({tz.offset})
                     </option>
                   ))}
                 </select>

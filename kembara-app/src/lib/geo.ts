@@ -723,17 +723,17 @@ export interface TimezoneOption {
 }
 
 export const POPULAR_TIMEZONES: TimezoneOption[] = [
-  { code: "KSA", label: "AST / KSA (Arab Saudi)", offset: "UTC+3", region: "Makkah, Madinah, Jeddah" },
-  { code: "WIB", label: "WIB (Waktu Indonesia Barat)", offset: "UTC+7", region: "Jakarta, Sumatra, Jawa" },
-  { code: "WITA", label: "WITA (Waktu Indonesia Tengah)", offset: "UTC+8", region: "Bali, Lombok, Makassar" },
-  { code: "WIT", label: "WIT (Waktu Indonesia Timur)", offset: "UTC+9", region: "Maluku, Papua" },
-  { code: "GST", label: "GST (Uni Emirat Arab)", offset: "UTC+4", region: "Dubai, Abu Dhabi" },
-  { code: "TRT", label: "TRT (Turki)", offset: "UTC+3", region: "Istanbul, Ankara" },
-  { code: "EEST", label: "EEST (Mesir)", offset: "UTC+3", region: "Kairo, Alexandria" },
-  { code: "MYT", label: "MYT / SGT (Malaysia & Singapura)", offset: "UTC+8", region: "Kuala Lumpur, Singapore" },
-  { code: "JST", label: "JST (Jepang)", offset: "UTC+9", region: "Tokyo, Osaka" },
-  { code: "KST", label: "KST (Korea Selatan)", offset: "UTC+9", region: "Seoul, Incheon" },
-  { code: "UTC", label: "UTC / GMT", offset: "UTC+0", region: "Waktu Standar Universal" },
+  { code: "KSA", label: "Arab Saudi (AST)", offset: "UTC+3", region: "Makkah, Madinah, Jeddah" },
+  { code: "WIB", label: "Waktu Indonesia Barat", offset: "UTC+7", region: "Jakarta, Sumatra, Jawa" },
+  { code: "WITA", label: "Waktu Indonesia Tengah", offset: "UTC+8", region: "Bali, Lombok, Makassar" },
+  { code: "WIT", label: "Waktu Indonesia Timur", offset: "UTC+9", region: "Maluku, Papua" },
+  { code: "GST", label: "Uni Emirat Arab / Dubai", offset: "UTC+4", region: "Dubai, Abu Dhabi" },
+  { code: "TRT", label: "Turki", offset: "UTC+3", region: "Istanbul, Ankara" },
+  { code: "EEST", label: "Mesir", offset: "UTC+3", region: "Kairo, Alexandria" },
+  { code: "MYT", label: "Malaysia & Singapura", offset: "UTC+8", region: "Kuala Lumpur, Singapore" },
+  { code: "JST", label: "Jepang", offset: "UTC+9", region: "Tokyo, Osaka" },
+  { code: "KST", label: "Korea Selatan", offset: "UTC+9", region: "Seoul, Incheon" },
+  { code: "UTC", label: "Waktu Standar Universal (GMT)", offset: "UTC+0", region: "Universal Time" },
 ];
 
 /**

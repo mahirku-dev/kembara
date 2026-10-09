@@ -875,7 +875,7 @@ export default function AddPlaceModal({
                     >
                       {POPULAR_TIMEZONES.map((tz) => (
                         <option key={tz.code} value={tz.code}>
-                          {tz.code} ({tz.offset})
+                          {tz.code} - {tz.label} ({tz.offset})
                         </option>
                       ))}
                     </select>
