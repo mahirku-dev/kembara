@@ -16,12 +16,14 @@ import {
   AVAILABLE_CURRENCIES,
   EXPENSE_CATEGORIES,
 } from "@/lib/geo";
+import { useRouter } from "next/navigation";
 import AddPlaceModal from "./AddPlaceModal";
 import FreeMapLocationPicker, {
   type SelectedLocationResult,
 } from "@/components/FreeMapLocationPicker";
 import TripSwitcher from "@/components/TripSwitcher";
 import UserProfileMenu from "@/components/UserProfileMenu";
+import AiExtractItineraryModal from "@/components/AiExtractItineraryModal";
 
 // Dynamically resolve Phosphor icon by name
 function PhIcon({
@@ -257,8 +259,10 @@ export default function ItineraryClient({
 }: Props) {
   const isHost = isTripHost(trip.current_user_role, user?.id, trip.user_id);
   const canEdit = canEditTrip(trip.current_user_role) || isHost;
+  const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
+  const [isAiExtractModalOpen, setIsAiExtractModalOpen] = useState(false);
   const [days, setDays] = useState<DayWithPlaces[]>(initialDays);
   const [selectedDayIdx, setSelectedDayIdx] = useState<number>(() =>
     getInitialDayIndex(initialDays)
@@ -875,6 +879,17 @@ export default function ItineraryClient({
               {allTrips && allTrips.length > 0 && (
                 <TripSwitcher trips={allTrips} activeTrip={trip} currentUserId={user?.id} />
               )}
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => setIsAiExtractModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 border border-amber-300/60 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold shadow-xs transition active:scale-95"
+                  title="Ekstrak itinerary otomatis dengan AI"
+                >
+                  <Icons.Sparkle size={15} weight="fill" className="text-amber-500" />
+                  <span className="hidden sm:inline">AI Import</span>
+                </button>
+              )}
               {canEdit ? (
                 <AddPlaceModal
                   tripId={trip.id}
@@ -920,6 +935,14 @@ export default function ItineraryClient({
                 />
                 <button
                   type="button"
+                  onClick={() => setIsAiExtractModalOpen(true)}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300/80 px-4 py-2.5 text-xs font-semibold transition active:scale-95 shadow-xs"
+                >
+                  <Icons.Sparkle size={15} weight="fill" className="text-amber-600" />
+                  <span>AI Import</span>
+                </button>
+                <button
+                  type="button"
                   onClick={handleAddDay}
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-2xl bg-stone-100 hover:bg-stone-200 px-4 py-2.5 text-xs font-semibold text-stone-700 transition active:scale-95"
                 >
@@ -930,6 +953,17 @@ export default function ItineraryClient({
             )}
           </div>
         </div>
+
+        {/* Modal: AI Extract Itinerary for empty state */}
+        <AiExtractItineraryModal
+          trip={trip}
+          isOpen={isAiExtractModalOpen}
+          onClose={() => setIsAiExtractModalOpen(false)}
+          onImportSuccess={() => {
+            showToast("Itinerary berhasil diimpor!");
+            router.refresh();
+          }}
+        />
       </div>
     );
   }
@@ -971,6 +1005,17 @@ export default function ItineraryClient({
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             {allTrips && allTrips.length > 0 && (
               <TripSwitcher trips={allTrips} activeTrip={trip} currentUserId={user?.id} />
+            )}
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setIsAiExtractModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 border border-amber-300/60 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold shadow-xs transition active:scale-95"
+                title="Ekstrak itinerary otomatis dengan AI"
+              >
+                <Icons.Sparkle size={15} weight="fill" className="text-amber-500" />
+                <span className="hidden sm:inline">AI Import</span>
+              </button>
             )}
             {canEdit ? (
               <AddPlaceModal
@@ -1832,6 +1877,16 @@ export default function ItineraryClient({
           </div>,
           document.body
         )}
+      {/* ================= MODAL: AI EXTRACT ITINERARY ================= */}
+      <AiExtractItineraryModal
+        trip={trip}
+        isOpen={isAiExtractModalOpen}
+        onClose={() => setIsAiExtractModalOpen(false)}
+        onImportSuccess={() => {
+          showToast("Itinerary berhasil diimpor!");
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

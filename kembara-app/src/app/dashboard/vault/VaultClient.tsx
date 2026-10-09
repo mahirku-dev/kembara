@@ -35,6 +35,7 @@ import {
 import { clsx } from "clsx";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import AiExtractItineraryModal from "@/components/AiExtractItineraryModal";
 
 export interface VaultDoc {
   id: string;
@@ -193,6 +194,7 @@ export default function VaultClient({
   const [imageZoom, setImageZoom] = useState(1);
 
   // AI Extractor state
+  const [isAiExtractModalOpen, setIsAiExtractModalOpen] = useState(false);
   const [aiText, setAiText] = useState(
     "Booking confirmed: Saudia Flight SV817 from Jakarta (CGK) to Jeddah (JED). Departure Oct 26 at 10:00 AM. Hotel Pullman Zamzam Makkah check-in Oct 29."
   );
@@ -1077,66 +1079,37 @@ export default function VaultClient({
             mobileTab !== "ai" && "hidden md:block"
           )}
         >
-          <div className="flex items-center gap-1.5">
-            <Sparkle size={18} className="text-brand-600" weight="fill" />
-            <h3 className="text-[15px] font-semibold text-stone-800">AI Itinerary Extractor</h3>
-          </div>
-          <p className="text-xs text-stone-500 mt-0.5">
-            Tempel teks konfirmasi email atau booking — Kembara akan mengekstraknya otomatis menjadi agenda itinerary.
-          </p>
-
-          <textarea
-            rows={3}
-            value={aiText}
-            onChange={(e) => setAiText(e.target.value)}
-            className="mt-3 w-full resize-none rounded-2xl border border-stone-200/80 bg-white/70 backdrop-blur-md p-3.5 text-[13px] leading-relaxed text-stone-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
-            placeholder="Tempel teks konfirmasi booking di sini..."
-          />
-
-          <button
-            type="button"
-            onClick={handleExtractAI}
-            disabled={aiLoading || !aiText.trim()}
-            className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-[13px] font-medium text-white shadow-cta hover:bg-brand-700 active:scale-[.99] transition sm:w-auto sm:px-6 disabled:opacity-50"
-          >
-            {aiLoading ? (
-              <CircleNotch size={16} className="animate-spin" />
-            ) : (
-              <Sparkle size={16} weight="fill" />
-            )}
-            Extract Itinerary
-          </button>
-
-          {aiSuccessMsg && (
-            <div className="mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
-              <CheckCircle size={16} weight="fill" className="text-emerald-600 shrink-0" />
-              <span>{aiSuccessMsg}</span>
-            </div>
-          )}
-
-          {aiResult && (
-            <div className="mt-4 rounded-2xl bg-brand-100/80 border border-brand-200 p-4 animate-in fade-in duration-300">
-              <div className="flex items-start justify-between">
+          <div className="rounded-3xl border border-amber-200/80 bg-gradient-to-br from-amber-500/10 via-amber-50/50 to-white p-5 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-amber-500 text-white shadow-md shrink-0">
+                  <Sparkle size={20} weight="fill" />
+                </div>
                 <div>
-                  <p className="text-[15px] font-bold text-stone-900">{aiResult.name}</p>
-                  <p className="mt-1 text-[11.5px] text-stone-600 flex items-center gap-1">
-                    <span>📍 {aiResult.location}</span>
-                    <span>• {aiResult.type}</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-[15px] font-bold text-stone-900">
+                      AI Multi-Agenda Itinerary Extractor
+                    </h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/70 text-amber-800 uppercase tracking-wide">
+                      Gemini 2.0 AI
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-600 mt-1 leading-relaxed max-w-xl">
+                    Ekstrak otomatis tiket pesawat, voucher hotel, atau rundown perjalanan multi-hari dari teks bebas menjadi agenda itinerary siap pakai dengan sekali klik.
                   </p>
-                  <p className="mt-0.5 text-[11.5px] text-stone-500">🕒 {aiResult.time}</p>
                 </div>
               </div>
+
               <button
                 type="button"
-                onClick={handleAddAiStopToItinerary}
-                disabled={aiLoading}
-                className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-lg bg-white/90 border border-white/80 px-4 text-xs font-semibold text-brand-600 shadow-glass hover:bg-brand-600 hover:text-white transition"
+                onClick={() => setIsAiExtractModalOpen(true)}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 px-5 text-[13px] font-bold text-white shadow-md hover:from-amber-600 hover:to-amber-700 active:scale-95 transition shrink-0"
               >
-                <Plus size={14} weight="bold" />
-                Tambahkan ke Itinerary
+                <Sparkle size={16} weight="fill" />
+                <span>Buka AI Extractor</span>
               </button>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
@@ -1905,6 +1878,16 @@ export default function VaultClient({
           </div>,
           document.body
         )}
+
+      {/* ================= MODAL: AI EXTRACT ITINERARY ================= */}
+      <AiExtractItineraryModal
+        trip={trip}
+        isOpen={isAiExtractModalOpen}
+        onClose={() => setIsAiExtractModalOpen(false)}
+        onImportSuccess={() => {
+          showToast("Jadwal itinerary berhasil diimpor!");
+        }}
+      />
     </div>
   );
 }
