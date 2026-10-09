@@ -32,6 +32,7 @@ import type { ExtractedAgendaItem } from "@/app/api/ai/extract-itinerary/route";
 import {
   POPULAR_LANDMARKS,
   extractCityName,
+  formatTimeDisplay,
   type LandmarkPreset,
 } from "@/lib/geo";
 import FreeMapLocationPicker, {
@@ -586,8 +587,8 @@ export default function AiExtractItineraryModal({
           address: item.address?.trim() || null,
           lat: item.lat || null,
           lng: item.lng || null,
-          start_time: item.startTime || null,
-          end_time: item.endTime || null,
+          start_time: item.startTime ? formatTimeDisplay(item.startTime) : null,
+          end_time: item.endTime ? formatTimeDisplay(item.endTime) : null,
           category: item.category || "explore",
           cost: item.cost || 0,
           notes: cleanNotes,

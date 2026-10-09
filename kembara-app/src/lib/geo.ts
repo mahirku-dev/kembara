@@ -711,5 +711,166 @@ export function extractCityName(
   return null;
 }
 
+// =============================================
+// Timezone Options & Detection
+// =============================================
+
+export interface TimezoneOption {
+  code: string;
+  label: string;
+  offset: string;
+  region: string;
+}
+
+export const POPULAR_TIMEZONES: TimezoneOption[] = [
+  { code: "KSA", label: "AST / KSA (Arab Saudi)", offset: "UTC+3", region: "Makkah, Madinah, Jeddah" },
+  { code: "WIB", label: "WIB (Waktu Indonesia Barat)", offset: "UTC+7", region: "Jakarta, Sumatra, Jawa" },
+  { code: "WITA", label: "WITA (Waktu Indonesia Tengah)", offset: "UTC+8", region: "Bali, Lombok, Makassar" },
+  { code: "WIT", label: "WIT (Waktu Indonesia Timur)", offset: "UTC+9", region: "Maluku, Papua" },
+  { code: "GST", label: "GST (Uni Emirat Arab)", offset: "UTC+4", region: "Dubai, Abu Dhabi" },
+  { code: "TRT", label: "TRT (Turki)", offset: "UTC+3", region: "Istanbul, Ankara" },
+  { code: "EEST", label: "EEST (Mesir)", offset: "UTC+3", region: "Kairo, Alexandria" },
+  { code: "MYT", label: "MYT / SGT (Malaysia & Singapura)", offset: "UTC+8", region: "Kuala Lumpur, Singapore" },
+  { code: "JST", label: "JST (Jepang)", offset: "UTC+9", region: "Tokyo, Osaka" },
+  { code: "KST", label: "KST (Korea Selatan)", offset: "UTC+9", region: "Seoul, Incheon" },
+  { code: "UTC", label: "UTC / GMT", offset: "UTC+0", region: "Waktu Standar Universal" },
+];
+
+/**
+ * Automatically detects the appropriate timezone based on coordinates, address, or name.
+ */
+export function detectTimezoneFromLocation(
+  lat?: number | null,
+  lng?: number | null,
+  address?: string | null,
+  name?: string | null
+): string {
+  const text = `${address || ""} ${name || ""}`.toLowerCase();
+
+  // Arab Saudi
+  if (
+    text.includes("makkah") ||
+    text.includes("mecca") ||
+    text.includes("madinah") ||
+    text.includes("medina") ||
+    text.includes("jeddah") ||
+    text.includes("riyadh") ||
+    text.includes("saudi") ||
+    text.includes("arab saudi") ||
+    text.includes("haram") ||
+    text.includes("nabawi") ||
+    text.includes("taif") ||
+    text.includes("thaif") ||
+    (lat && lng && lat >= 16 && lat <= 32 && lng >= 34 && lng <= 55)
+  ) {
+    return "KSA";
+  }
+
+  // UAE / Dubai
+  if (
+    text.includes("dubai") ||
+    text.includes("abu dhabi") ||
+    text.includes("dxb") ||
+    text.includes("uae") ||
+    text.includes("emirates")
+  ) {
+    return "GST";
+  }
+
+  // Turkey
+  if (
+    text.includes("istanbul") ||
+    text.includes("turkey") ||
+    text.includes("turki") ||
+    text.includes("turkiye") ||
+    text.includes("ankara")
+  ) {
+    return "TRT";
+  }
+
+  // Egypt
+  if (text.includes("cairo") || text.includes("kairo") || text.includes("mesir") || text.includes("egypt")) {
+    return "EEST";
+  }
+
+  // Malaysia / Singapore
+  if (
+    text.includes("kuala lumpur") ||
+    text.includes("singapore") ||
+    text.includes("singapura") ||
+    text.includes("changi") ||
+    text.includes("klia") ||
+    text.includes("penang")
+  ) {
+    return "MYT";
+  }
+
+  // Indonesia WITA
+  if (
+    text.includes("bali") ||
+    text.includes("denpasar") ||
+    text.includes("lombok") ||
+    text.includes("makassar") ||
+    text.includes("mataram") ||
+    text.includes("balikpapan") ||
+    text.includes("banjarmasin") ||
+    text.includes("manado") ||
+    text.includes("kupang")
+  ) {
+    return "WITA";
+  }
+
+  // Indonesia WIT
+  if (text.includes("jayapura") || text.includes("papua") || text.includes("ambon") || text.includes("maluku")) {
+    return "WIT";
+  }
+
+  // Default Indonesia WIB
+  return "WIB";
+}
+
+/**
+ * Strips seconds (e.g. "13:00:00" -> "13:00") and formats clean time display.
+ */
+export function formatTimeDisplay(timeStr?: string | null): string {
+  if (!timeStr) return "";
+  const trimmed = timeStr.trim();
+  // Strip seconds if present e.g. "13:00:00" -> "13:00"
+  const match = trimmed.match(/^(\d{1,2}:\d{2})(?::\d{2})?(.*)$/);
+  if (match) {
+    const timePart = match[1];
+    const rest = match[2]?.trim();
+    return rest ? `${timePart} ${rest}` : timePart;
+  }
+  return trimmed;
+}
+
+/**
+ * Formats a clean start-end time range string without seconds (e.g. "13:00 — 15:00").
+ */
+export function formatTimeRange(
+  startTime?: string | null,
+  endTime?: string | null,
+  timezone?: string | null
+): string {
+  const cleanStart = formatTimeDisplay(startTime);
+  const cleanEnd = formatTimeDisplay(endTime);
+
+  let range = "";
+  if (cleanStart && cleanEnd) {
+    range = `${cleanStart} — ${cleanEnd}`;
+  } else if (cleanStart) {
+    range = cleanStart;
+  } else if (cleanEnd) {
+    range = cleanEnd;
+  }
+
+  if (range && timezone) {
+    return `${range} ${timezone}`;
+  }
+  return range || "Waktu belum diatur";
+}
+
+
 
 

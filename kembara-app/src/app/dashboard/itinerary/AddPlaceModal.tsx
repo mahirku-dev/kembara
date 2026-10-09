@@ -27,6 +27,9 @@ import {
   AVAILABLE_CURRENCIES,
   EXPENSE_CATEGORIES,
   POPULAR_LANDMARKS,
+  POPULAR_TIMEZONES,
+  detectTimezoneFromLocation,
+  formatTimeDisplay,
 } from "@/lib/geo";
 import FreeMapLocationPicker, {
   type SelectedLocationResult,
@@ -37,8 +40,9 @@ interface AddPlaceModalProps {
   dayNumber?: number;
   tripId?: string;
   buttonText?: string;
-  buttonVariant?: "primary" | "secondary" | "dashed";
+  buttonVariant?: "primary" | "secondary" | "dashed" | "fab";
   className?: string;
+  trigger?: React.ReactNode;
   onPlaceAdded: (place: Place) => void;
 }
 
@@ -72,6 +76,7 @@ export default function AddPlaceModal({
   buttonText = "Tambah Agenda",
   buttonVariant = "primary",
   className = "",
+  trigger,
   onPlaceAdded,
 }: AddPlaceModalProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -84,6 +89,7 @@ export default function AddPlaceModal({
   const [category, setCategory] = useState("pray");
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("10:00");
+  const [timezone, setTimezone] = useState<string>("KSA");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [tasksText, setTasksText] = useState("");
   const [notesText, setNotesText] = useState("");
@@ -134,6 +140,7 @@ export default function AddPlaceModal({
     setLocationName(loc.name);
     setDefaultCurrency(loc.defaultCurrency);
     setLocationQuery(loc.name);
+    setTimezone(detectTimezoneFromLocation(loc.lat, loc.lng, loc.address, loc.name));
 
     if (!name.trim()) {
       setName(loc.name);
@@ -199,6 +206,7 @@ export default function AddPlaceModal({
     setLng(itemLng);
     setDefaultCurrency(currency);
     setLocationQuery(placeTitle);
+    setTimezone(detectTimezoneFromLocation(itemLat, itemLng, fullAddr, placeTitle));
     setSearchResults([]);
 
     if (!name.trim()) {
@@ -253,6 +261,7 @@ export default function AddPlaceModal({
             setAddress(fullAddr);
             setDefaultCurrency(currency);
             setLocationQuery(placeTitle);
+            setTimezone(detectTimezoneFromLocation(latitude, longitude, fullAddr, placeTitle));
 
             if (!name.trim()) {
               setName(placeTitle);
@@ -272,6 +281,7 @@ export default function AddPlaceModal({
           setAddress(fallback);
           const currency = detectCurrencyFromLocation(latitude, longitude);
           setDefaultCurrency(currency);
+          setTimezone(detectTimezoneFromLocation(latitude, longitude, fallback));
         } finally {
           setDetectingGps(false);
         }
@@ -293,6 +303,7 @@ export default function AddPlaceModal({
     setAddress(text);
     const detected = detectCurrencyFromLocation(null, null, text);
     setDefaultCurrency(detected);
+    setTimezone(detectTimezoneFromLocation(null, null, text));
     setExpenseItems((prev) =>
       prev.map((exp) => ({
         ...exp,
@@ -309,6 +320,7 @@ export default function AddPlaceModal({
     setLng(preset.lng);
     setDefaultCurrency(preset.defaultCurrency);
     setLocationQuery(preset.name);
+    setTimezone(detectTimezoneFromLocation(preset.lat, preset.lng, preset.address, preset.name));
     setSearchResults([]);
 
     if (!name.trim()) {
@@ -428,8 +440,8 @@ export default function AddPlaceModal({
         address: finalAddress,
         lat: lat,
         lng: lng,
-        start_time: startTime || null,
-        end_time: endTime || null,
+        start_time: startTime ? formatTimeDisplay(startTime) : null,
+        end_time: endTime ? formatTimeDisplay(endTime) : null,
         thumbnail_url: thumbnailUrl.trim() || null,
         notes: notesText.trim() || null,
         cost: totalCost,
@@ -807,39 +819,63 @@ export default function AddPlaceModal({
               </div>
             </div>
 
-            {/* Time Pickers */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  Waktu Mulai
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-stone-400 pointer-events-none">
-                    <Clock size={16} />
-                  </span>
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full rounded-2xl border border-stone-200 bg-white/80 pl-9 pr-3 py-2 text-sm text-stone-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                  />
+            {/* Time & Timezone Pickers */}
+            <div className="space-y-1.5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
+                    Jam Mulai
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-stone-400 pointer-events-none">
+                      <Clock size={16} />
+                    </span>
+                    <input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="w-full rounded-2xl border border-stone-200 bg-white/80 pl-9 pr-2 py-2 text-sm text-stone-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  Waktu Selesai
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-stone-400 pointer-events-none">
-                    <Clock size={16} />
-                  </span>
-                  <input
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full rounded-2xl border border-stone-200 bg-white/80 pl-9 pr-3 py-2 text-sm text-stone-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                  />
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
+                    Jam Selesai
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-stone-400 pointer-events-none">
+                      <Clock size={16} />
+                    </span>
+                    <input
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="w-full rounded-2xl border border-stone-200 bg-white/80 pl-9 pr-2 py-2 text-sm text-stone-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
+                    Zona Waktu
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-stone-400 pointer-events-none">
+                      <Globe size={16} />
+                    </span>
+                    <select
+                      value={timezone}
+                      onChange={(e) => setTimezone(e.target.value)}
+                      className="w-full rounded-2xl border border-stone-200 bg-white/80 pl-9 pr-6 py-2 text-xs font-bold text-stone-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                    >
+                      {POPULAR_TIMEZONES.map((tz) => (
+                        <option key={tz.code} value={tz.code}>
+                          {tz.code} ({tz.offset})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1055,6 +1091,8 @@ export default function AddPlaceModal({
   const getButtonClass = () => {
     if (className) return className;
     switch (buttonVariant) {
+      case "fab":
+        return "fixed bottom-20 right-4 sm:bottom-8 sm:right-8 z-40 inline-flex items-center gap-2 rounded-full bg-brand-600 hover:bg-brand-700 text-white px-4 py-3 shadow-xl hover:shadow-2xl font-bold text-xs sm:text-sm transition-all active:scale-95 border-2 border-white/80";
       case "secondary":
         return "inline-flex items-center gap-1.5 rounded-2xl bg-brand-50 border border-brand-200/80 px-3.5 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 transition active:scale-95";
       case "dashed":
@@ -1067,14 +1105,20 @@ export default function AddPlaceModal({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={handleOpen}
-        className={getButtonClass()}
-      >
-        <Plus size={14} weight="bold" />
-        {buttonText}
-      </button>
+      {trigger ? (
+        <div onClick={handleOpen} className="cursor-pointer inline-block">
+          {trigger}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={handleOpen}
+          className={getButtonClass()}
+        >
+          <Plus size={buttonVariant === "fab" ? 17 : 14} weight="bold" />
+          {buttonText}
+        </button>
+      )}
 
       {mounted && modalContent && createPortal(modalContent, document.body)}
     </>

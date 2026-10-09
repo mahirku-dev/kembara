@@ -16,6 +16,9 @@ import {
   AVAILABLE_CURRENCIES,
   EXPENSE_CATEGORIES,
   extractCityName,
+  detectTimezoneFromLocation,
+  formatTimeDisplay,
+  formatTimeRange,
 } from "@/lib/geo";
 import { useRouter } from "next/navigation";
 import AddPlaceModal from "./AddPlaceModal";
@@ -911,14 +914,8 @@ export default function ItineraryClient({
                 <span className="hidden sm:inline">AI Import</span>
               </button>
             )}
-            {canEdit ? (
-              <AddPlaceModal
-                dayId={day.id}
-                dayNumber={selectedDayIdx + 1}
-                tripId={trip.id}
-                onPlaceAdded={handlePlaceAdded}
-              />
-            ) : (
+
+            {!canEdit && (
               <span className="inline-flex items-center gap-1.5 rounded-2xl bg-stone-100 border border-stone-200 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-semibold text-stone-600 shadow-xs">
                 <Icons.Eye size={15} weight="bold" />
                 <span className="hidden sm:inline">Mode Lihat Saja</span>
@@ -1081,15 +1078,28 @@ export default function ItineraryClient({
                             </button>
                           )}
                         </div>
-                        <p className="mt-1 flex items-center gap-1.5 text-[12px] text-stone-500">
-                          <Icons.Clock size={13} weight="light" aria-hidden />
-                          {p.start_time ?? "—"} — {p.end_time ?? "—"}
-                        </p>
+                        {/* Time & Timezone badge */}
+                        {(p.start_time || p.end_time) && (
+                          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                            <span className="inline-flex items-center gap-1 text-[12px] font-medium text-stone-600">
+                              <Icons.Clock size={13} weight="bold" className="text-brand-600" />
+                              {formatTimeRange(p.start_time, p.end_time)}
+                            </span>
+                            {(() => {
+                              const tz = detectTimezoneFromLocation(p.lat, p.lng, p.address, p.name);
+                              return (
+                                <span className="inline-flex items-center text-[10px] font-bold text-brand-700 bg-brand-50 border border-brand-200/60 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                                  {tz}
+                                </span>
+                              );
+                            })()}
+                          </div>
+                        )}
 
                         {/* Location Display & Google Maps Navigation */}
-                        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                        <div className="mt-2.5 flex items-start gap-1.5 flex-wrap">
                           {p.address ? (
-                            <>
+                            <div className="flex items-start gap-1.5 flex-wrap max-w-full">
                               <a
                                 href={
                                   p.lat && p.lng
@@ -1100,31 +1110,31 @@ export default function ItineraryClient({
                                 }
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-xs text-brand-700 bg-brand-50/80 hover:bg-brand-100 border border-brand-200/80 px-2.5 py-1 rounded-xl transition active:scale-95 group font-medium max-w-[260px] sm:max-w-[340px] shadow-2xs"
+                                className="inline-flex items-center gap-1.5 text-xs text-brand-700 bg-brand-50/90 hover:bg-brand-100 border border-brand-200 px-2.5 py-1.5 rounded-xl transition active:scale-95 group font-medium max-w-full break-words shadow-2xs"
                                 title="Buka lokasi ini di Google Maps"
                               >
                                 <Icons.MapPin
                                   size={13}
                                   weight="fill"
-                                  className="text-rose-500 shrink-0 group-hover:scale-110 transition-transform"
+                                  className="text-rose-500 shrink-0 group-hover:scale-110 transition-transform mt-0.5 self-start"
                                 />
-                                <span className="truncate">{p.address}</span>
+                                <span className="break-words leading-relaxed">{p.address}</span>
                                 <Icons.ArrowSquareOut
                                   size={12}
                                   weight="bold"
-                                  className="text-brand-500 group-hover:text-brand-700 shrink-0 ml-0.5"
+                                  className="text-brand-500 group-hover:text-brand-700 shrink-0 ml-0.5 self-center"
                                 />
                               </a>
 
                               <button
                                 type="button"
                                 onClick={() => setLocationEditPlace(p)}
-                                className="grid h-7 w-7 place-items-center rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition shrink-0"
+                                className="grid h-7 w-7 place-items-center rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition shrink-0 mt-0.5"
                                 title="Ubah titik lokasi di peta"
                               >
                                 <Icons.PencilSimple size={13} />
                               </button>
-                            </>
+                            </div>
                           ) : (
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <a
@@ -1406,9 +1416,38 @@ export default function ItineraryClient({
                 </div>
               );
             })}
+
+            {/* Inline timeline button to add place */}
+            {canEdit && (
+              <div className="relative pl-8 pt-1">
+                <span className="absolute -left-[13px] top-2.5 grid h-6 w-6 place-items-center rounded-full bg-brand-100 text-brand-700 shadow-2xs ring-4 ring-white">
+                  <Icons.Plus size={12} weight="bold" />
+                </span>
+                <AddPlaceModal
+                  dayId={day.id}
+                  dayNumber={selectedDayIdx + 1}
+                  tripId={trip.id}
+                  buttonVariant="dashed"
+                  buttonText={`Tambah Agenda (Hari ke-${selectedDayIdx + 1})`}
+                  onPlaceAdded={handlePlaceAdded}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* Floating Action Button (FAB) for quick 1-tap addition */}
+      {canEdit && (
+        <AddPlaceModal
+          dayId={day.id}
+          dayNumber={selectedDayIdx + 1}
+          tripId={trip.id}
+          buttonVariant="fab"
+          buttonText="Tambah Agenda"
+          onPlaceAdded={handlePlaceAdded}
+        />
+      )}
 
       {/* ================= POP-UP MODAL: DETAIL PENGELUARAN AGENDA ================= */}
       {mounted &&

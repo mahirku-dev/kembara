@@ -16,6 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import { format, parseISO } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import { formatTimeRange, detectTimezoneFromLocation } from "@/lib/geo";
 import AddPlaceModal from "./itinerary/AddPlaceModal";
 import type { UpcomingPlace } from "./UpcomingAgendaCard";
 import type { TodayPlace } from "./TodayTripSummaryCard";
@@ -98,10 +99,7 @@ export default function ConsolidatedAgendaSection({
                     {place.start_time && (
                       <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60">
                         <Clock size={12} weight="bold" />
-                        <span>
-                          {place.start_time}
-                          {place.end_time ? ` - ${place.end_time}` : ""}
-                        </span>
+                        <span>{formatTimeRange(place.start_time, place.end_time)}</span>
                       </span>
                     )}
                     {place.category && (
@@ -110,7 +108,7 @@ export default function ConsolidatedAgendaSection({
                       </span>
                     )}
                   </div>
-                  <h4 className="text-sm font-bold text-stone-900 leading-snug truncate">
+                  <h4 className="text-sm font-bold text-stone-900 leading-snug">
                     {place.name}
                   </h4>
                   {place.address && (
@@ -120,12 +118,12 @@ export default function ConsolidatedAgendaSection({
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[11.5px] text-stone-500 hover:text-brand-600 flex items-center gap-1 truncate group w-fit transition active:scale-95"
+                      className="text-[11.5px] text-stone-500 hover:text-brand-600 flex items-start gap-1 group w-fit transition active:scale-95 break-words max-w-full"
                       title="Buka lokasi di Google Maps"
                     >
-                      <MapPin size={12} className="shrink-0 text-rose-500 group-hover:scale-110 transition-transform" />
-                      <span className="truncate group-hover:underline">{place.address}</span>
-                      <ArrowSquareOut size={11} className="shrink-0 text-stone-400 group-hover:text-brand-600" />
+                      <MapPin size={12} className="shrink-0 text-rose-500 mt-0.5 group-hover:scale-110 transition-transform" />
+                      <span className="group-hover:underline break-words">{place.address}</span>
+                      <ArrowSquareOut size={11} className="shrink-0 text-stone-400 group-hover:text-brand-600 mt-0.5" />
                     </a>
                   )}
                 </div>
@@ -143,14 +141,11 @@ export default function ConsolidatedAgendaSection({
             {nextAgenda.start_time && (
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60">
                 <Clock size={12} weight="bold" />
-                <span>
-                  {nextAgenda.start_time}
-                  {nextAgenda.end_time ? ` — ${nextAgenda.end_time}` : ""}
-                </span>
+                <span>{formatTimeRange(nextAgenda.start_time, nextAgenda.end_time)}</span>
               </span>
             )}
           </div>
-          <h4 className="text-sm sm:text-base font-bold text-stone-900 leading-snug truncate">
+          <h4 className="text-sm sm:text-base font-bold text-stone-900 leading-snug">
             {nextAgenda.name}
           </h4>
           {nextAgenda.address && (
@@ -160,12 +155,12 @@ export default function ConsolidatedAgendaSection({
               )}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-stone-500 hover:text-brand-600 flex items-center gap-1 truncate group w-fit transition active:scale-95"
+              className="text-xs text-stone-500 hover:text-brand-600 flex items-start gap-1 group w-fit transition active:scale-95 break-words max-w-full"
               title="Buka lokasi di Google Maps"
             >
-              <MapPin size={13} className="shrink-0 text-rose-500 group-hover:scale-110 transition-transform" />
-              <span className="truncate group-hover:underline">{nextAgenda.address}</span>
-              <ArrowSquareOut size={12} className="shrink-0 text-stone-400 group-hover:text-brand-600" />
+              <MapPin size={13} className="shrink-0 text-rose-500 mt-0.5 group-hover:scale-110 transition-transform" />
+              <span className="group-hover:underline break-words">{nextAgenda.address}</span>
+              <ArrowSquareOut size={12} className="shrink-0 text-stone-400 group-hover:text-brand-600 mt-0.5" />
             </a>
           )}
         </div>
