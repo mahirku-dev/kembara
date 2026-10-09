@@ -181,6 +181,10 @@ export default function ItineraryClient({
     placeId: string;
   } | null>(null);
 
+  // Delete confirmation for an entire Place (Agenda)
+  const [placeToDelete, setPlaceToDelete] = useState<Place | null>(null);
+  const [isDeletingPlace, setIsDeletingPlace] = useState(false);
+
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -568,6 +572,38 @@ export default function ItineraryClient({
     } catch (err) {
       console.error("Gagal menghapus pengeluaran:", err);
       showToast("Gagal menghapus pengeluaran.");
+    }
+  };
+
+  // Delete an entire Place / Agenda
+  const handleConfirmDeletePlace = async () => {
+    if (!placeToDelete) return;
+    const place = placeToDelete;
+    setIsDeletingPlace(true);
+
+    // Optimistically remove from local state
+    setDays((prevDays) =>
+      prevDays.map((d) => ({
+        ...d,
+        places: d.places.filter((p) => p.id !== place.id),
+      }))
+    );
+
+    try {
+      const supabase = createClient();
+      // Remove child expenses first to prevent foreign key errors
+      await supabase.from("expenses").delete().eq("place_id", place.id);
+      const { error } = await supabase.from("places").delete().eq("id", place.id);
+      if (error) throw error;
+      showToast(`Agenda "${place.name}" berhasil dihapus.`);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Gagal menghapus agenda.";
+      console.error("Gagal menghapus agenda:", err);
+      showToast(msg);
+    } finally {
+      setPlaceToDelete(null);
+      setIsDeletingPlace(false);
     }
   };
 
@@ -1027,9 +1063,21 @@ export default function ItineraryClient({
                   <div className="rounded-2xl bg-white/60 backdrop-blur-md border border-white/60 px-4 py-3.5 shadow-glass transition hover:bg-white/80">
                     <div className="flex justify-between items-start gap-3">
                       <div className="min-w-0 flex-1">
-                        <p className="text-[15px] font-bold text-stone-900 leading-snug">
-                          {p.name}
-                        </p>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-[15px] font-bold text-stone-900 leading-snug">
+                            {p.name}
+                          </p>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => setPlaceToDelete(p)}
+                              className="text-stone-300 hover:text-rose-600 hover:bg-rose-50 p-1 rounded-lg transition active:scale-95 shrink-0"
+                              title="Hapus agenda ini"
+                            >
+                              <Icons.Trash size={14} />
+                            </button>
+                          )}
+                        </div>
                         <p className="mt-1 flex items-center gap-1.5 text-[12px] text-stone-500">
                           <Icons.Clock size={13} weight="light" aria-hidden />
                           {p.start_time ?? "—"} — {p.end_time ?? "—"}
@@ -1771,6 +1819,66 @@ export default function ItineraryClient({
           </div>,
           document.body
         )}
+      {/* ================= MODAL: DELETE PLACE CONFIRMATION ================= */}
+      {mounted &&
+        placeToDelete &&
+        createPortal(
+          <div className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div
+              className="relative w-full max-w-sm rounded-[2rem] bg-white border border-white/80 p-6 shadow-2xl flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-3.5">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-rose-100 text-rose-600 shrink-0">
+                  <Icons.Warning size={24} weight="fill" />
+                </div>
+                <div>
+                  <h3 className="text-[15px] font-bold text-stone-900">
+                    Hapus Agenda?
+                  </h3>
+                  <p className="text-[12px] text-stone-500 mt-1 leading-relaxed">
+                    Apakah Anda yakin ingin menghapus agenda{" "}
+                    <span className="font-semibold text-stone-800">
+                      "{placeToDelete.name}"
+                    </span>
+                    ? Seluruh catatan, tugas, dan pengeluaran terkait agenda ini akan ikut dihapus.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={isDeletingPlace}
+                  onClick={() => setPlaceToDelete(null)}
+                  className="h-10 px-4 rounded-xl text-stone-600 text-xs font-semibold hover:bg-stone-100 transition disabled:opacity-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeletingPlace}
+                  onClick={handleConfirmDeletePlace}
+                  className="h-10 px-4 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 shadow-sm transition flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+                >
+                  {isDeletingPlace ? (
+                    <>
+                      <Icons.CircleNotch size={14} className="animate-spin" />
+                      <span>Menghapus...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Icons.Trash size={14} weight="bold" />
+                      <span>Hapus Agenda</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
       {/* ================= MODAL: AI EXTRACT ITINERARY ================= */}
       <AiExtractItineraryModal
         trip={trip}
