@@ -858,55 +858,31 @@ export default function ItineraryClient({
           </div>
         )}
 
-        {/* Sticky Header */}
-        <div className="sticky top-0 z-[1100] bg-white/60 backdrop-blur-xl border-b border-white/60 px-4 py-3 sm:px-6 lg:px-10">
-          <div className="flex items-center justify-between gap-2.5 sm:gap-4 mb-2.5">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-600 border border-brand-200/50 shadow-sm shrink-0">
-                <Icons.ListBullets size={22} weight="fill" />
-              </span>
-              <div className="min-w-0">
-                <h2 className="text-[18px] sm:text-[20px] font-bold text-brand-700 leading-tight truncate">
-                  Agenda &amp; Rute
-                </h2>
-                <p className="text-[12px] text-stone-500 mt-0.5 line-clamp-1 truncate">
-                  {`Jadwal & rute kegiatan ${trip.destination || trip.title}`}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-              {allTrips && allTrips.length > 0 && (
-                <TripSwitcher trips={allTrips} activeTrip={trip} currentUserId={user?.id} />
-              )}
-              {canEdit && (
-                <button
-                  type="button"
-                  onClick={() => setIsAiExtractModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 border border-amber-300/60 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold shadow-xs transition active:scale-95"
-                  title="Ekstrak itinerary otomatis dengan AI"
-                >
-                  <Icons.Sparkle size={15} weight="fill" className="text-amber-500" />
-                  <span className="hidden sm:inline">AI Import</span>
-                </button>
-              )}
-              {canEdit ? (
-                <AddPlaceModal
-                  tripId={trip.id}
-                  dayNumber={1}
-                  onPlaceAdded={handlePlaceAdded}
-                  buttonText="Tambah Agenda"
+        {/* Compact Mobile-First Trip Header */}
+        <header className="sticky top-0 z-[1100] bg-white/70 backdrop-blur-xl border-b border-white/70 px-4 py-2.5 sm:px-6 lg:px-10 shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            {/* Trip Selector as Primary Header Focus */}
+            <div className="min-w-0 flex-1">
+              {allTrips && allTrips.length > 0 ? (
+                <TripSwitcher
+                  trips={allTrips}
+                  activeTrip={trip}
+                  currentUserId={user?.id}
+                  className="w-full sm:w-auto"
                 />
               ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-2xl bg-stone-100 border border-stone-200 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-semibold text-stone-600 shadow-xs">
-                  <Icons.Eye size={15} weight="bold" />
-                  <span className="hidden sm:inline">Mode Lihat Saja</span>
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-bold text-brand-700">Kembara</span>
+                </div>
               )}
-              {user && <UserProfileMenu user={user} className="hidden sm:block" />}
+            </div>
+
+            {/* User Profile Menu (Red Suitcase Button) */}
+            <div className="shrink-0 flex items-center">
+              <UserProfileMenu user={user} />
             </div>
           </div>
-        </div>
+        </header>
 
         {/* Empty State Card */}
         <div className="flex flex-col items-center justify-center flex-1 px-5 py-20 text-center">
@@ -985,27 +961,27 @@ export default function ItineraryClient({
         </div>
       )}
 
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-[1100] bg-white/60 backdrop-blur-xl border-b border-white/60 px-4 py-3 sm:px-6 lg:px-10">
-        <div className="flex items-center justify-between gap-2.5 sm:gap-4 mb-2.5">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-600 border border-brand-200/50 shadow-sm shrink-0">
-              <Icons.ListBullets size={22} weight="fill" />
-            </span>
-            <div className="min-w-0">
-              <h2 className="text-[18px] sm:text-[20px] font-bold text-brand-700 leading-tight truncate">
-                Agenda &amp; Rute
-              </h2>
-              <p className="text-[12px] text-stone-500 mt-0.5 line-clamp-1 truncate">
-                {`Jadwal & rute kegiatan ${trip.destination || trip.title}`}
-              </p>
-            </div>
+      {/* Compact Mobile-First Trip Header */}
+      <header className="sticky top-0 z-[1100] bg-white/70 backdrop-blur-xl border-b border-white/70 px-4 py-2.5 sm:px-6 lg:px-10 shrink-0">
+        <div className="flex items-center justify-between gap-3 mb-2.5">
+          {/* Trip Selector as Primary Header Focus */}
+          <div className="min-w-0 flex-1">
+            {allTrips && allTrips.length > 0 ? (
+              <TripSwitcher
+                trips={allTrips}
+                activeTrip={trip}
+                currentUserId={user?.id}
+                className="w-full sm:w-auto"
+              />
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-base font-bold text-brand-700">Kembara</span>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            {allTrips && allTrips.length > 0 && (
-              <TripSwitcher trips={allTrips} activeTrip={trip} currentUserId={user?.id} />
-            )}
+          {/* Action Buttons & User Profile Menu */}
+          <div className="shrink-0 flex items-center gap-2">
             {canEdit && (
               <button
                 type="button"
@@ -1030,7 +1006,8 @@ export default function ItineraryClient({
                 <span className="hidden sm:inline">Mode Lihat Saja</span>
               </span>
             )}
-            {user && <UserProfileMenu user={user} className="hidden sm:block" />}
+
+            <UserProfileMenu user={user} />
           </div>
         </div>
 
@@ -1081,7 +1058,7 @@ export default function ItineraryClient({
             </button>
           )}
         </div>
-      </div>
+      </header>
 
       {/* Main Timeline */}
       <div className="px-5 pt-6 lg:px-10">

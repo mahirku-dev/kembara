@@ -55,31 +55,31 @@ export default async function MapPage({
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Dynamic Header */}
-      <div className="sticky top-0 z-[1100] bg-white/60 backdrop-blur-xl border-b border-white/60 px-4 py-3 sm:px-6 lg:px-10 shrink-0">
-        <div className="flex items-center justify-between gap-2.5 sm:gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-600 border border-brand-200/50 shadow-sm shrink-0">
-              <MapTrifold size={22} weight="fill" />
-            </span>
-            <div className="min-w-0">
-              <h2 className="text-[18px] sm:text-[20px] font-bold text-brand-700 leading-tight truncate">
-                Peta & Lokasi
-              </h2>
-              <p className="text-[12px] text-stone-500 mt-0.5 line-clamp-1 truncate">
-                {subtitle}
-              </p>
-            </div>
+      {/* Compact Mobile-First Trip Header */}
+      <header className="sticky top-0 z-[1100] bg-white/70 backdrop-blur-xl border-b border-white/70 px-4 py-2.5 sm:px-6 lg:px-10 shrink-0">
+        <div className="flex items-center justify-between gap-3">
+          {/* Trip Selector as Primary Header Focus */}
+          <div className="min-w-0 flex-1">
+            {trips.length > 0 ? (
+              <TripSwitcher
+                trips={trips}
+                activeTrip={activeTrip}
+                currentUserId={user.id}
+                className="w-full sm:w-auto"
+              />
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-base font-bold text-brand-700">Kembara</span>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            {trips.length > 0 && (
-              <TripSwitcher trips={trips} activeTrip={activeTrip} currentUserId={user.id} />
-            )}
-            <UserProfileMenu user={user} className="hidden sm:block" />
+          {/* User Profile Menu (Red Suitcase Button) */}
+          <div className="shrink-0 flex items-center">
+            <UserProfileMenu user={user} />
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Map Body */}
       <div className="flex-1 relative overflow-hidden">

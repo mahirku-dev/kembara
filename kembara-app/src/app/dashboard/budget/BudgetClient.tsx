@@ -464,29 +464,27 @@ export default function BudgetClient({
         </div>
       )}
 
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-[1100] bg-white/60 backdrop-blur-xl border-b border-white/60 px-4 py-3 sm:px-6 lg:px-10">
-        <div className="flex items-center justify-between gap-2.5 sm:gap-4 mb-2">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-600 border border-brand-200/50 shadow-sm shrink-0">
-              <Wallet size={22} weight="fill" />
-            </span>
-            <div className="min-w-0">
-              <h2 className="text-[18px] sm:text-[20px] font-bold text-brand-700 leading-tight truncate">
-                Budget &amp; Keuangan
-              </h2>
-              <p className="text-[12px] text-stone-500 mt-0.5 line-clamp-1 truncate">
-                Kelola anggaran &amp; catatan belanja perjalanan
-              </p>
-            </div>
+      {/* Compact Mobile-First Trip Header */}
+      <header className="sticky top-0 z-[1100] bg-white/70 backdrop-blur-xl border-b border-white/70 px-4 py-2.5 sm:px-6 lg:px-10 shrink-0">
+        <div className="flex items-center justify-between gap-3 mb-2">
+          {/* Trip Selector as Primary Header Focus */}
+          <div className="min-w-0 flex-1">
+            {allTrips && allTrips.length > 0 ? (
+              <TripSwitcher
+                trips={allTrips}
+                activeTrip={trip}
+                currentUserId={user?.id}
+                className="w-full sm:w-auto"
+              />
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-base font-bold text-brand-700">Kembara</span>
+              </div>
+            )}
           </div>
 
-          {/* Quick Header Actions */}
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            {allTrips && allTrips.length > 0 && (
-              <TripSwitcher trips={allTrips} activeTrip={trip} currentUserId={user?.id} />
-            )}
-
+          {/* Quick Actions & User Profile Menu */}
+          <div className="shrink-0 flex items-center gap-2">
             {canEdit ? (
               <>
                 <button
@@ -529,7 +527,7 @@ export default function BudgetClient({
               </span>
             )}
 
-            {user && <UserProfileMenu user={user} className="hidden sm:block" />}
+            <UserProfileMenu user={user} />
           </div>
         </div>
 
@@ -562,7 +560,7 @@ export default function BudgetClient({
             })}
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Main Content Area */}
       <div className="px-5 pt-6 lg:px-10 space-y-6 pb-12">
