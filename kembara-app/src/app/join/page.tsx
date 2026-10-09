@@ -20,14 +20,15 @@ import Link from "next/link";
 function JoinPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const codeParam = searchParams.get("code") || searchParams.get("joinCode") || "";
+  const codeParam = (searchParams.get("code") || searchParams.get("joinCode") || "").trim().toUpperCase();
 
-  const [code, setCode] = useState(codeParam.toUpperCase());
+  const [code, setCode] = useState(codeParam);
   const [user, setUser] = useState<any>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successTripId, setSuccessTripId] = useState<string | null>(null);
+  const [successTripTitle, setSuccessTripTitle] = useState<string | null>(null);
 
   // Check auth state
   useEffect(() => {
@@ -50,21 +51,14 @@ function JoinPageContent() {
   // Sync code from URL parameter
   useEffect(() => {
     if (codeParam) {
-      setCode(codeParam.toUpperCase());
+      setCode(codeParam);
     }
   }, [codeParam]);
-
-  // If user is already authenticated and a code is present in URL, auto join
-  useEffect(() => {
-    if (!checkingAuth && user && codeParam && !successTripId && !error && !loading) {
-      handleJoin(codeParam.toUpperCase());
-    }
-  }, [checkingAuth, user, codeParam]);
 
   const handleJoin = async (targetCode: string) => {
     const cleanCode = targetCode.trim().toUpperCase();
     if (!cleanCode) {
-      setError("Masukkan 6-karakter kode undangan.");
+      setError("Masukkan kode undangan perjalanan.");
       return;
     }
 
@@ -76,21 +70,30 @@ function JoinPageContent() {
 
     if (res.success && res.tripId) {
       setSuccessTripId(res.tripId);
+      if (res.title) setSuccessTripTitle(res.title);
       setTimeout(() => {
         router.push(`/dashboard?tripId=${res.tripId}`);
         router.refresh();
-      }, 1200);
+      }, 1000);
     } else {
       setError(res.error || "Kode undangan tidak valid atau perjalanan tidak ditemukan.");
     }
   };
+
+  // If user is already authenticated and a code is present in URL, auto join
+  useEffect(() => {
+    if (!checkingAuth && user && codeParam && !successTripId && !error && !loading) {
+      handleJoin(codeParam);
+    }
+  }, [checkingAuth, user, codeParam]);
 
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError(null);
     try {
       const supabase = createClient();
-      const nextUrl = code ? `/join?code=${code}` : "/dashboard";
+      const currentCode = (code || codeParam || "").trim().toUpperCase();
+      const nextUrl = currentCode ? `/join?code=${encodeURIComponent(currentCode)}` : "/dashboard";
       const { error: authErr } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -133,6 +136,11 @@ function JoinPageContent() {
             <h3 className="text-lg font-bold text-stone-900">
               Berhasil Bergabung!
             </h3>
+            {successTripTitle && (
+              <p className="text-sm font-semibold text-brand-700 bg-brand-50/80 px-3 py-1.5 rounded-xl border border-brand-200/80 inline-block max-w-full truncate">
+                {successTripTitle}
+              </p>
+            )}
             <p className="text-xs text-stone-500">
               Mengarahkan Anda ke dashboard perjalanan...
             </p>

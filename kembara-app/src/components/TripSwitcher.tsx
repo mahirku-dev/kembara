@@ -56,9 +56,9 @@ export default function TripSwitcher({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // Check if URL has joinCode query param to open Join modal automatically
+  // Check if URL has joinCode or code query param to open Join modal automatically
   useEffect(() => {
-    const joinCode = searchParams?.get("joinCode");
+    const joinCode = searchParams?.get("joinCode") || searchParams?.get("code");
     if (joinCode) {
       setShowJoinModal(true);
     }

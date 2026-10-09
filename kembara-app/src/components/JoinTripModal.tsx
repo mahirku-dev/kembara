@@ -42,7 +42,7 @@ export default function JoinTripModal({
 
   useEffect(() => {
     if (isOpen) {
-      const urlCode = searchParams.get("joinCode");
+      const urlCode = searchParams.get("code") || searchParams.get("joinCode");
       if (urlCode) {
         setCode(urlCode.toUpperCase());
       } else if (initialCode) {

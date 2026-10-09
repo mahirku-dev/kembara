@@ -13,36 +13,74 @@ export function generateInviteCode(): string {
 /**
  * Join an existing trip by invite code
  */
-export async function joinTripByCode(inviteCode: string): Promise<{ success: boolean; tripId?: string; error?: string }> {
+export async function joinTripByCode(
+  inviteCode: string
+): Promise<{ success: boolean; tripId?: string; title?: string; error?: string }> {
   try {
+    const cleanCode = (inviteCode || "").trim().toUpperCase();
+    if (!cleanCode) {
+      return { success: false, error: "Kode undangan tidak boleh kosong." };
+    }
+
+    // 1. Preferred method: Server API Route (ensures RLS bypass and secure membership insert)
+    try {
+      const response = await fetch("/api/trips/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inviteCode: cleanCode }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        return result;
+      } else {
+        const errJson = await response.json().catch(() => ({}));
+        if (errJson?.error) {
+          return { success: false, error: errJson.error };
+        }
+      }
+    } catch (fetchErr) {
+      console.warn("API join route fetch error, trying client fallback:", fetchErr);
+    }
+
+    // 2. Client-side Fallback via Supabase
     const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return { success: false, error: "Silakan login terlebih dahulu untuk bergabung ke perjalanan." };
+      return {
+        success: false,
+        error: "Silakan login terlebih dahulu untuk bergabung ke perjalanan.",
+      };
     }
 
-    const cleanCode = inviteCode.trim().toUpperCase();
-    if (!cleanCode) {
-      return { success: false, error: "Kode undangan tidak boleh kosong." };
+    // Try RPC
+    const { data: rpcRes, error: rpcErr } = await supabase.rpc("join_trip_by_code", {
+      p_invite_code: cleanCode,
+    });
+
+    if (!rpcErr && rpcRes) {
+      return rpcRes;
     }
 
-    // 1. Find trip by invite code
+    // Try Direct Query
     const { data: trip, error: tripErr } = await supabase
       .from("trips")
       .select("id, title, user_id")
-      .eq("invite_code", cleanCode)
-      .single();
+      .ilike("invite_code", cleanCode)
+      .maybeSingle();
 
     if (tripErr || !trip) {
-      return { success: false, error: "Kode undangan tidak valid atau perjalanan tidak ditemukan." };
+      return {
+        success: false,
+        error: "Kode undangan tidak valid atau perjalanan tidak ditemukan.",
+      };
     }
 
-    // 2. Check if user is already the owner/host or already a member
     if (trip.user_id === user.id) {
-      return { success: true, tripId: trip.id };
+      return { success: true, tripId: trip.id, title: trip.title };
     }
 
     const { data: existingMember } = await supabase
@@ -53,11 +91,9 @@ export async function joinTripByCode(inviteCode: string): Promise<{ success: boo
       .maybeSingle();
 
     if (existingMember) {
-      // Already a member
-      return { success: true, tripId: trip.id };
+      return { success: true, tripId: trip.id, title: trip.title };
     }
 
-    // 3. Add user as member with default 'viewer' role
     const userName =
       user.user_metadata?.full_name ||
       user.user_metadata?.name ||
@@ -69,7 +105,7 @@ export async function joinTripByCode(inviteCode: string): Promise<{ success: boo
       trip_id: trip.id,
       user_id: user.id,
       name: userName,
-      role: "viewer", // Default: read-only viewer
+      role: "viewer",
       avatar_url: avatarUrl,
     });
 
@@ -77,7 +113,7 @@ export async function joinTripByCode(inviteCode: string): Promise<{ success: boo
       return { success: false, error: insertErr.message || "Gagal bergabung ke perjalanan." };
     }
 
-    return { success: true, tripId: trip.id };
+    return { success: true, tripId: trip.id, title: trip.title };
   } catch (err: any) {
     return { success: false, error: err?.message || "Terjadi kesalahan saat bergabung." };
   }

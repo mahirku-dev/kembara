@@ -49,14 +49,29 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Redirect authenticated users away from the login page
+  // Redirect authenticated users away from the login page, preserving any invite code or next target
   if (pathname === '/' && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
+    const joinCode = request.nextUrl.searchParams.get('code') || request.nextUrl.searchParams.get('joinCode');
+    if (joinCode) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/join';
+      url.searchParams.set('code', joinCode.toUpperCase());
+      url.searchParams.delete('joinCode');
+      return NextResponse.redirect(url);
+    }
+
+    const nextTarget = request.nextUrl.searchParams.get('next');
+    if (nextTarget && nextTarget.startsWith('/')) {
+      const targetUrl = new URL(nextTarget, request.url);
+      return NextResponse.redirect(targetUrl);
+    }
+
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    return NextResponse.redirect(url);
   }
 
-  return supabaseResponse
+  return supabaseResponse;
 }
 
 export const config = {

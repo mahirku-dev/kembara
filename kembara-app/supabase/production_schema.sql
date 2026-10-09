@@ -196,6 +196,7 @@ create policy "Users can view trips they own or belong to"
       where trip_members.trip_id = trips.id
         and trip_members.user_id = auth.uid()
     )
+    or (invite_code is not null)
   );
 
 create policy "Users can insert their own trips"
@@ -379,3 +380,78 @@ drop policy if exists "Authenticated users can delete trip covers" on storage.ob
 create policy "Authenticated users can delete trip covers"
   on storage.objects for delete
   using (bucket_id = 'trip-covers' and auth.role() = 'authenticated');
+
+-- =========================================================
+-- ATOMIC JOIN TRIP RPC FUNCTION
+-- =========================================================
+create or replace function join_trip_by_code(p_invite_code text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid;
+  v_trip_id uuid;
+  v_trip_title text;
+  v_trip_owner uuid;
+  v_user_name text;
+  v_user_avatar text;
+  v_clean_code text;
+  v_existing_member uuid;
+begin
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    return jsonb_build_object('success', false, 'error', 'Silakan login terlebih dahulu untuk bergabung ke perjalanan.');
+  end if;
+
+  v_clean_code := upper(trim(p_invite_code));
+  if v_clean_code = '' or length(v_clean_code) < 3 then
+    return jsonb_build_object('success', false, 'error', 'Kode undangan tidak boleh kosong.');
+  end if;
+
+  select id, title, user_id
+  into v_trip_id, v_trip_title, v_trip_owner
+  from trips
+  where upper(trim(invite_code)) = v_clean_code
+  limit 1;
+
+  if v_trip_id is null then
+    return jsonb_build_object('success', false, 'error', 'Kode undangan tidak valid atau perjalanan tidak ditemukan.');
+  end if;
+
+  if v_trip_owner = v_user_id then
+    return jsonb_build_object('success', true, 'tripId', v_trip_id, 'title', v_trip_title, 'message', 'Anda adalah Host perjalanan ini.');
+  end if;
+
+  select id into v_existing_member
+  from trip_members
+  where trip_id = v_trip_id and user_id = v_user_id
+  limit 1;
+
+  if v_existing_member is not null then
+    return jsonb_build_object('success', true, 'tripId', v_trip_id, 'title', v_trip_title, 'message', 'Anda sudah menjadi anggota di perjalanan ini.');
+  end if;
+
+  select
+    coalesce(
+      raw_user_meta_data->>'full_name',
+      raw_user_meta_data->>'name',
+      split_part(email, '@', 1),
+      'Anggota'
+    ),
+    raw_user_meta_data->>'avatar_url'
+  into v_user_name, v_user_avatar
+  from auth.users
+  where id = v_user_id;
+
+  if v_user_name is null or trim(v_user_name) = '' then
+    v_user_name := 'Anggota';
+  end if;
+
+  insert into trip_members (trip_id, user_id, name, role, avatar_url)
+  values (v_trip_id, v_user_id, v_user_name, 'viewer', v_user_avatar);
+
+  return jsonb_build_object('success', true, 'tripId', v_trip_id, 'title', v_trip_title, 'message', 'Berhasil bergabung ke perjalanan.');
+end;
+$$;
