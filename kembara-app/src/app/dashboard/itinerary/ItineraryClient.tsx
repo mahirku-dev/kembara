@@ -217,11 +217,30 @@ export default function ItineraryClient({
   const [placeToDelete, setPlaceToDelete] = useState<Place | null>(null);
   const [isDeletingPlace, setIsDeletingPlace] = useState(false);
 
+  // Agenda Thumbnail Image Preview Modal
+  const [previewImage, setPreviewImage] = useState<{
+    url: string;
+    title: string;
+    category?: string | null;
+  } | null>(null);
+  const [previewZoom, setPreviewZoom] = useState<number>(1);
+
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Keyboard shortcut: Close Image Preview on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && previewImage) {
+        setPreviewImage(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [previewImage]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -1529,13 +1548,32 @@ export default function ItineraryClient({
                       </div>
 
                       {p.thumbnail_url && (
-                        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-white/60 shadow-sm">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPreviewZoom(1);
+                            setPreviewImage({
+                              url: p.thumbnail_url!,
+                              title: p.name,
+                              category: p.category,
+                            });
+                          }}
+                          className="group/thumb relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-stone-200/80 shadow-xs hover:shadow-md transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-stone-100 cursor-pointer"
+                          title="Klik untuk melihat foto agenda"
+                        >
                           <img
                             src={p.thumbnail_url}
                             alt={p.name}
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-cover group-hover/thumb:scale-110 transition-transform duration-300"
                           />
-                        </div>
+                          <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/30 transition-colors flex items-center justify-center">
+                            <Icons.MagnifyingGlassPlus
+                              size={18}
+                              weight="bold"
+                              className="text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity drop-shadow-md"
+                            />
+                          </div>
+                        </button>
                       )}
                     </div>
 
@@ -2454,6 +2492,115 @@ export default function ItineraryClient({
                     </>
                   )}
                 </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* ================= IMAGE PREVIEW LIGHTBOX MODAL ================= */}
+      {mounted &&
+        previewImage &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[100000] flex items-center justify-center p-3 sm:p-6 bg-stone-950/80 backdrop-blur-md animate-in fade-in duration-200"
+            onClick={() => setPreviewImage(null)}
+          >
+            <div
+              className="relative w-full max-w-2xl rounded-3xl bg-stone-900 border border-stone-800 text-white p-4 sm:p-5 shadow-2xl flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-stone-800 shrink-0">
+                <div className="min-w-0 pr-4">
+                  <div className="flex items-center gap-2">
+                    {previewImage.category && (
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/30">
+                        {previewImage.category}
+                      </span>
+                    )}
+                    <span className="text-xs text-stone-400">Preview Foto Agenda</span>
+                  </div>
+                  <h3 className="text-sm sm:text-base font-bold text-white mt-1 truncate">
+                    {previewImage.title}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPreviewImage(null)}
+                  className="rounded-full p-2 text-stone-400 hover:text-white hover:bg-stone-800 transition active:scale-95"
+                  title="Tutup preview"
+                >
+                  <Icons.X size={18} weight="bold" />
+                </button>
+              </div>
+
+              {/* Image Container with Zoom */}
+              <div className="relative my-3 flex-1 flex items-center justify-center overflow-hidden rounded-2xl bg-black/60 border border-stone-800/80 min-h-[260px] max-h-[62vh]">
+                <img
+                  src={previewImage.url}
+                  alt={previewImage.title}
+                  style={{
+                    transform: `scale(${previewZoom})`,
+                    transition: "transform 0.2s ease",
+                  }}
+                  className="max-h-[60vh] max-w-full object-contain select-none"
+                />
+
+                {/* Floating Zoom Controls */}
+                <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-stone-900/90 backdrop-blur-md text-white p-1 rounded-xl shadow-lg border border-white/10 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewZoom((z) => Math.max(0.5, z - 0.25))}
+                    className="p-1.5 hover:bg-white/20 rounded-lg transition"
+                    title="Perkecil"
+                  >
+                    <Icons.MagnifyingGlassMinus size={15} />
+                  </button>
+                  <span className="text-[11px] font-mono px-1.5 font-bold">
+                    {Math.round(previewZoom * 100)}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewZoom((z) => Math.min(3, z + 0.25))}
+                    className="p-1.5 hover:bg-white/20 rounded-lg transition"
+                    title="Perbesar"
+                  >
+                    <Icons.MagnifyingGlassPlus size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewZoom(1)}
+                    className="text-[10px] px-2 py-1 hover:bg-white/20 rounded-lg font-semibold transition ml-0.5"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between text-xs text-stone-400 pt-1 shrink-0">
+                <span className="text-[11px] text-stone-500 truncate max-w-[180px] sm:max-w-xs">
+                  {previewImage.url}
+                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href={previewImage.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-brand-400 hover:text-brand-300 hover:underline px-2.5 py-1 rounded-lg hover:bg-stone-800 transition"
+                  >
+                    <Icons.ArrowSquareOut size={14} weight="bold" />
+                    <span>Buka Penuh</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewImage(null)}
+                    className="rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 px-3.5 py-1 text-xs font-semibold transition active:scale-95"
+                  >
+                    Tutup
+                  </button>
+                </div>
               </div>
             </div>
           </div>,
