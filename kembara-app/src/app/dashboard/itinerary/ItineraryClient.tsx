@@ -976,13 +976,10 @@ export default function ItineraryClient({
             </button>
           )}
         </div>
-      </header>
 
-      {/* Main Timeline */}
-      <div className="px-5 pt-6 lg:px-10">
-        {/* Day Heading & Route Subtitle */}
-        <div className="mb-5">
-          <h3 className="text-base sm:text-lg font-bold text-stone-900 tracking-tight leading-snug">
+        {/* Frozen/Sticky Day Heading & Cities Route */}
+        <div className="pt-2 pb-0.5 border-t border-stone-100/90 flex flex-col min-w-0">
+          <h3 className="text-sm sm:text-base font-bold text-stone-900 tracking-tight leading-snug truncate">
             {(() => {
               const dayNum = day.day_number || selectedDayIdx + 1;
               const ordinalText = getIndonesianDayOrdinal(dayNum);
@@ -1006,13 +1003,19 @@ export default function ItineraryClient({
             if (!route) return null;
 
             return (
-              <p className="text-xs sm:text-[13px] text-stone-500 font-medium mt-0.5">
+              <p
+                className="text-xs sm:text-[13px] text-brand-700 font-semibold leading-tight truncate sm:whitespace-normal mt-0.5"
+                title={route}
+              >
                 {route}
               </p>
             );
           })()}
         </div>
+      </header>
 
+      {/* Main Timeline */}
+      <div className="px-5 pt-4 lg:px-10">
         {day.places.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-stone-200 py-14 text-center my-4">
             <p className="text-[14px] font-medium text-stone-500">
