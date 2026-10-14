@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { createClient } from "@/utils/supabase/client";
 import type { PackingItem, Subtask, Trip } from "@/types";
@@ -45,7 +45,8 @@ import AiExtractItineraryModal from "@/components/AiExtractItineraryModal";
 export interface VaultDoc {
   id: string;
   title: string;
-  category: "flight" | "hotel" | "insurance" | "visa" | "other";
+  category?: "flight" | "hotel" | "insurance" | "visa" | "identity" | "other" | string | null;
+  customCategory?: string | null;
   fileName: string;
   fileSize: string;
   fileType: "PDF" | "JPG" | "PNG" | "WEBP" | "OTHER";
@@ -59,6 +60,68 @@ export interface VaultDoc {
     holderName?: string;
     notes?: string;
   };
+}
+
+export function getDocCategoryMeta(
+  category?: string | null,
+  customCategory?: string | null
+): {
+  label: string;
+  colorClass: string;
+} | null {
+  if (customCategory?.trim()) {
+    return {
+      label: customCategory.trim(),
+      colorClass: "bg-purple-50 text-purple-700 border-purple-200/80",
+    };
+  }
+  if (!category) return null;
+
+  switch (category.toLowerCase()) {
+    case "visa":
+    case "paspor":
+    case "passport":
+      return {
+        label: "Dokumen Visa",
+        colorClass: "bg-emerald-50 text-emerald-700 border-emerald-200/80",
+      };
+    case "flight":
+    case "ticket":
+    case "tiket":
+      return {
+        label: "Tiket",
+        colorClass: "bg-sky-50 text-sky-700 border-sky-200/80",
+      };
+    case "hotel":
+    case "penginapan":
+      return {
+        label: "Hotel",
+        colorClass: "bg-amber-50 text-amber-700 border-amber-200/80",
+      };
+    case "insurance":
+    case "asuransi":
+      return {
+        label: "Asuransi",
+        colorClass: "bg-teal-50 text-teal-700 border-teal-200/80",
+      };
+    case "identity":
+    case "ktp":
+      return {
+        label: "Identitas / KTP",
+        colorClass: "bg-indigo-50 text-indigo-700 border-indigo-200/80",
+      };
+    case "other":
+    case "lainnya":
+      return {
+        label: "Lainnya",
+        colorClass: "bg-stone-100 text-stone-600 border-stone-200",
+      };
+    default:
+      return {
+        label: category,
+        colorClass: "bg-brand-50 text-brand-700 border-brand-200/80",
+      };
+  }
 }
 
 const INITIAL_DOCS: VaultDoc[] = [
@@ -98,6 +161,23 @@ const INITIAL_DOCS: VaultDoc[] = [
   },
   {
     id: "doc-3",
+    title: "E-Visa Umrah & Paspor Rombongan",
+    category: "visa",
+    fileName: "evisa_umrah_group.pdf",
+    fileSize: "410 KB",
+    fileType: "PDF",
+    uploadedAt: "09 Okt 2026",
+    details: {
+      subtitle: "Kementerian Haji & Umrah Arab Saudi (MoHU)",
+      bookingCode: "VSA-SA-2026-9812",
+      issuer: "Muassasah / Kemenag RI",
+      dates: "Single Entry · Berlaku s/d 25 Des 2026",
+      holderName: "Semua Anggota Rombongan",
+      notes: "Pastikan cetak fisik visa dibawa bersama paspor asli.",
+    },
+  },
+  {
+    id: "doc-4",
     title: "Polis Asuransi Perjalanan & Kesehatan",
     category: "insurance",
     fileName: "travel_insurance_policy.pdf",
@@ -213,7 +293,9 @@ export default function VaultClient({
 
   // Upload Form State
   const [newDocTitle, setNewDocTitle] = useState("");
-  const [newDocCategory, setNewDocCategory] = useState<VaultDoc["category"]>("flight");
+  const [newDocCategory, setNewDocCategory] = useState<string>("");
+  const [newDocCustomCategory, setNewDocCustomCategory] = useState<string>("");
+  const [docCategoryFilter, setDocCategoryFilter] = useState<string>("all");
   const [newDocSubtitle, setNewDocSubtitle] = useState("");
   const [newDocBookingCode, setNewDocBookingCode] = useState("");
   const [newDocNotes, setNewDocNotes] = useState("");
@@ -686,6 +768,13 @@ export default function VaultClient({
       lowerName.includes("polis")
     ) {
       setNewDocCategory("insurance");
+    } else if (
+      lowerName.includes("ktp") ||
+      lowerName.includes("identitas") ||
+      lowerName.includes("sim") ||
+      lowerName.includes("id card")
+    ) {
+      setNewDocCategory("identity");
     }
 
     const reader = new FileReader();
@@ -711,10 +800,21 @@ export default function VaultClient({
 
     const todayFormatted = format(new Date(), "d MMM yyyy", { locale: idLocale });
 
+    const finalCategory =
+      newDocCategory === "custom"
+        ? (newDocCustomCategory.trim() ? "other" : null)
+        : (newDocCategory.trim() || null);
+
+    const customCategory =
+      newDocCategory === "custom" && newDocCustomCategory.trim()
+        ? newDocCustomCategory.trim()
+        : null;
+
     const createdDoc: VaultDoc = {
       id: `doc-${Date.now()}`,
       title: newDocTitle.trim(),
-      category: newDocCategory,
+      category: finalCategory,
+      customCategory,
       fileName,
       fileSize: fileSizeFormatted || (selectedFile ? formatBytes(selectedFile.size) : "250 KB"),
       fileType: fileTypeDetected,
@@ -750,6 +850,8 @@ export default function VaultClient({
 
     // Reset Form
     setNewDocTitle("");
+    setNewDocCategory("");
+    setNewDocCustomCategory("");
     setNewDocSubtitle("");
     setNewDocBookingCode("");
     setNewDocNotes("");
@@ -771,7 +873,10 @@ export default function VaultClient({
       document.body.removeChild(link);
       showToast(`Mengunduh ${doc.fileName}...`);
     } else {
-      const textContent = `KEMBARA DOCUMENT VAULT\n=======================\nJudul: ${doc.title}\nKategori: ${doc.category.toUpperCase()}\nKode Booking: ${doc.details.bookingCode || "N/A"}\nPenerbit: ${doc.details.issuer || "N/A"}\nJadwal: ${doc.details.dates || "N/A"}\nCatatan: ${doc.details.notes || "-"}\n\nDiunggah: ${doc.uploadedAt}\nKembara Travel Assistant`;
+      const categoryLabel = doc.category
+        ? (getDocCategoryMeta(doc.category, doc.customCategory)?.label || doc.category)
+        : "Umum / Tanpa Kategori";
+      const textContent = `KEMBARA DOCUMENT VAULT\n=======================\nJudul: ${doc.title}\nKategori: ${categoryLabel.toUpperCase()}\nKode Booking: ${doc.details.bookingCode || "N/A"}\nPenerbit: ${doc.details.issuer || "N/A"}\nJadwal: ${doc.details.dates || "N/A"}\nCatatan: ${doc.details.notes || "-"}\n\nDiunggah: ${doc.uploadedAt}\nKembara Travel Assistant`;
       const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -843,20 +948,39 @@ export default function VaultClient({
     }
   };
 
-  const getDocIcon = (category: VaultDoc["category"]) => {
-    switch (category) {
-      case "flight":
-        return <AirplaneTilt size={24} className="text-brand-600 shrink-0" weight="duotone" />;
-      case "hotel":
-        return <HouseLine size={24} className="text-brand-600 shrink-0" weight="duotone" />;
-      case "insurance":
-        return <ShieldCheck size={24} className="text-brand-600 shrink-0" weight="duotone" />;
-      case "visa":
-        return <IdentificationCard size={24} className="text-brand-600 shrink-0" weight="duotone" />;
-      default:
-        return <FileText size={24} className="text-brand-600 shrink-0" weight="duotone" />;
+  const getDocIcon = (category?: string | null, size: number = 24) => {
+    const cat = (category || "").toLowerCase();
+    if (["flight", "ticket", "tiket", "boarding"].includes(cat)) {
+      return <AirplaneTilt size={size} className="text-sky-600 shrink-0" weight="duotone" />;
     }
+    if (["hotel", "penginapan", "stay", "resort"].includes(cat)) {
+      return <HouseLine size={size} className="text-amber-600 shrink-0" weight="duotone" />;
+    }
+    if (["insurance", "asuransi", "polis"].includes(cat)) {
+      return <ShieldCheck size={size} className="text-teal-600 shrink-0" weight="duotone" />;
+    }
+    if (["visa", "paspor", "passport"].includes(cat)) {
+      return <IdentificationCard size={size} className="text-emerald-600 shrink-0" weight="duotone" />;
+    }
+    if (["identity", "ktp", "sim", "id"].includes(cat)) {
+      return <IdentificationCard size={size} className="text-indigo-600 shrink-0" weight="duotone" />;
+    }
+    return <FileText size={size} className="text-stone-600 shrink-0" weight="duotone" />;
   };
+
+  const filteredDocs = useMemo(() => {
+    if (docCategoryFilter === "all") return docs;
+    return docs.filter((doc) => {
+      const cat = (doc.category || "").toLowerCase();
+      if (docCategoryFilter === "visa") return ["visa", "paspor", "passport"].includes(cat);
+      if (docCategoryFilter === "flight") return ["flight", "ticket", "tiket"].includes(cat);
+      if (docCategoryFilter === "hotel") return ["hotel", "penginapan"].includes(cat);
+      if (docCategoryFilter === "insurance") return ["insurance", "asuransi"].includes(cat);
+      if (docCategoryFilter === "identity") return ["identity", "ktp"].includes(cat);
+      if (docCategoryFilter === "other") return !doc.category || cat === "other" || cat === "lainnya" || Boolean(doc.customCategory);
+      return true;
+    });
+  }, [docs, docCategoryFilter]);
 
   return (
     <div className="flex flex-col h-full overflow-y-auto pb-28 lg:pb-10">
@@ -1446,10 +1570,86 @@ export default function VaultClient({
             <h3 className="text-[15px] font-semibold text-stone-800">Document Vault</h3>
             <span className="text-xs text-stone-500 font-medium">{docs.length} tersimpan</span>
           </div>
-          <p className="text-xs text-stone-500 mb-4">Tickets, bookings &amp; insurance</p>
+          <p className="text-xs text-stone-500 mb-3">Tickets, bookings &amp; travel documents</p>
+
+          {/* Category Filter Chips */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-3 hide-scroll">
+            <button
+              type="button"
+              onClick={() => setDocCategoryFilter("all")}
+              className={clsx(
+                "px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition",
+                docCategoryFilter === "all"
+                  ? "bg-brand-600 text-white shadow-xs"
+                  : "bg-white/70 text-stone-600 hover:bg-stone-100 border border-stone-200/60"
+              )}
+            >
+              Semua ({docs.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setDocCategoryFilter("visa")}
+              className={clsx(
+                "px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition",
+                docCategoryFilter === "visa"
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100/80 border border-emerald-200/60"
+              )}
+            >
+              📄 Visa
+            </button>
+            <button
+              type="button"
+              onClick={() => setDocCategoryFilter("flight")}
+              className={clsx(
+                "px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition",
+                docCategoryFilter === "flight"
+                  ? "bg-sky-600 text-white shadow-xs"
+                  : "bg-sky-50 text-sky-700 hover:bg-sky-100/80 border border-sky-200/60"
+              )}
+            >
+              🎫 Tiket
+            </button>
+            <button
+              type="button"
+              onClick={() => setDocCategoryFilter("hotel")}
+              className={clsx(
+                "px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition",
+                docCategoryFilter === "hotel"
+                  ? "bg-amber-600 text-white shadow-xs"
+                  : "bg-amber-50 text-amber-700 hover:bg-amber-100/80 border border-amber-200/60"
+              )}
+            >
+              🏨 Hotel
+            </button>
+            <button
+              type="button"
+              onClick={() => setDocCategoryFilter("insurance")}
+              className={clsx(
+                "px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition",
+                docCategoryFilter === "insurance"
+                  ? "bg-teal-600 text-white shadow-xs"
+                  : "bg-teal-50 text-teal-700 hover:bg-teal-100/80 border border-teal-200/60"
+              )}
+            >
+              🛡️ Asuransi
+            </button>
+            <button
+              type="button"
+              onClick={() => setDocCategoryFilter("other")}
+              className={clsx(
+                "px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition",
+                docCategoryFilter === "other"
+                  ? "bg-stone-700 text-white shadow-xs"
+                  : "bg-stone-100 text-stone-600 hover:bg-stone-200 border border-stone-200"
+              )}
+            >
+              Lainnya
+            </button>
+          </div>
 
           <ul className="space-y-2.5">
-            {docs.map((doc) => (
+            {filteredDocs.map((doc) => (
               <li
                 key={doc.id}
                 className="group flex min-h-[58px] items-center gap-3 rounded-xl bg-brand-100/70 border border-brand-200/50 px-4 py-2.5 transition hover:bg-brand-100 hover:shadow-sm"
@@ -1466,10 +1666,26 @@ export default function VaultClient({
                   onClick={() => setPreviewDoc(doc)}
                   className="flex-1 min-w-0 cursor-pointer"
                 >
-                  <span className="text-[13px] font-semibold text-stone-800 truncate block hover:text-brand-700 transition">
-                    {doc.title}
-                  </span>
-                  <span className="text-[11px] text-stone-500 font-normal truncate block">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-[13px] font-semibold text-stone-800 truncate hover:text-brand-700 transition">
+                      {doc.title}
+                    </span>
+                    {(() => {
+                      const meta = getDocCategoryMeta(doc.category, doc.customCategory);
+                      if (!meta) return null;
+                      return (
+                        <span
+                          className={clsx(
+                            "inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0",
+                            meta.colorClass
+                          )}
+                        >
+                          {meta.label}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  <span className="text-[11px] text-stone-500 font-normal truncate block mt-0.5">
                     {doc.fileType} · {doc.fileSize} · {doc.fileName}
                   </span>
                 </div>
@@ -1500,9 +1716,11 @@ export default function VaultClient({
               </li>
             ))}
 
-            {docs.length === 0 && (
+            {filteredDocs.length === 0 && (
               <li className="rounded-xl border border-dashed border-stone-200 bg-white/40 p-4 text-center text-xs text-stone-400">
-                Belum ada dokumen yang diunggah.
+                {docCategoryFilter === "all"
+                  ? "Belum ada dokumen yang diunggah."
+                  : `Tidak ada dokumen dalam kategori filter ini.`}
               </li>
             )}
 
@@ -1582,10 +1800,24 @@ export default function VaultClient({
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-[16px] font-bold text-stone-900 leading-tight truncate">
                         {previewDoc.title}
                       </h3>
+                      {(() => {
+                        const meta = getDocCategoryMeta(previewDoc.category, previewDoc.customCategory);
+                        if (!meta) return null;
+                        return (
+                          <span
+                            className={clsx(
+                              "shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border",
+                              meta.colorClass
+                            )}
+                          >
+                            {meta.label}
+                          </span>
+                        );
+                      })()}
                       <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-100 text-brand-700 uppercase">
                         {previewDoc.fileType}
                       </span>
@@ -1824,9 +2056,24 @@ export default function VaultClient({
                         <span className="text-[10.5px] font-bold text-stone-400 uppercase">
                           Kategori Dokumen
                         </span>
-                        <p className="text-stone-800 font-semibold mt-0.5 capitalize">
-                          {previewDoc.category}
-                        </p>
+                        <div className="mt-1">
+                          {(() => {
+                            const meta = getDocCategoryMeta(previewDoc.category, previewDoc.customCategory);
+                            if (meta) {
+                              return (
+                                <span
+                                  className={clsx(
+                                    "inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-full border",
+                                    meta.colorClass
+                                  )}
+                                >
+                                  {meta.label}
+                                </span>
+                              );
+                            }
+                            return <span className="text-stone-500 italic text-[11px]">Tanpa Kategori</span>;
+                          })()}
+                        </div>
                       </div>
                       <div>
                         <span className="text-[10.5px] font-bold text-stone-400 uppercase">
@@ -2097,6 +2344,8 @@ export default function VaultClient({
                     setShowUploadModal(false);
                     setSelectedFile(null);
                     setFileBase64(null);
+                    setNewDocCategory("");
+                    setNewDocCustomCategory("");
                   }}
                   className="grid h-8 w-8 place-items-center rounded-full bg-stone-100 text-stone-500 hover:bg-stone-200 transition shrink-0"
                 >
@@ -2228,22 +2477,93 @@ export default function VaultClient({
                     />
                   </div>
 
-                  {/* Category Selection */}
+                  {/* Category Selection (Optional) */}
                   <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">
-                      Kategori Dokumen
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-semibold text-stone-700">
+                        Kategori Dokumen <span className="text-stone-400 font-normal">(Opsional)</span>
+                      </label>
+                      {newDocCategory && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewDocCategory("");
+                            setNewDocCustomCategory("");
+                          }}
+                          className="text-[11px] text-stone-400 hover:text-stone-600 transition"
+                        >
+                          Hapus Pilihan
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Quick Select Chips */}
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {[
+                        { key: "visa", label: "📄 Visa / Paspor" },
+                        { key: "flight", label: "🎫 Tiket" },
+                        { key: "hotel", label: "🏨 Hotel" },
+                        { key: "insurance", label: "🛡️ Asuransi" },
+                        { key: "identity", label: "🪪 Identitas" },
+                        { key: "custom", label: "✨ Lainnya…" },
+                      ].map((catOption) => {
+                        const isSelected = newDocCategory === catOption.key;
+                        return (
+                          <button
+                            key={catOption.key}
+                            type="button"
+                            onClick={() => {
+                              const next = isSelected ? "" : catOption.key;
+                              setNewDocCategory(next);
+                              if (next !== "custom") setNewDocCustomCategory("");
+                            }}
+                            className={clsx(
+                              "px-2.5 py-1 rounded-xl text-[11px] font-medium transition border flex items-center gap-1",
+                              isSelected
+                                ? "bg-brand-600 text-white border-brand-600 shadow-xs"
+                                : "bg-stone-50 text-stone-600 hover:bg-stone-100 border-stone-200/80"
+                            )}
+                          >
+                            {catOption.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Dropdown for standard selection */}
                     <select
-                      value={newDocCategory}
-                      onChange={(e) => setNewDocCategory(e.target.value as VaultDoc["category"])}
+                      value={newDocCategory || ""}
+                      onChange={(e) => {
+                        setNewDocCategory(e.target.value);
+                        if (e.target.value !== "custom") {
+                          setNewDocCustomCategory("");
+                        }
+                      }}
                       className="h-10 w-full rounded-xl border border-stone-200 bg-white px-3 text-xs text-stone-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
                     >
-                      <option value="flight">Tiket Pesawat / Penerbangan</option>
-                      <option value="hotel">Voucher Booking Hotel</option>
-                      <option value="insurance">Asuransi Perjalanan</option>
-                      <option value="visa">E-Visa / Paspor</option>
-                      <option value="other">Dokumen Lainnya</option>
+                      <option value="">-- Tanpa Kategori (Opsional) --</option>
+                      <option value="visa">Dokumen Visa &amp; Paspor</option>
+                      <option value="flight">Tiket Penerbangan / Kereta / Transportasi</option>
+                      <option value="hotel">Voucher Booking Hotel / Penginapan</option>
+                      <option value="insurance">Polis Asuransi Perjalanan</option>
+                      <option value="identity">Identitas Diri / KTP / SIM</option>
+                      <option value="custom">Kategori Lainnya (Tulis Sendiri)...</option>
                     </select>
+
+                    {/* Custom Category Input if "custom" */}
+                    {newDocCategory === "custom" && (
+                      <div className="mt-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                        <input
+                          type="text"
+                          maxLength={35}
+                          autoFocus
+                          value={newDocCustomCategory}
+                          onChange={(e) => setNewDocCustomCategory(e.target.value)}
+                          placeholder="Masukkan nama kategori (misal: Bukti Vaksin, Surat Tugas)"
+                          className="h-9 w-full rounded-xl border border-purple-200 bg-purple-50/40 px-3 text-xs text-purple-900 placeholder:text-stone-400 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Optional Booking Code & Subtitle */}
@@ -2297,6 +2617,8 @@ export default function VaultClient({
                       setShowUploadModal(false);
                       setSelectedFile(null);
                       setFileBase64(null);
+                      setNewDocCategory("");
+                      setNewDocCustomCategory("");
                     }}
                     className="h-10 px-4 rounded-xl text-stone-600 text-xs font-semibold hover:bg-stone-100 transition"
                   >
