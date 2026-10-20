@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { createClient } from "@/utils/supabase/client";
-import type { Expense, ItineraryDay, Place, Task, Trip, TripMember } from "@/types";
+import type { AgendaPhoto, Expense, ItineraryDay, Place, Task, Trip, TripMember } from "@/types";
 import { canEditTrip, isTripHost } from "@/types";
 import * as Icons from "@phosphor-icons/react";
 import { CATS } from "@/lib/dummyData";
@@ -31,6 +31,7 @@ import FreeMapLocationPicker, {
 import TripSwitcher from "@/components/TripSwitcher";
 import UserProfileMenu from "@/components/UserProfileMenu";
 import AiExtractItineraryModal from "@/components/AiExtractItineraryModal";
+import AgendaPhotoAlbumModal from "@/components/AgendaPhotoAlbumModal";
 
 // Dynamically resolve Phosphor icon by name
 function PhIcon({
@@ -153,7 +154,24 @@ export default function ItineraryClient({
 
   const [mounted, setMounted] = useState(false);
   const [isAiExtractModalOpen, setIsAiExtractModalOpen] = useState(false);
-  const [days, setDays] = useState<DayWithPlaces[]>(initialDays);
+  const [days, setDays] = useState<DayWithPlaces[]>(() => {
+    if (typeof window !== "undefined") {
+      return initialDays.map((d) => ({
+        ...d,
+        places: d.places.map((p) => {
+          if (p.photos_json && p.photos_json.length > 0) return p;
+          try {
+            const saved = localStorage.getItem(`kembara_place_photos_${p.id}`);
+            if (saved) {
+              return { ...p, photos_json: JSON.parse(saved) };
+            }
+          } catch {}
+          return p;
+        }),
+      }));
+    }
+    return initialDays;
+  });
   const [selectedDayIdx, setSelectedDayIdx] = useState<number>(() =>
     getInitialDayIndex(initialDays)
   );
@@ -174,7 +192,22 @@ export default function ItineraryClient({
   // Sync local days state whenever initialDays prop updates from server
   useEffect(() => {
     if (initialDays) {
-      setDays(initialDays);
+      const hydrated = initialDays.map((d) => ({
+        ...d,
+        places: d.places.map((p) => {
+          if (p.photos_json && p.photos_json.length > 0) return p;
+          if (typeof window !== "undefined") {
+            try {
+              const saved = localStorage.getItem(`kembara_place_photos_${p.id}`);
+              if (saved) {
+                return { ...p, photos_json: JSON.parse(saved) };
+              }
+            } catch {}
+          }
+          return p;
+        }),
+      }));
+      setDays(hydrated);
     }
   }, [initialDays]);
 
@@ -287,6 +320,68 @@ export default function ItineraryClient({
     category?: string | null;
   } | null>(null);
   const [previewZoom, setPreviewZoom] = useState<number>(1);
+
+  // Agenda Photo Album Modal (Instagram Style)
+  const [albumPlace, setAlbumPlace] = useState<Place | null>(null);
+
+  const handleUpdatePlacePhotos = useCallback(
+    async (placeId: string, updatedPhotos: AgendaPhoto[]) => {
+      // 1. Optimistic update in state
+      setDays((prevDays) =>
+        prevDays.map((d) => ({
+          ...d,
+          places: d.places.map((p) => {
+            if (p.id !== placeId) return p;
+            return {
+              ...p,
+              photos_json: updatedPhotos,
+              thumbnail_url:
+                p.thumbnail_url || (updatedPhotos.length > 0 ? updatedPhotos[0].url : null),
+            };
+          }),
+        }))
+      );
+
+      // 2. Keep active albumPlace in sync
+      setAlbumPlace((prev) =>
+        prev && prev.id === placeId
+          ? {
+              ...prev,
+              photos_json: updatedPhotos,
+              thumbnail_url:
+                prev.thumbnail_url || (updatedPhotos.length > 0 ? updatedPhotos[0].url : null),
+            }
+          : prev
+      );
+
+      // 3. Save to localStorage fallback
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(`kembara_place_photos_${placeId}`, JSON.stringify(updatedPhotos));
+        } catch {}
+      }
+
+      // 4. Update Supabase
+      try {
+        const supabase = createClient();
+        const updatePayload: Record<string, any> = {
+          photos_json: updatedPhotos,
+        };
+        const currentPlace = days.flatMap((d) => d.places).find((p) => p.id === placeId);
+        if (!currentPlace?.thumbnail_url && updatedPhotos.length > 0) {
+          updatePayload.thumbnail_url = updatedPhotos[0].url;
+        }
+
+        const { error } = await supabase.from("places").update(updatePayload).eq("id", placeId);
+        if (error) {
+          console.warn("Update places photos_json error:", error.message);
+        }
+      } catch (err) {
+        console.warn("Exception updating photos_json:", err);
+      }
+    },
+    [days]
+  );
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -1784,34 +1879,42 @@ export default function ItineraryClient({
                         </div>
                       </div>
 
-                      {p.thumbnail_url && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPreviewZoom(1);
-                            setPreviewImage({
-                              url: p.thumbnail_url!,
-                              title: p.name,
-                              category: p.category,
-                            });
-                          }}
-                          className="group/thumb relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-stone-200/80 shadow-xs hover:shadow-md transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-stone-100 cursor-pointer"
-                          title="Klik untuk melihat foto agenda"
-                        >
-                          <img
-                            src={p.thumbnail_url}
-                            alt={p.name}
-                            className="h-full w-full object-cover group-hover/thumb:scale-110 transition-transform duration-300"
-                          />
-                          <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/30 transition-colors flex items-center justify-center">
-                            <Icons.MagnifyingGlassPlus
-                              size={18}
-                              weight="bold"
-                              className="text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity drop-shadow-md"
-                            />
-                          </div>
-                        </button>
-                      )}
+                      {/* Thumbnail or Album Photo Preview */}
+                      {(() => {
+                        const photoCount = (p.photos_json || []).length;
+                        const displayImg = p.thumbnail_url || (photoCount > 0 ? p.photos_json![0].url : null);
+
+                        if (displayImg) {
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => setAlbumPlace(p)}
+                              className="group/thumb relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-stone-200/80 shadow-xs hover:shadow-md transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-stone-100 cursor-pointer"
+                              title={`Buka Album Foto Agenda (${photoCount} foto)`}
+                            >
+                              <img
+                                src={displayImg}
+                                alt={p.name}
+                                className="h-full w-full object-cover group-hover/thumb:scale-110 transition-transform duration-300"
+                              />
+                              {photoCount > 0 && (
+                                <span className="absolute top-1 right-1 bg-black/60 backdrop-blur-xs text-white text-[9.5px] font-bold px-1.5 py-0.2 rounded-md shadow-xs flex items-center gap-0.5">
+                                  <Icons.Camera size={10} weight="fill" />
+                                  {photoCount}
+                                </span>
+                              )}
+                              <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/35 transition-colors flex items-center justify-center">
+                                <Icons.Images
+                                  size={18}
+                                  weight="bold"
+                                  className="text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity drop-shadow-md"
+                                />
+                              </div>
+                            </button>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
 
                     {/* ================= TOTAL EXPENSE SUMMARY (ONLY WHEN > 0) ================= */}
@@ -1915,31 +2018,47 @@ export default function ItineraryClient({
                       </div>
                     ) : null}
 
-                    {/* ================= QUICK ADD ACTIONS: (+ Tambah Catatan / + Tambah Pengeluaran) ================= */}
-                    {canEdit && (!p.notes || expensesList.length === 0) && !isEditingNote && (
-                      <div className="mt-3 flex items-center gap-2 flex-wrap">
-                        {!p.notes && (
-                          <button
-                            type="button"
-                            onClick={() => handleStartEditNote(p)}
-                            className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-600 hover:text-brand-600 bg-stone-50 hover:bg-brand-50 border border-stone-200/70 hover:border-brand-200 px-3 py-1.5 rounded-xl transition active:scale-95"
-                          >
-                            <Icons.NotePencil size={13} className="text-brand-600" />
-                            <span>Tambah Catatan</span>
-                          </button>
-                        )}
-                        {expensesList.length === 0 && (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenExpenseModal(p)}
-                            className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-600 hover:text-emerald-700 bg-stone-50 hover:bg-emerald-50 border border-stone-200/70 hover:border-emerald-200 px-3 py-1.5 rounded-xl transition active:scale-95"
-                          >
-                            <Icons.Wallet size={13} className="text-emerald-600" />
-                            <span>Tambah Pengeluaran</span>
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    {/* ================= QUICK ACTIONS: (📸 Album Foto / + Tambah Catatan / + Tambah Pengeluaran) ================= */}
+                    <div className="mt-3 flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setAlbumPlace(p)}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:text-brand-800 bg-brand-50/80 hover:bg-brand-100/80 border border-brand-200/80 px-2.5 py-1.5 rounded-xl transition active:scale-95 shadow-xs"
+                        title="Buka Album Foto Agenda (Instagram Style)"
+                      >
+                        <Icons.Camera size={14} weight="fill" className="text-brand-600" />
+                        <span>
+                          {(p.photos_json || []).length > 0
+                            ? `Album Foto (${p.photos_json!.length})`
+                            : "Album Foto"}
+                        </span>
+                      </button>
+
+                      {canEdit && (!p.notes || expensesList.length === 0) && !isEditingNote && (
+                        <>
+                          {!p.notes && (
+                            <button
+                              type="button"
+                              onClick={() => handleStartEditNote(p)}
+                              className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-600 hover:text-brand-600 bg-stone-50 hover:bg-brand-50 border border-stone-200/70 hover:border-brand-200 px-3 py-1.5 rounded-xl transition active:scale-95"
+                            >
+                              <Icons.NotePencil size={13} className="text-brand-600" />
+                              <span>Tambah Catatan</span>
+                            </button>
+                          )}
+                          {expensesList.length === 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenExpenseModal(p)}
+                              className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-600 hover:text-emerald-700 bg-stone-50 hover:bg-emerald-50 border border-stone-200/70 hover:border-emerald-200 px-3 py-1.5 rounded-xl transition active:scale-95"
+                            >
+                              <Icons.Wallet size={13} className="text-emerald-600" />
+                              <span>Tambah Pengeluaran</span>
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
 
                     {/* Task Toggle & Management */}
                     <div className="mt-3 border-t border-stone-100 pt-3">
@@ -3005,6 +3124,19 @@ export default function ItineraryClient({
           refreshItinerary();
         }}
       />
+
+      {/* ================= MODAL: AGENDA PHOTO ALBUM (INSTAGRAM-STYLE) ================= */}
+      {albumPlace && (
+        <AgendaPhotoAlbumModal
+          isOpen={Boolean(albumPlace)}
+          onClose={() => setAlbumPlace(null)}
+          place={albumPlace}
+          trip={trip}
+          user={user}
+          tripMembers={membersList}
+          onUpdatePlacePhotos={handleUpdatePlacePhotos}
+        />
+      )}
     </div>
   );
 }

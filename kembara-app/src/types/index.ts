@@ -81,6 +81,32 @@ export interface Task {
   subtasks?: Subtask[];
 }
 
+export interface PhotoComment {
+  id: string;
+  photo_id: string;
+  parent_id?: string | null; // For threaded Instagram-style replies
+  user_id: string;
+  user_name: string;
+  user_avatar?: string | null;
+  text: string;
+  reply_to_name?: string | null; // e.g. "@Ahmad"
+  created_at: string;
+}
+
+export interface AgendaPhoto {
+  id: string;
+  place_id: string;
+  url: string;
+  caption?: string | null;
+  created_by: string;
+  created_by_name: string;
+  created_by_avatar?: string | null;
+  created_at: string;
+  file_size?: number; // compressed size in bytes
+  likes?: string[]; // user_ids who liked this photo
+  comments: PhotoComment[];
+}
+
 export interface Place {
   id: string;
   day_id: string;
@@ -95,6 +121,7 @@ export interface Place {
   thumbnail_url: string | null;
   notes?: string | null;
   tasks_json: Task[];
+  photos_json?: AgendaPhoto[];
   expenses?: Expense[];
   sort_order: number;
   created_at: string;
