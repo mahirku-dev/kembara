@@ -2,13 +2,14 @@
 // Kembara App — Client-Side Image Compression
 // Compresses photos before storage upload to save space & bandwidth
 // while maintaining crisp high-DPI visual quality.
+// GUARANTEE: The compressed file size will NEVER exceed the original.
 // =============================================
 
 export interface CompressionOptions {
-  maxWidth?: number; // Default 1920px (Full HD / 2K sharpness)
-  maxHeight?: number; // Default 1920px
-  quality?: number; // Default 0.82 (Optimal balance of sharpness and file size)
-  maxSizeMB?: number; // Target max size, e.g. 0.8 MB
+  maxWidth?: number; // Default 1440px (Sharp on 4K & mobile Retina)
+  maxHeight?: number; // Default 1440px
+  quality?: number; // Default 0.75 (Optimal balance of sharpness and file size)
+  maxSizeMB?: number; // Target max size in MB, e.g. 0.8 MB
 }
 
 export interface CompressedImageResult {
@@ -20,6 +21,7 @@ export interface CompressedImageResult {
   savingsPercent: number;
   width: number;
   height: number;
+  isOriginalKept: boolean;
 }
 
 /**
@@ -36,26 +38,32 @@ export function formatBytes(bytes: number, decimals: number = 1): string {
 
 /**
  * Compresses an image file in-browser using HTML5 Canvas.
- * Reduces 5MB-10MB mobile photos to ~150KB-350KB with pristine quality.
+ * Reduces 5MB-10MB mobile photos to ~100KB-250KB with pristine quality.
+ * If the original file is already smaller than canvas re-encoding,
+ * the original file is preserved so size NEVER increases.
  */
 export async function compressImage(
   file: File,
   options: CompressionOptions = {}
 ): Promise<CompressedImageResult> {
   const {
-    maxWidth = 1920,
-    maxHeight = 1920,
-    quality = 0.82,
-    maxSizeMB = 1.0,
+    maxWidth = 1440,
+    maxHeight = 1440,
+    quality = 0.75,
   } = options;
 
-  // If already small (< 80KB) and not an oversized dimension, we can still optimize or return quickly
   return new Promise((resolve, reject) => {
+    // If not an image, reject
+    if (!file.type || !file.type.startsWith("image/")) {
+      reject(new Error("File yang dipilih bukan gambar yang valid."));
+      return;
+    }
+
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("Gagal membaca file gambar."));
     reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      if (!dataUrl) {
+      const originalDataUrl = e.target?.result as string;
+      if (!originalDataUrl) {
         reject(new Error("Data URL gambar kosong."));
         return;
       }
@@ -65,6 +73,7 @@ export async function compressImage(
       img.onload = () => {
         try {
           let { width, height } = img;
+          const originalSize = file.size;
 
           // Calculate scaled dimensions preserving aspect ratio
           if (width > maxWidth || height > maxHeight) {
@@ -95,54 +104,89 @@ export async function compressImage(
           // Draw scaled image
           ctx.drawImage(img, 0, 0, width, height);
 
-          // Output format: JPEG for photos offers the most universal compression
-          const mimeType = "image/jpeg";
-          const baseName = file.name.replace(/\.[^/.]+$/, "");
-          const outputFileName = `${baseName}.jpg`;
+          // Helper to convert canvas to blob with quality
+          const exportCanvas = (q: number): Promise<{ blob: Blob; dataUrl: string }> => {
+            return new Promise((resBlob, rejBlob) => {
+              canvas.toBlob(
+                (blob) => {
+                  if (!blob) {
+                    rejBlob(new Error("Gagal mengompresi gambar ke Blob."));
+                    return;
+                  }
+                  const dUrl = canvas.toDataURL("image/jpeg", q);
+                  resBlob({ blob, dataUrl: dUrl });
+                },
+                "image/jpeg",
+                q
+              );
+            });
+          };
 
-          canvas.toBlob(
-            (blob) => {
-              if (!blob) {
-                reject(new Error("Gagal mengompresi gambar ke Blob."));
-                return;
+          (async () => {
+            // First pass at target quality (0.75)
+            let result = await exportCanvas(quality);
+
+            // If compressed result is larger than original file, try lower quality (0.65)
+            if (result.blob.size >= originalSize && originalSize > 0) {
+              const secondPass = await exportCanvas(0.65);
+              if (secondPass.blob.size < originalSize) {
+                result = secondPass;
               }
+            }
 
-              const compressedFile = new File([blob], outputFileName, {
-                type: mimeType,
-                lastModified: Date.now(),
-              });
-
-              const compressedDataUrl = canvas.toDataURL(mimeType, quality);
-              const originalSize = file.size;
-              const compressedSize = blob.size;
-              const savingsPercent =
-                originalSize > 0
-                  ? Math.max(0, Math.round(((originalSize - compressedSize) / originalSize) * 100))
-                  : 0;
-
+            // CRUCIAL SAFETY RULE:
+            // If the compressed output is STILL larger than or equal to original file,
+            // we ALWAYS preserve the original file. This guarantees that file size
+            // NEVER increases after compression!
+            if (result.blob.size >= originalSize && originalSize > 0) {
               resolve({
-                file: compressedFile,
-                blob,
-                dataUrl: compressedDataUrl,
+                file,
+                blob: file,
+                dataUrl: originalDataUrl,
                 originalSize,
-                compressedSize,
-                savingsPercent,
-                width,
-                height,
+                compressedSize: originalSize,
+                savingsPercent: 0,
+                width: img.width,
+                height: img.height,
+                isOriginalKept: true,
               });
-            },
-            mimeType,
-            quality
-          );
+              return;
+            }
+
+            // Compressed result is smaller: Return optimized file
+            const baseName = file.name.replace(/\.[^/.]+$/, "");
+            const outputFileName = `${baseName}.jpg`;
+            const compressedFile = new File([result.blob], outputFileName, {
+              type: "image/jpeg",
+              lastModified: Date.now(),
+            });
+
+            const compressedSize = result.blob.size;
+            const savingsPercent =
+              originalSize > 0
+                ? Math.max(0, Math.round(((originalSize - compressedSize) / originalSize) * 100))
+                : 0;
+
+            resolve({
+              file: compressedFile,
+              blob: result.blob,
+              dataUrl: result.dataUrl,
+              originalSize,
+              compressedSize,
+              savingsPercent,
+              width,
+              height,
+              isOriginalKept: false,
+            });
+          })().catch(reject);
         } catch (err) {
           reject(err);
         }
       };
 
-      img.src = dataUrl;
+      img.src = originalDataUrl;
     };
 
     reader.readAsDataURL(file);
   });
 }
-

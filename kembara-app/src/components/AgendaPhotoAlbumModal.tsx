@@ -30,6 +30,7 @@ import {
   MagnifyingGlassPlus,
   MagnifyingGlassMinus,
   Sparkle,
+  SquaresFour,
 } from "@phosphor-icons/react";
 
 interface AgendaPhotoAlbumModalProps {
@@ -151,11 +152,11 @@ export default function AgendaPhotoAlbumModal({
           continue;
         }
 
-        // Compress client-side with canvas
+        // Compress client-side with canvas (intelligent multi-pass, never exceeds original size)
         const result = await compressImage(file, {
-          maxWidth: 1920,
-          maxHeight: 1920,
-          quality: 0.82,
+          maxWidth: 1440,
+          maxHeight: 1440,
+          quality: 0.75,
         });
 
         compressedResults.push({
@@ -511,8 +512,8 @@ export default function AgendaPhotoAlbumModal({
                           alt="preview"
                           className="h-full w-full object-cover"
                         />
-                        <span className="absolute bottom-1 right-1 bg-black/70 text-white text-[9px] font-bold px-1 rounded">
-                          -{preview.savingsPercent}%
+                        <span className="absolute bottom-1 right-1 bg-black/75 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-xs">
+                          {preview.savingsPercent > 0 ? `-${preview.savingsPercent}%` : "Optimal"}
                         </span>
                       </div>
 
@@ -520,7 +521,22 @@ export default function AgendaPhotoAlbumModal({
                         <div>
                           <div className="flex items-center justify-between text-[11px] text-stone-500">
                             <span className="font-semibold text-stone-800 truncate">
-                              {formatBytes(preview.originalSize)} ➔ {formatBytes(preview.compressedSize)}
+                              {preview.savingsPercent > 0 ? (
+                                <>
+                                  {formatBytes(preview.originalSize)} ➔{" "}
+                                  <span className="text-emerald-600 font-bold">
+                                    {formatBytes(preview.compressedSize)}
+                                  </span>{" "}
+                                  <span className="text-emerald-600 font-bold">
+                                    (-{preview.savingsPercent}%)
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>{formatBytes(preview.originalSize)}</span>{" "}
+                                  <span className="text-brand-600 font-semibold">(Sudah Optimal)</span>
+                                </>
+                              )}
                             </span>
                             <button
                               type="button"
@@ -608,63 +624,95 @@ export default function AgendaPhotoAlbumModal({
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-3.5">
-                {photos.map((photo) => {
-                  const likesCount = (photo.likes || []).length;
-                  const commentsCount = (photo.comments || []).length;
-                  const isLikedByMe = user?.id && (photo.likes || []).includes(user.id);
+              <div className="space-y-3">
+                {/* Instagram Style Sub-header Tab */}
+                <div className="flex items-center justify-center border-b border-stone-100 pb-2.5 mb-2">
+                  <div className="flex items-center gap-2 text-[11px] sm:text-xs font-bold uppercase tracking-wider text-stone-900 border-b-2 border-stone-900 pb-2 -mb-2.5">
+                    <SquaresFour size={16} weight="bold" />
+                    <span>POSTINGAN ({photos.length})</span>
+                  </div>
+                </div>
 
-                  return (
-                    <div
-                      key={photo.id}
-                      onClick={() => {
-                        setActivePhoto(photo);
-                        setPhotoZoom(1);
-                        setReplyingTo(null);
-                        setCommentText("");
-                      }}
-                      className="group relative aspect-square rounded-2xl overflow-hidden bg-stone-100 border border-stone-200/80 cursor-pointer shadow-xs hover:shadow-md transition-all active:scale-[0.98]"
-                    >
-                      <img
-                        src={photo.url}
-                        alt={photo.caption || "Agenda Photo"}
-                        loading="lazy"
-                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
+                {/* Instagram 3-Column Grid */}
+                <div className="grid grid-cols-3 gap-1 sm:gap-1.5 md:gap-2">
+                  {photos.map((photo) => {
+                    const likesCount = (photo.likes || []).length;
+                    const commentsCount = (photo.comments || []).length;
+                    const isLikedByMe = user?.id && (photo.likes || []).includes(user.id);
 
-                      {/* Instagram Hover Overlay */}
-                      <div className="absolute inset-0 bg-stone-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2.5 text-white">
-                        <div className="flex items-center justify-between text-[10px] text-white/90">
-                          <span className="font-semibold truncate max-w-[80px]">
-                            {photo.created_by_name}
-                          </span>
-                          <span>{formatTimeAgo(photo.created_at)}</span>
+                    return (
+                      <div
+                        key={photo.id}
+                        onClick={() => {
+                          setActivePhoto(photo);
+                          setPhotoZoom(1);
+                          setReplyingTo(null);
+                          setCommentText("");
+                        }}
+                        className="group relative aspect-square rounded-lg sm:rounded-xl overflow-hidden bg-stone-100 border border-stone-200/60 cursor-pointer shadow-2xs hover:shadow-md transition-all active:scale-[0.98]"
+                      >
+                        <img
+                          src={photo.url}
+                          alt={photo.caption || "Agenda Photo"}
+                          loading="lazy"
+                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+
+                        {/* Instagram Hover Overlay */}
+                        <div className="absolute inset-0 bg-stone-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2 sm:p-2.5 text-white">
+                          <div className="flex items-center justify-between text-[10px] text-white/90">
+                            <span className="font-semibold truncate max-w-[80px]">
+                              {photo.created_by_name}
+                            </span>
+                            <span className="hidden sm:inline">{formatTimeAgo(photo.created_at)}</span>
+                          </div>
+
+                          <div className="flex items-center justify-center gap-3 sm:gap-4 text-xs font-bold">
+                            <span className="flex items-center gap-1">
+                              <Heart
+                                size={15}
+                                weight={isLikedByMe ? "fill" : "fill"}
+                                className={isLikedByMe ? "text-rose-500" : "text-white"}
+                              />
+                              {likesCount}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <ChatCircle size={15} weight="fill" className="text-white" />
+                              {commentsCount}
+                            </span>
+                          </div>
+
+                          {photo.caption ? (
+                            <p className="text-[10px] text-white/90 truncate leading-tight hidden sm:block">
+                              {photo.caption}
+                            </p>
+                          ) : (
+                            <div />
+                          )}
                         </div>
-
-                        <div className="flex items-center justify-center gap-4 text-xs font-bold">
-                          <span className="flex items-center gap-1">
-                            <Heart
-                              size={15}
-                              weight={isLikedByMe ? "fill" : "fill"}
-                              className={isLikedByMe ? "text-rose-500" : "text-white"}
-                            />
-                            {likesCount}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <ChatCircle size={15} weight="fill" className="text-white" />
-                            {commentsCount}
-                          </span>
-                        </div>
-
-                        {photo.caption && (
-                          <p className="text-[10px] text-white/90 truncate leading-tight">
-                            {photo.caption}
-                          </p>
-                        )}
                       </div>
+                    );
+                  })}
+
+                  {/* Instagram "+ Tambah Foto" Tile in Grid */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowUploadForm(true);
+                      setUploadPreviews([]);
+                      setUploadError(null);
+                    }}
+                    className="group aspect-square rounded-lg sm:rounded-xl border-2 border-dashed border-stone-200 hover:border-brand-400 bg-stone-50/70 hover:bg-brand-50/40 transition-all flex flex-col items-center justify-center text-center p-2 cursor-pointer active:scale-95"
+                    title="Tambah Foto ke Album"
+                  >
+                    <div className="grid h-9 w-9 sm:h-11 sm:w-11 place-items-center rounded-xl bg-white text-stone-400 group-hover:text-brand-600 border border-stone-200/80 group-hover:border-brand-200 shadow-xs mb-1 transition-colors">
+                      <UploadSimple size={18} weight="bold" />
                     </div>
-                  );
-                })}
+                    <span className="text-[10px] sm:text-[11px] font-bold text-stone-500 group-hover:text-brand-700">
+                      Tambah Foto
+                    </span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
