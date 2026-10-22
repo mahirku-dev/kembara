@@ -93,10 +93,22 @@ export interface PhotoComment {
   created_at: string;
 }
 
+export type MediaType = "image" | "video" | "instagram" | "youtube";
+
+export interface CarouselMediaItem {
+  id: string;
+  url: string;
+  media_type: MediaType;
+  thumbnail_url?: string;
+}
+
 export interface AgendaPhoto {
   id: string;
   place_id: string;
   url: string;
+  media_type?: MediaType;
+  thumbnail_url?: string;
+  carousel_items?: CarouselMediaItem[];
   caption?: string | null;
   created_by: string;
   created_by_name: string;

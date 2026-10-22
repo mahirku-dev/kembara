@@ -1882,24 +1882,40 @@ export default function ItineraryClient({
                       {/* Thumbnail or Album Photo Preview */}
                       {(() => {
                         const photoCount = (p.photos_json || []).length;
-                        const displayImg = p.thumbnail_url || (photoCount > 0 ? p.photos_json![0].url : null);
+                        const firstPhoto = photoCount > 0 ? p.photos_json![0] : null;
+                        const isInstagram = firstPhoto?.media_type === "instagram";
+                        const displayImg =
+                          p.thumbnail_url ||
+                          (firstPhoto
+                            ? firstPhoto.thumbnail_url || (!isInstagram ? firstPhoto.url : null)
+                            : null);
 
-                        if (displayImg) {
+                        if (displayImg || isInstagram) {
                           return (
                             <button
                               type="button"
                               onClick={() => setAlbumPlace(p)}
                               className="group/thumb relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-stone-200/80 shadow-xs hover:shadow-md transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-stone-100 cursor-pointer"
-                              title={`Buka Album Foto Agenda (${photoCount} foto)`}
+                              title={`Buka Album Foto Agenda (${photoCount} postingan)`}
                             >
-                              <img
-                                src={displayImg}
-                                alt={p.name}
-                                className="h-full w-full object-cover group-hover/thumb:scale-110 transition-transform duration-300"
-                              />
+                              {displayImg ? (
+                                <img
+                                  src={displayImg}
+                                  alt={p.name}
+                                  className="h-full w-full object-cover group-hover/thumb:scale-110 transition-transform duration-300"
+                                />
+                              ) : (
+                                <div className="h-full w-full bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 flex flex-col items-center justify-center text-white p-1">
+                                  <Icons.InstagramLogo size={24} weight="fill" />
+                                </div>
+                              )}
                               {photoCount > 0 && (
                                 <span className="absolute top-1 right-1 bg-black/60 backdrop-blur-xs text-white text-[9.5px] font-bold px-1.5 py-0.2 rounded-md shadow-xs flex items-center gap-0.5">
-                                  <Icons.Camera size={10} weight="fill" />
+                                  {isInstagram ? (
+                                    <Icons.InstagramLogo size={10} weight="fill" className="text-pink-300" />
+                                  ) : (
+                                    <Icons.Camera size={10} weight="fill" />
+                                  )}
                                   {photoCount}
                                 </span>
                               )}
